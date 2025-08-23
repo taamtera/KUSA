@@ -38,7 +38,7 @@ To get started with the project, follow these steps:
    Start the frontend development server:
    ```bash
    cd frontend
-   npm start
+   npm run dev
    ```
 
 5. **Access the application**:
