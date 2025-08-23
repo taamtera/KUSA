@@ -42,18 +42,29 @@ app.get('/', async (req, res) => {
 //     res.sendStatus(204);
 // });
 
+// Keep db_status accurate on connection state changes
+mongoose.connection.on('connected', () => {
+    console.log('MongoDB connected');
+    db_status = true;
+});
+mongoose.connection.on('disconnected', () => {
+    console.warn('MongoDB disconnected');
+    db_status = false;
+    setTimeout(connectWithRetry, 50000);
+});
+
 const connectWithRetry = async () => {
-    app.listen(PORT, console.log(`Backend running on port ${PORT}`));
-    // mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
-    // .then(() => {
-    //     console.log('MongoDB connected')
-    //     db_status = true;
-    // })
-    // .catch(err => {
-    //     console.error('MongoDB connection error. Retrying in 50s...', err.message);
-    //     setTimeout(connectWithRetry, 50000);
-    //     db_status = false;
-    // });
+    console.log('Trying to connect to MongoDB...');
+    try {
+        await mongoose.connect(mongoURL);
+    } catch (err) {
+        console.error('MongoDB connection error. Retrying in 50s...', err.message);
+        setTimeout(connectWithRetry, 50000);
+    }
 };
 
+// Start the HTTP server once
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+
+// Initialize DB connection (with retry)
 connectWithRetry();
