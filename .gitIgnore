@@ -4,3 +4,4 @@
 ./frontend/.env
 ./node_modules
 ./mongod-data/
+**/.DS_Store

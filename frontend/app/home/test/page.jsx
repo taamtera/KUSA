@@ -1,8 +1,7 @@
-
+import { Button } from "@/components/ui/button"
 export default HomeTest;
 function HomeTest() {
-
   return (
-   <>HomeTest</>
-  );
+      <Button>Button</Button>
+  )
 }
