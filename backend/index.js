@@ -22,27 +22,33 @@ app.get('/', async (req, res) => {
     res.send(data);
 });
 
+// get DATA FROM BACKEND TO FRONTEND
 // app.get('/tasks', async (req, res) => {
 //     const tasks = await Task.find();
 //     res.json(tasks);
 // });
 
+// post DATA FROM FRONTEND TO BACKEND (SAVE)
 // app.post('/tasks', async (req, res) => {
 //     const task = await Task.create(req.body);
 //     res.json(task);
 // });
 
+// putDATA FROM FRONTEND TO BACKEND (UPDATE)
 // app.put('/tasks/:id', async (req, res) => {
 //     const task = await Task.findByIdAndUpdate(req.params.id, req.body);
 //     res.json(task);
 // });
 
+// WILL NOT BE USING DELTE
+// instead use "active" flag to remove data
 // app.delete('/tasks/:id', async (req, res) => {
 //     await Task.findByIdAndDelete(req.params.id);
 //     res.sendStatus(204);
 // });
 
 function InitializeDatabaseStructures() {
+    
 
 }
 
