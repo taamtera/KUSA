@@ -42,10 +42,16 @@ app.get('/', async (req, res) => {
 //     res.sendStatus(204);
 // });
 
+function InitializeDatabaseStructures() {
+
+}
+
 // Keep db_status accurate on connection state changes
 mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
+    // check if there are any databse structures needed and create them if not
+    InitializeDatabaseStructures();
 });
 mongoose.connection.on('disconnected', () => {
     console.warn('MongoDB disconnected');
