@@ -19,7 +19,25 @@ let db_status = false;
 app.get('/', async (req, res) => {
     console.log("Health check received");
     let data = { backend: true, database: db_status };
+    // let data = { profile: {username: "name", image: "asd.png"}}
     res.send(data);
+});
+
+app.get('/profile/:id', async (req, res) => {
+    console.log("Health check received");
+    let data = { profile: {username: "name", image: "asd.png", id: req.params.id}}
+    res.send(data);
+});
+
+// post DATA FROM FRONTEND TO BACKEND (SAVE)
+app.post('/login', async (req, res) => {
+    // const task = await Task.create(req.body);
+    if (req.body.username == "name" && req.body.password == "password") {
+        console.log(req.body);
+        res.send(200)
+    } else {
+        res.status(400).send('400 - Try new username or password');
+    }
 });
 
 // get DATA FROM BACKEND TO FRONTEND
