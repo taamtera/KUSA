@@ -19,33 +19,63 @@ let db_status = false;
 app.get('/', async (req, res) => {
     console.log("Health check received");
     let data = { backend: true, database: db_status };
+    // let data = { profile: {username: "name", image: "asd.png"}}
     res.send(data);
 });
 
+app.get('/profile/:id', async (req, res) => {
+    console.log("Health check received");
+    let data = { profile: {username: "name", image: "asd.png", id: req.params.id}}
+    res.send(data);
+});
+
+// post DATA FROM FRONTEND TO BACKEND (SAVE)
+app.post('/login', async (req, res) => {
+    // const task = await Task.create(req.body);
+    if (req.body.username == "name" && req.body.password == "password") {
+        console.log(req.body);
+        res.send(200)
+    } else {
+        res.status(400).send('400 - Try new username or password');
+    }
+});
+
+// get DATA FROM BACKEND TO FRONTEND
 // app.get('/tasks', async (req, res) => {
 //     const tasks = await Task.find();
 //     res.json(tasks);
 // });
 
+// post DATA FROM FRONTEND TO BACKEND (SAVE)
 // app.post('/tasks', async (req, res) => {
 //     const task = await Task.create(req.body);
 //     res.json(task);
 // });
 
+// putDATA FROM FRONTEND TO BACKEND (UPDATE)
 // app.put('/tasks/:id', async (req, res) => {
 //     const task = await Task.findByIdAndUpdate(req.params.id, req.body);
 //     res.json(task);
 // });
 
+// WILL NOT BE USING DELTE
+// instead use "active" flag to remove data
 // app.delete('/tasks/:id', async (req, res) => {
 //     await Task.findByIdAndDelete(req.params.id);
 //     res.sendStatus(204);
 // });
 
+function InitializeDatabaseStructures() {
+    
+
+}
+
 // Keep db_status accurate on connection state changes
 mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
+    // check if there are any databse structures needed and create them if not
+    InitializeDatabaseStructures();
 });
 mongoose.connection.on('disconnected', () => {
     console.warn('MongoDB disconnected');
