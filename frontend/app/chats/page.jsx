@@ -1,4 +1,7 @@
+import { Textarea } from "@/components/ui/textarea"
+
 export default Chat;
 function Chat() {
-    return <div></div>;
+      return <Textarea placeholder="Message" />
+;
 }
