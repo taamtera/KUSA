@@ -1,5 +1,10 @@
-# Getting Started
+Dcoumentation: https://docs.google.com/document/d/107ctLRbL6lt0doACO3nvVeO4VENeTxZsEHmDP970Dw0/edit?usp=sharing
 
+# Introduction
+In modern university environments, students and staff require seamless communication platforms to collaborate, socialize, and share information efficiently. Existing solutions often lack integration, are not tailored for the KU community, or do not provide privacy and role-based access control suitable for academic settings.
+KUSA aims to provide a KU social media and chat platform, allowing users to interact in servers, chat rooms, and private messaging spaces with a focus on usability, privacy, and multimedia support. Additionally, it will integrate academic data such as class schedules and student codes to enhance connectivity and community engagement within Kasetsart University.
+
+# Setup Guide
 To get started with the project, follow these steps:
 
 1. **Clone the repository**:
@@ -44,8 +49,10 @@ To get started with the project, follow these steps:
 5. **Access the application**:
    Open your web browser and go to `http://localhost:3000` to see the frontend in action.
 
+# CI/CD
+###
 
-# Members -
+# Members
 - Taam Paramee
 - Oak Soe Htet
 - Chaiyapat Kumtho
