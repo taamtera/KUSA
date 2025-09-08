@@ -1,23 +1,20 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 
+
 export default function Layout({ children }) {
   return (
-    <SidebarProvider>
-      {/* Sidebar always open on desktop, offcanvas on mobile */}
-      <AppSidebar 
-        className="hidden md:flex" // show inline on desktop
-        collapsible="none"
-        defaultOpen
-      />
-      <AppSidebar 
-        className="flex md:hidden" // offcanvas on mobile
-        collapsible="offcanvas"
-      />
+    <SidebarProvider
+      defaultOpen={true}
+      collapsible="offcanvas"
+      breakpoint="md" // Collapse to offcanvas below md breakpoint
+    >
+      {/* Single sidebar instance */}
+      <AppSidebar />
       
       <main className="flex-1">
-        {/* trigger only needed on mobile */}
-        <div className="md:hidden">
+        {/* Mobile trigger */}
+        <div className="md:hidden p-4">
           <SidebarTrigger />
         </div>
         {children}
