@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+
+const bcrypt = require('bcrypt');
+
 const app = express().use(cors()).use(express.json());
 
 const PORT = 3001;
@@ -30,15 +33,89 @@ app.get('/profile/:id', async (req, res) => {
 });
 
 // post DATA FROM FRONTEND TO BACKEND (SAVE)
-app.post('/login', async (req, res) => {
+app.post('/api/v1/login', async (req, res) => {
     // const task = await Task.create(req.body);
-    if (req.body.username == "name" && req.body.password == "password") {
-        console.log(req.body);
+    console.log(req.body);
+    if (req.body.email == "amornrit.s@ku.th" && req.body.password == "ballkub123") { // check from database
         res.send(200)
     } else {
         res.status(400).send('400 - Try new username or password');
     }
 });
+
+app.post('/api/v1/create_account', async (req, res) => {
+    try {
+        console.log(req.body);
+        const { username, email, password } = req.body;
+
+        // Check if email already exists
+        const existingUser = await monmodel.findOne({ email: email });
+        if (existingUser) {
+            return res.status(409).send("This email has already been registered");
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user
+        const newUser = new monmodel({
+            username: username,
+            email: email,
+            password: hashedPassword
+        });
+
+        await newUser.save();
+        res.send("Account created!");
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server error");
+    }
+});
+
+
+app.get('/api/v1/user/:id', async (req, res) => {
+    console.log("Amogus");
+    let data = {role : "role", description : "description", username : "username", create_at : "create at", id : req.params.id}
+    res.send(data)
+});
+
+app.put('/api/v1/user/:id', async (req, res) => {
+  try {
+    const upid = req.params.id;
+    const { username, password } = req.body;
+
+    // 1. Find user
+    const user = await monmodel.findById(upid);
+    if (!user) return res.status(404).send("User not found");
+
+    // 2. Compare password
+    console.log(user.password);
+    console.log(password);
+    const isMatch = await bcrypt.compare(password, user.password); // temporary
+    console.log(isMatch);
+    if (!isMatch) {
+      return res.status(401).send("Wrong password ❌");
+    }
+
+    // 3. Update username
+    user.username = username;
+    await user.save();
+
+    res.json({ message: "✅ Username updated", user });
+
+  } catch (err) {
+    res.status(400).send("400 - Error: " + err.message);
+  }
+});
+
+
+const sch={
+    username: String,
+    email: String,
+    password: String
+}
+
+const monmodel=mongoose.model("users", sch);
 
 // get DATA FROM BACKEND TO FRONTEND
 // app.get('/tasks', async (req, res) => {
