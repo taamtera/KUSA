@@ -9,6 +9,8 @@ const app = express().use(cors()).use(express.json());
 const PORT = 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 
+const SALT = 10;
+
 let db_status = false;
 
 // //mongose Schema
@@ -26,46 +28,87 @@ app.get('/', async (req, res) => {
     res.send(data);
 });
 
-app.get('/profile/:id', async (req, res) => {
-    console.log("Health check received");
-    let data = { profile: {username: "name", image: "asd.png", id: req.params.id}}
-    res.send(data);
-});
+// app.get('/profile/:id', async (req, res) => {
+//     console.log("Health check received");
+//     let data = { profile: {username: "name", image: "asd.png", id: req.params.id}}
+//     res.send(data);
+// });
 
 // post DATA FROM FRONTEND TO BACKEND (SAVE)
 app.post('/api/v1/login', async (req, res) => {
-    // const task = await Task.create(req.body);
-    console.log(req.body);
-    if (req.body.email == "amornrit.s@ku.th" && req.body.password == "ballkub123") { // check from database
-        res.send(200)
-    } else {
-        res.status(400).send('400 - Try new username or password');
+    try {
+        const { username, password } = req.body;
+
+        // Check if user exists
+        const user = await User.findOne({ username });
+        let isMatch = false;
+
+        if (user) {
+        isMatch = await bcrypt.compare(password, user.password_hash);
+        }
+
+        if (!user || !isMatch) {
+        console.warn(`Login failed for email: ${email}`); // log internally
+        return res.status(401).send("Wrong username or password ❌");
+        }
+
+        // If we get here → login success
+        res.send("✅ Login successful");
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Server error");
     }
 });
 
-app.post('/api/v1/create_account', async (req, res) => {
+
+// CREATE ACCOUNT
+app.post('/api/v1/login/register', async (req, res) => {
     try {
         console.log(req.body);
-        const { username, email, password } = req.body;
+        const { username, email, password, password_confirmation } = req.body;
+        
 
+        // Tell missing required fields
+        const missing = [];
+        if (!username) missing.push("username");
+        if (!email) missing.push("email");
+        if (!password) missing.push("password");
+        if (!password_confirmation) missing.push("password_confirmation");
+
+        if (missing.length > 0) {
+        return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
+        }
+        
         // Check if email already exists
-        const existingUser = await monmodel.findOne({ email: email });
-        if (existingUser) {
-            return res.status(409).send("This email has already been registered");
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail) {
+        return res.status(409).send("This email has already been registered");
+        }
+
+        // Check if username already exists
+        const existingUsername = await User.findOne({ username });
+        if (existingUsername) {
+        return res.status(409).send("This username is already taken");
+        }
+
+        // Check if password and password confirmation match
+        if (password != password_confirmation) {
+            res.status(400).send("Password and Confirm Password don't match")
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const salt = await bcrypt.genSalt(SALT);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
         // Create new user
-        const newUser = new monmodel({
+        const newUser = new User({
             username: username,
             email: email,
-            password: hashedPassword
+            password_hash: hashedPassword
         });
 
         await newUser.save();
-        res.send("Account created!");
+        res.json({message: "Registration Success", });
     } catch (err) {
         console.error(err);
         res.status(500).send("Server error");
@@ -79,43 +122,49 @@ app.get('/api/v1/user/:id', async (req, res) => {
     res.send(data)
 });
 
-app.put('/api/v1/user/:id', async (req, res) => {
-  try {
-    const upid = req.params.id;
-    const { username, password } = req.body;
+app.put('/api/v1/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params; // user id from URL
+        const { username, email, description } = req.body; // fields client can update
 
-    // 1. Find user
-    const user = await monmodel.findById(upid);
-    if (!user) return res.status(404).send("User not found");
+        // Find user by ID
+        const user = await User.findById(id);
+        if (!user) {
+        return res.status(404).send("User not found ❌");
+        }
+        
+        // Check if email is taken
+        if (email && email !== user.email) {
+        const emailExists = await User.findOne({ email });
+        if (emailExists) {
+            return res.status(409).send("Email is already taken ❌");
+        }
+        user.email = email;
+        }
+        
+        // Check if username is taken
+        if (username && username !== user.username) {
+        const nameExists = await User.findOne({ username });
+        if (nameExists) {
+            return res.status(409).send("Username is already taken ❌");
+        }
+        user.username = username;
+        }
 
-    // 2. Compare password
-    console.log(user.password);
-    console.log(password);
-    const isMatch = await bcrypt.compare(password, user.password); // temporary
-    console.log(isMatch);
-    if (!isMatch) {
-      return res.status(401).send("Wrong password ❌");
+        // Update allowed fields only
+        if (username) user.username = username;
+        if (email) user.email = email;
+        if (description) user.description = description;
+
+        // Save updated user
+        await user.save();
+
+        res.json({ message: "✅ Profile updated", user });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server error ❌");
     }
-
-    // 3. Update username
-    user.username = username;
-    await user.save();
-
-    res.json({ message: "✅ Username updated", user });
-
-  } catch (err) {
-    res.status(400).send("400 - Error: " + err.message);
-  }
 });
-
-
-const sch={
-    username: String,
-    email: String,
-    password: String
-}
-
-const monmodel=mongoose.model("users", sch);
 
 // get DATA FROM BACKEND TO FRONTEND
 // app.get('/tasks', async (req, res) => {
@@ -142,8 +191,24 @@ const monmodel=mongoose.model("users", sch);
 //     res.sendStatus(204);
 // });
 
+let User;
+
 function InitializeDatabaseStructures() {
-    
+    const userSchema = new mongoose.Schema(
+        {
+            username: { type: String, required: true, unique: true },
+            email: { type: String, required: true, unique: true },
+            password_hash: { type: String, required: true },
+            role: { type: String, required: true, default: "USER" },
+            description: { type: String }
+        },
+        {
+            timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+        }
+    );
+
+    User = mongoose.models.User || mongoose.model('User', userSchema);
+
 
 }
 
