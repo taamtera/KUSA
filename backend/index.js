@@ -6,6 +6,9 @@ const bcrypt = require('bcrypt');
 
 const app = express().use(cors()).use(express.json());
 
+// Import schema
+const { User, Server, Member } = require('./schema.js');
+
 const PORT = 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 
@@ -117,9 +120,15 @@ app.post('/api/v1/login/register', async (req, res) => {
 
 
 app.get('/api/v1/user/:id', async (req, res) => {
-    console.log("Amogus");
-    let data = {role : "role", description : "description", username : "username", create_at : "create at", id : req.params.id}
-    res.send(data)
+    const user = await User.findById(req.params.id).select("-_id -password_hash");
+
+    if (!user) {
+    return res.status(404).send("User not found");
+    }
+
+    const userJSON = JSON.stringify(user);
+    console.log(userJSON);
+    res.send(userJSON);
 });
 
 app.put('/api/v1/users/:id', async (req, res) => {
@@ -191,25 +200,97 @@ app.put('/api/v1/users/:id', async (req, res) => {
 //     res.sendStatus(204);
 // });
 
-let User;
+async function InitializeDatabaseStructures() {
 
-function InitializeDatabaseStructures() {
-    const userSchema = new mongoose.Schema(
-        {
-            username: { type: String, required: true, unique: true },
-            email: { type: String, required: true, unique: true },
-            password_hash: { type: String, required: true },
-            role: { type: String, required: true, default: "USER" },
-            description: { type: String }
-        },
-        {
-            timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+    // ------------------------------
+    // 1. Seed Users
+    // ------------------------------
+    const samples = [
+    {
+        username: "adminUser",
+        email: "admin@example.com",
+        password: "admin123",
+        role: "ADMIN", // explicit
+        description: "Seeded admin account"
+    },
+    {
+        username: "demoUser",
+        email: "demo@example.com",
+        password: "demo123",
+        // no role → should default to "USER"
+        description: "Seeded demo user"
+    },
+    {
+        username: "testUser",
+        email: "test@example.com",
+        password: "test123",
+        role: "USER"
+        // no description → should just be missing
+    }
+    ];
+
+    for (const sample of samples) {
+        const exists = await User.findOne({ email: sample.email });
+        if (!exists) {
+            const hashed = await bcrypt.hash(sample.password, 10);
+            const newUser = new User({
+                username: sample.username,
+                email: sample.email,
+                password_hash: hashed,
+                role: sample.role,
+                description: sample.description
+            });
+            await newUser.save();
+            console.log(`✅ Created sample user: ${sample.email}`);
+        } else {
+            console.log(`ℹ️ User ${sample.email} already exists, skipping`);
         }
-    );
+    }
 
-    User = mongoose.models.User || mongoose.model('User', userSchema);
+    // ------------------------------
+    // 2. Seed Servers
+    // ------------------------------
+    const sampleServers = ["General Chat", "Gaming Hub", "Developers Lounge"];
+    const servers = [];
+    for (const name of sampleServers) {
+        let server = await Server.findOne({ server_name: name });
+        if (!server) {
+        server = new Server({ server_name: name });
+        await server.save();
+        console.log(`✅ Created server: ${name}`);
+        } else {
+        console.log(`ℹ️ Server already exists: ${name}`);
+        }
+        servers.push(server);
+    }
 
+    // ------------------------------
+    // 3. Seed Members (after users + servers exist)
+    // ------------------------------
+    const userAdmin = await User.findOne({ email: "admin@example.com" });
+    const userDemo = await User.findOne({ email: "demo@example.com" });
+    const userTest = await User.findOne({ email: "test@example.com" });
 
+    const memberships = [
+        { user: userAdmin._id, server: servers[0]._id, nickname: "BossMan", role: ["OWNER"] },
+        { user: userDemo._id,  server: servers[0]._id, nickname: "Demo", role: ["MOD"] },
+        { user: userDemo._id,  server: servers[1]._id, nickname: "GamerDemo", role: ["USER"] },
+        { user: userTest._id,  server: servers[2]._id, nickname: "CoderTest", role: ["USER"] }
+    ];
+
+    for (const m of memberships) {
+        try {
+        const existing = await Member.findOne({ user: m.user, server: m.server });
+        if (!existing) {
+            await Member.create(m);
+            console.log(`✅ Added member ${m.nickname} to server`);
+        } else {
+            console.log(`ℹ️ Member already exists: ${m.nickname}`);
+        }
+        } catch (err) {
+        console.error("⚠️ Error creating member:", err.message);
+        }
+    }
 }
 
 // Keep db_status accurate on connection state changes
