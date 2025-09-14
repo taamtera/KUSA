@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 const app = express().use(cors()).use(express.json());
 
 // Import schema
-const { User, Server, Member } = require('./schema.js');
+const { User, File, Server, Member, Room, Message, Attachment } = require('./schema.js');
 
 const PORT = 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
@@ -200,97 +200,196 @@ app.put('/api/v1/users/:id', async (req, res) => {
 //     res.sendStatus(204);
 // });
 
+async function ResetAndSeedSimple() {
+    console.log('Resetting only seeded data, then inserting…');
+
+    // ---------- 1) Define seed keys (unique identifiers) ----------
+    const FILE_KEYS = [
+        'uploads/avatars/alice.png',
+        'uploads/avatars/bob.png',
+        'uploads/avatars/cara.png',
+        'uploads/icons/hub.png',
+        'uploads/icons/dev.png',
+        'uploads/docs/welcome.pdf',
+    ];
+
+    const USER_EMAILS = [
+        'alice@example.com',
+        'bob@example.com',
+        'cara@example.com',
+    ];
+
+    const SERVER_NAMES = [
+        'General Hub',
+        'Dev Corner',
+    ];
+
+    const ROOMS_BY_TITLE = [
+        'general',
+        'announcements',
+        'dev-chat',
+    ];
+
+    // ---------- 2) Lookup existing seed docs ----------
+    const seedFiles   = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
+    const seedUsers   = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
+    const seedServers = await Server.find({ server_name: { $in: SERVER_NAMES } }, { _id: 1 }).lean();
+
+    const seedFileIds   = seedFiles.map(d => d._id);
+    const seedUserIds   = seedUsers.map(d => d._id);
+    const seedServerIds = seedServers.map(d => d._id);
+
+    // Rooms and members depend on servers/users
+    const seedRooms   = await Room.find({
+        $or: [
+        { server: { $in: seedServerIds } },
+        { title: { $in: ROOMS_BY_TITLE } }
+        ]
+    }, { _id: 1 }).lean();
+
+    const seedRoomIds = seedRooms.map(d => d._id);
+
+    const seedMembers = await Member.find({
+        $or: [
+        { server: { $in: seedServerIds } },
+        { user: { $in: seedUserIds } }
+        ]
+    }, { _id: 1, server: 1, user: 1 }).lean();
+
+    const seedMemberIds = seedMembers.map(d => d._id);
+
+    // Messages tied to (rooms or members)
+    const seedMessages = await Message.find({
+        $or: [
+        { room: { $in: seedRoomIds } },
+        { sender: { $in: seedMemberIds } },
+        { recipients: { $elemMatch: { $in: seedMemberIds } } },
+        ]
+    }, { _id: 1 }).lean();
+
+    const seedMessageIds = seedMessages.map(d => d._id);
+
+    // ---------- 3) Delete only seed data (children → parents) ----------
+    // attachments by (message/file)
+    if (seedMessageIds.length) {
+        await Attachment.deleteMany({ message: { $in: seedMessageIds } });
+    }
+    if (seedFileIds.length) {
+        await Attachment.deleteMany({ file: { $in: seedFileIds } });
+    }
+
+    // messages
+    if (seedMessageIds.length) {
+        await Message.deleteMany({ _id: { $in: seedMessageIds } });
+    }
+
+    // rooms & members
+    if (seedRoomIds.length) {
+        await Room.deleteMany({ _id: { $in: seedRoomIds } });
+    }
+    if (seedMemberIds.length) {
+        await Member.deleteMany({ _id: { $in: seedMemberIds } });
+    }
+
+    // servers, users, files
+    if (seedServerIds.length) {
+        await Server.deleteMany({ _id: { $in: seedServerIds } });
+    }
+    if (seedUserIds.length) {
+        await User.deleteMany({ _id: { $in: seedUserIds } });
+    }
+    if (seedFileIds.length) {
+        await File.deleteMany({ _id: { $in: seedFileIds } });
+    }
+
+    // ---------- 4) Recreate the seed data ----------
+    // Files
+    const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
+        { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/avatars/bob.png',   original_name: 'bob.png',   mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/avatars/cara.png',  original_name: 'cara.png',  mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/icons/hub.png',     original_name: 'hub.png',   mime_type: 'image/png', byte_size: 12345  },
+        { storage_key: 'uploads/icons/dev.png',     original_name: 'dev.png',   mime_type: 'image/png', byte_size: 12345  },
+        { storage_key: 'uploads/docs/welcome.pdf',  original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
+    ]);
+
+    // Users (password_hash placeholders)
+    const [alice, bob, cara] = await User.create([
+        { username: 'alice', email: 'alice@example.com', password_hash: 'bcrypt$example', icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
+        { username: 'bob',   email: 'bob@example.com',   password_hash: 'bcrypt$example', icon_file: fBobAva._id,   role: 'USER', description: 'Backend dev' },
+        { username: 'cara',  email: 'cara@example.com',  password_hash: 'bcrypt$example', icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
+    ]);
+
+    // Servers
+    const [hub, dev] = await Server.create([
+        { server_name: 'General Hub' },
+        { server_name: 'Dev Corner'  },
+    ]);
+
+    // Rooms
+    const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
+        { title: 'general',       icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
+        { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
+        { title: 'dev-chat',      icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
+    ]);
+
+    // Members
+    const [aliceHub, bobHub, caraHub, aliceDev, bobDev] = await Member.create([
+        { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
+        { user: bob._id,   server: hub._id, nickname: 'Bob',   role: 'member' },
+        { user: cara._id,  server: hub._id, nickname: 'Cara',  role: 'member' },
+        { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
+        { user: bob._id,   server: dev._id, nickname: 'Bob',   role: 'moderator' },
+    ]);
+
+    // Messages & Attachments
+    const m1 = await Message.create({
+        sender: aliceHub._id,
+        room: roomGeneral._id,
+        content: 'Welcome to **General Hub**! 📌 Please check the announcement channel.',
+        message_type: 'text',
+    });
+
+    const m2 = await Message.create({
+        sender: bobHub._id,
+        room: roomGeneral._id,
+        reply_to: m1._id,
+        content: 'Thanks @alice! I just uploaded the onboarding guide.',
+        message_type: 'text',
+    });
+
+    await Attachment.create({
+        message: m2._id,
+        file: fWelcomeDoc._id,
+        position: 1,
+    });
+
+    const dm1 = await Message.create({
+        sender: aliceHub._id,
+        recipients: [bobHub._id],
+        content: 'Hey Bob, quick question about the API keys.',
+        message_type: 'text',
+    });
+
+    const gdm1 = await Message.create({
+        sender: bobHub._id,
+        recipients: [aliceHub._id, caraHub._id],
+        content: 'Team—design handoff at 3 PM. Can you both review the Figma?',
+        message_type: 'text',
+    });
+
+    await Message.create({
+        sender: bobDev._id,
+        room: roomDevChat._id,
+        content: 'Heads up: staging deploy at 17:00 UTC+7. Ping me if you see issues.',
+        message_type: 'text',
+    });
+
+    console.log('Seed complete ✔');
+}
+
 async function InitializeDatabaseStructures() {
-
-    // ------------------------------
-    // 1. Seed Users
-    // ------------------------------
-    const samples = [
-    {
-        username: "adminUser",
-        email: "admin@example.com",
-        password: "admin123",
-        role: "ADMIN", // explicit
-        description: "Seeded admin account"
-    },
-    {
-        username: "demoUser",
-        email: "demo@example.com",
-        password: "demo123",
-        // no role → should default to "USER"
-        description: "Seeded demo user"
-    },
-    {
-        username: "testUser",
-        email: "test@example.com",
-        password: "test123",
-        role: "USER"
-        // no description → should just be missing
-    }
-    ];
-
-    for (const sample of samples) {
-        const exists = await User.findOne({ email: sample.email });
-        if (!exists) {
-            const hashed = await bcrypt.hash(sample.password, 10);
-            const newUser = new User({
-                username: sample.username,
-                email: sample.email,
-                password_hash: hashed,
-                role: sample.role,
-                description: sample.description
-            });
-            await newUser.save();
-            console.log(`✅ Created sample user: ${sample.email}`);
-        } else {
-            console.log(`ℹ️ User ${sample.email} already exists, skipping`);
-        }
-    }
-
-    // ------------------------------
-    // 2. Seed Servers
-    // ------------------------------
-    const sampleServers = ["General Chat", "Gaming Hub", "Developers Lounge"];
-    const servers = [];
-    for (const name of sampleServers) {
-        let server = await Server.findOne({ server_name: name });
-        if (!server) {
-        server = new Server({ server_name: name });
-        await server.save();
-        console.log(`✅ Created server: ${name}`);
-        } else {
-        console.log(`ℹ️ Server already exists: ${name}`);
-        }
-        servers.push(server);
-    }
-
-    // ------------------------------
-    // 3. Seed Members (after users + servers exist)
-    // ------------------------------
-    const userAdmin = await User.findOne({ email: "admin@example.com" });
-    const userDemo = await User.findOne({ email: "demo@example.com" });
-    const userTest = await User.findOne({ email: "test@example.com" });
-
-    const memberships = [
-        { user: userAdmin._id, server: servers[0]._id, nickname: "BossMan", role: ["OWNER"] },
-        { user: userDemo._id,  server: servers[0]._id, nickname: "Demo", role: ["MOD"] },
-        { user: userDemo._id,  server: servers[1]._id, nickname: "GamerDemo", role: ["USER"] },
-        { user: userTest._id,  server: servers[2]._id, nickname: "CoderTest", role: ["USER"] }
-    ];
-
-    for (const m of memberships) {
-        try {
-        const existing = await Member.findOne({ user: m.user, server: m.server });
-        if (!existing) {
-            await Member.create(m);
-            console.log(`✅ Added member ${m.nickname} to server`);
-        } else {
-            console.log(`ℹ️ Member already exists: ${m.nickname}`);
-        }
-        } catch (err) {
-        console.error("⚠️ Error creating member:", err.message);
-        }
-    }
+    
 }
 
 // Keep db_status accurate on connection state changes
@@ -298,6 +397,7 @@ mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
     // check if there are any databse structures needed and create them if not
+    ResetAndSeedSimple();
     InitializeDatabaseStructures();
 });
 mongoose.connection.on('disconnected', () => {
