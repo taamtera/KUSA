@@ -1,5 +1,4 @@
-Documentation: https://docs.google.com/document/d/107ctLRbL6lt0doACO3nvVeO4VENeTxZsEHmDP970Dw0/edit?usp=sharing
-Sprint 1 Update Video: https://www.youtube.com/watch?v=bbY7AU4UAzc
+_Documentations are places in the Github Wiki page_
 
 # Introduction
 In modern university environments, students and staff require seamless communication platforms to collaborate, socialize, and share information efficiently. Existing solutions often lack integration, are not tailored for the KU community, or do not provide privacy and role-based access control suitable for academic settings.
