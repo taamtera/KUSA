@@ -10,12 +10,12 @@ app.use(express.json());
 
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
-const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
+const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
-// Small helpers
+// Helpers
 let db_status = false;
 
 // Health route
@@ -150,6 +150,9 @@ app.post('/api/v1/login', async (req, res) => {
         res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
     }
 });
+
+
+
 
 async function InitializeDatabaseStructures() {
     console.log('Resetting only seeded data, then inserting…');
