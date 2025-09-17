@@ -10,13 +10,18 @@ app.use(express.json());
 
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
-const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
+const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
 // Small helpers
 let db_status = false;
+const oid = (id) => mongoose.Types.ObjectId.isValid(id);
+const asInt = (v, d) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : d;
+};
 
 // Health route
 app.get('/', async (req, res) => {
@@ -150,6 +155,73 @@ app.post('/api/v1/login', async (req, res) => {
         res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
     }
 });
+
+// ===================== USER ======================
+
+// Get user info
+app.get('/api/v1/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+    const user = await User.findById(id)
+      .populate('icon_file')
+      .populate('banner_file')
+      .lean();
+
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    res.json({ status: 'success', user });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'failed to fetch user' });
+  }
+});
+
+// Edit user info (username, description, icon/banner)
+app.patch('/api/v1/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+    const { username, description, icon_file, banner_file } = req.body;
+    const update = {};
+
+    if (typeof username === 'string' && username.trim()) {
+      const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
+      if (exists) return res.status(409).json({ message: 'username already taken' });
+      update.username = username.trim();
+    }
+    if (typeof description === 'string') update.description = description;
+
+    if (icon_file) {
+      if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
+      const f = await File.findById(icon_file).lean();
+      if (!f) return res.status(404).json({ message: 'icon file not found' });
+      update.icon_file = icon_file;
+    }
+    if (banner_file) {
+      if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
+      const f = await File.findById(banner_file).lean();
+      if (!f) return res.status(404).json({ message: 'banner file not found' });
+      update.banner_file = banner_file;
+    }
+
+    if (!Object.keys(update).length)
+      return res.status(400).json({ message: 'nothing to update' });
+
+    const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+      .populate('icon_file')
+      .populate('banner_file')
+      .lean();
+
+    if (!user) return res.status(404).json({ message: 'user not found' });
+    res.json({ status: 'success', user });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'failed to update user' });
+  }
+});
+
 
 async function InitializeDatabaseStructures() {
     console.log('Resetting only seeded data, then inserting…');
