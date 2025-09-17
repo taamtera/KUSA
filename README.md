@@ -9,7 +9,7 @@ To get started with the project, follow these steps:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/taamtera/ISPProject1.git
+   git clone https://github.com/taamtera/KUSA.git
    cd ISPProject1
    ```
 
