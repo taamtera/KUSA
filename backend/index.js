@@ -64,7 +64,7 @@ app.post('/api/v1/login/register', async (req, res) => {
 
         // Hash password
         const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-        const password_hash = await bcrypt.hash(password, ROUNDS);
+        const hashedPassword = await bcrypt.hash(password, ROUNDS);
 
         // Create new user
         const newUser = new User({
