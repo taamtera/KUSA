@@ -26,7 +26,7 @@ export default function CardDemo() {
 
 
         try {
-            const response = await fetch("http://localhost:3001/login", {
+            const response = await fetch("http://localhost:3001/api/v1/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -44,7 +44,8 @@ export default function CardDemo() {
             }
         } catch (error) {
             console.error("Error:", error);
-            alert("Something went wrong!");
+            window.location.href = "/login";
+            // alert("Something went wrong!");
         }
     };
 
