@@ -81,7 +81,7 @@ app.post('/api/v1/login/register', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
+        return res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
     }
 });
 
@@ -106,10 +106,11 @@ app.post('/api/v1/account/change-password', async (req, res) => {
     user.password_hash = await bcrypt.hash(new_password, ROUNDS);
     await user.save();
 
-    res.json({ status: "success", message: "Password updated" });
+    return res.json({ status: "success", message: "Password updated" });
+
   } catch (e) {
     console.error(e);
-    res.status(500).json({ status: "failed", message: "Unable to change password" });
+    return res.status(500).json({ status: "failed", message: "Unable to change password" });
   }
 });
 
@@ -118,6 +119,7 @@ app.post('/api/v1/account/change-password', async (req, res) => {
 app.post('/api/v1/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(req.body);
         // Check if email and password are provided
         if (!email || !password) {
             return res.status(400).json({ status: "failed", message: "Email and password are required" });
@@ -144,10 +146,11 @@ app.post('/api/v1/login', async (req, res) => {
         // Send Success Response with Tokens
         const safeUser = user.toObject();
         delete safeUser.password_hash;
-        res.status(200).json({ status: "success", message: "Login successful", user: safeUser });
+        console.log("success", safeUser);
+        return res.status(200).json({ status: "success", message: "Login successful", user: safeUser });
     } catch(err) {
         console.error(err);
-        res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
     }
 });
 

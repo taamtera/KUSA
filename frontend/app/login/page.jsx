@@ -26,7 +26,7 @@ export default function CardDemo() {
 
 
     try {
-      const response = await fetch("http://localhost:3001/login", {
+      const response = await fetch("http://127.0.0.1:3001/api/v1/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -36,9 +36,11 @@ export default function CardDemo() {
 
       const data = await response.json();
       console.log(data);
+      // console.log(res);
 
       if (response.ok) {
         alert("✅ " + data.message);
+        window.location.herf = "/chats";
       } else {
         alert("❌ " + data.message);
       }
@@ -98,9 +100,9 @@ export default function CardDemo() {
           <Button type="submit" className="w-full" onClick={handleSubmit}>
             Login
           </Button>
-          <Button variant="outline" className="w-full">
+          {/* <Button variant="outline" className="w-full">
             Login with Google
-          </Button>
+          </Button> */}
         </CardFooter>
       </Card>
     </div>
