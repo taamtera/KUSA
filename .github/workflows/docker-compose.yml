@@ -16,8 +16,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-         username: ${{ secrets.DOCKERHUB_USERNAME }}
-         password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and tag Docker images
         run: |
@@ -25,10 +25,10 @@ jobs:
 
       - name: Tag & Push Backend image
         run: |
-          docker tag KUSA-kusa-backend:latest taamtera/kusa-backend:latest
+          docker tag kusa-kusa-backend:latest taamtera/kusa-backend:latest
           docker push taamtera/kusa-backend:latest
 
       - name: Tag & Push Frontend image
         run: |
-          docker tag KUSA-kusa-frontend:latest taamtera/kusa-frontend:latest
+          docker tag kusa-kusa-frontend:latest taamtera/kusa-frontend:latest
           docker push taamtera/kusa-frontend:latest
