@@ -39,8 +39,9 @@ export default function CardDemo() {
       // console.log(res);
 
       if (response.ok) {
+        console.log("Redirecting to /chats");
+        window.location.href = "/chats";
         alert("✅ " + data.message);
-        window.location.herf = "/chats";
       } else {
         alert("❌ " + data.message);
       }

@@ -38,8 +38,8 @@ export default function CardDemo() {
             console.log(data);
 
             if (response.ok) {
+                window.location.href = "/login";
                 alert("✅ " + data.message);
-                window.location.href = "/chats";
             } else {
                 alert("❌ " + data.message);
             }
