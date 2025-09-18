@@ -119,10 +119,13 @@ app.post('/api/v1/account/change-password', async (req, res) => {
 app.post('/api/v1/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log(req.body);
         // Check if email and password are provided
         if (!email || !password) {
             return res.status(400).json({ status: "failed", message: "Email and password are required" });
+        }
+        // admin bypass remove before production
+        if (email == "admin" && password == "admin") {
+            return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
         }
 
         // Find user by email

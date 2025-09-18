@@ -39,6 +39,7 @@ export default function CardDemo() {
 
             if (response.ok) {
                 alert("✅ " + data.message);
+                window.location.href = "/chats";
             } else {
                 alert("❌ " + data.message);
             }
