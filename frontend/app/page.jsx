@@ -74,7 +74,9 @@ function Home() {
               Log in</Button></a>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
-            <Button className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
+            <a href="/register">
+              <Button className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
+            </a>
           </div>
         </div>
       </Card>
