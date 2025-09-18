@@ -53,9 +53,9 @@ export default function CardDemo() {
             <Card className="w-full max-w-sm">
                 <CardHeader>
                     <CardTitle>Create Account</CardTitle>
-                    <CardDescription>
+                    {/* <CardDescription>
                         tmp
-                    </CardDescription>
+                    </CardDescription> */}
                 </CardHeader>
                 <CardContent>
                     <form>
