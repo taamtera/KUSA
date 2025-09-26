@@ -9,7 +9,7 @@ services:
 
   kusa-backend:
     build: ./backend
-    container_name: KUSA-Backend-Container
+    container_name: kusa-Backend-Container
     ports:
       - "3001:3001"
     environment:
@@ -19,7 +19,7 @@ services:
 
   kusa-frontend:
     build: ./frontend
-    container_name: KUSA-Frontend-Container
+    container_name: kusa-Frontend-Container
     ports:
       - "3000:3000"
     depends_on:

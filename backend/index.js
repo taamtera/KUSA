@@ -159,7 +159,6 @@ app.post('/api/v1/login', async (req, res) => {
 
 
 
-
 async function InitializeDatabaseStructures() {
     console.log('Resetting only seeded data, then inserting…');
 
@@ -277,12 +276,14 @@ async function InitializeDatabaseStructures() {
         bcrypt.hash('alice123!', salt),
         bcrypt.hash('bob123!',   salt),
         bcrypt.hash('cara123!',  salt),
+        bcrypt.hash('admin123!',  salt),
     ]);
 
     const [alice, bob, cara] = await User.create([
         { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
         { username: 'bob',   email: 'bob@example.com',   password_hash: bobHash,   icon_file: fBobAva._id,   role: 'USER', description: 'Backend dev' },
         { username: 'cara',  email: 'cara@example.com',  password_hash: caraHash,  icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
+        { username: 'admin',  email: 'admin@example.com',  password_hash: adminHash,  icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
     ]);
 
     // Servers
