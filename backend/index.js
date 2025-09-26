@@ -48,7 +48,7 @@ app.post('/api/v1/login/register', async (req, res) => {
         // Check if email already exists
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
-        return res.status(409).send("This email has already been registered");
+        return res.status(409).json({status: "failed", message: "This email has already been registered"});
         }
 
         // Check if username already exists
@@ -76,7 +76,7 @@ app.post('/api/v1/login/register', async (req, res) => {
         await newUser.save();
         res.json({
             status: "success",
-            message: "Registration Success",
+            message: "",
             user: { id: newUser._id, email: newUser.email}
         });
     } catch (err) {
