@@ -32,7 +32,7 @@ app.post('/api/v1/login/register', async (req, res) => {
     try {
         console.log(req.body);
         const { username, email, password, password_confirmation } = req.body;
-        
+
 
         // Tell missing required fields
         const missing = [];
@@ -42,24 +42,24 @@ app.post('/api/v1/login/register', async (req, res) => {
         if (!password_confirmation) missing.push("password_confirmation");
 
         if (missing.length > 0) {
-        return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
+            return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
         }
-        
+
         // Check if email already exists
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
-        return res.status(409).json({status: "failed", message: "This email has already been registered"});
+            return res.status(409).json({ status: "failed", message: "This email has already been registered" });
         }
 
         // Check if username already exists
         const existingUsername = await User.findOne({ username });
         if (existingUsername) {
-        return res.status(409).json({status: "failed", message: "This username is already taken"});
+            return res.status(409).json({ status: "failed", message: "This username is already taken" });
         }
 
         // Check if password and password confirmation match
         if (password != password_confirmation) {
-            res.status(400).json({status: "failed", message: "Password and Confirm Password don't match"})
+            res.status(400).json({ status: "failed", message: "Password and Confirm Password don't match" })
         }
 
         // Hash password
@@ -77,41 +77,41 @@ app.post('/api/v1/login/register', async (req, res) => {
         res.json({
             status: "success",
             message: "",
-            user: { id: newUser._id, email: newUser.email}
+            user: { id: newUser._id, email: newUser.email }
         });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to Register, please try again later" });
     }
 });
 
 // Change password
 app.post('/api/v1/account/change-password', async (req, res) => {
-  try {
-    const { userId, old_password, new_password } = req.body; // no auth yet, pass userId explicitly
-    if (!userId || !old_password || !new_password) {
-      return res.status(400).json({ status: "failed", message: "Missing fields" });
+    try {
+        const { userId, old_password, new_password } = req.body; // no auth yet, pass userId explicitly
+        if (!userId || !old_password || !new_password) {
+            return res.status(400).json({ status: "failed", message: "Missing fields" });
+        }
+        const user = await User.findById(userId).select('+password_hash');
+        if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
+
+        const ok = await bcrypt.compare(old_password, user.password_hash);
+        if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
+
+        if (new_password.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(new_password, ROUNDS);
+        await user.save();
+
+        return res.json({ status: "success", message: "Password updated" });
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
     }
-    const user = await User.findById(userId).select('+password_hash');
-    if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
-
-    const ok = await bcrypt.compare(old_password, user.password_hash);
-    if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
-
-    if (new_password.length < 8) {
-      return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
-    }
-
-    const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-    user.password_hash = await bcrypt.hash(new_password, ROUNDS);
-    await user.save();
-
-    return res.json({ status: "success", message: "Password updated" });
-
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ status: "failed", message: "Unable to change password" });
-  }
 });
 
 
@@ -151,9 +151,9 @@ app.post('/api/v1/login', async (req, res) => {
         delete safeUser.password_hash;
         console.log("success", safeUser);
         return res.status(200).json({ status: "success", message: "Login successful", user: safeUser });
-    } catch(err) {
+    } catch (err) {
         console.error(err);
-        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later" });
     }
 });
 
@@ -190,19 +190,19 @@ async function InitializeDatabaseStructures() {
     ];
 
     // ---------- 2) Lookup existing seed docs ----------
-    const seedFiles   = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
-    const seedUsers   = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
+    const seedFiles = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
+    const seedUsers = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
     const seedServers = await Server.find({ server_name: { $in: SERVER_NAMES } }, { _id: 1 }).lean();
 
-    const seedFileIds   = seedFiles.map(d => d._id);
-    const seedUserIds   = seedUsers.map(d => d._id);
+    const seedFileIds = seedFiles.map(d => d._id);
+    const seedUserIds = seedUsers.map(d => d._id);
     const seedServerIds = seedServers.map(d => d._id);
 
     // Rooms and members depend on servers/users
-    const seedRooms   = await Room.find({
+    const seedRooms = await Room.find({
         $or: [
-        { server: { $in: seedServerIds } },
-        { title: { $in: ROOMS_BY_TITLE } }
+            { server: { $in: seedServerIds } },
+            { title: { $in: ROOMS_BY_TITLE } }
         ]
     }, { _id: 1 }).lean();
 
@@ -210,8 +210,8 @@ async function InitializeDatabaseStructures() {
 
     const seedMembers = await Member.find({
         $or: [
-        { server: { $in: seedServerIds } },
-        { user: { $in: seedUserIds } }
+            { server: { $in: seedServerIds } },
+            { user: { $in: seedUserIds } }
         ]
     }, { _id: 1, server: 1, user: 1 }).lean();
 
@@ -220,9 +220,9 @@ async function InitializeDatabaseStructures() {
     // Messages tied to (rooms or members)
     const seedMessages = await Message.find({
         $or: [
-        { room: { $in: seedRoomIds } },
-        { sender: { $in: seedMemberIds } },
-        { recipients: { $elemMatch: { $in: seedMemberIds } } },
+            { room: { $in: seedRoomIds } },
+            { sender: { $in: seedMemberIds } },
+            { recipients: { $elemMatch: { $in: seedMemberIds } } },
         ]
     }, { _id: 1 }).lean();
 
@@ -232,80 +232,80 @@ async function InitializeDatabaseStructures() {
 
     // reactions (child of message)
     if (seedMessageIds.length) {
-    await Reaction.deleteMany({ message: { $in: seedMessageIds } });
+        await Reaction.deleteMany({ message: { $in: seedMessageIds } });
     }
 
     // attachments by (message OR file)
     if (seedMessageIds.length || seedFileIds.length) {
-    const or = [];
-    if (seedMessageIds.length) or.push({ message: { $in: seedMessageIds } });
-    if (seedFileIds.length)    or.push({ file:    { $in: seedFileIds } });
-    await Attachment.deleteMany({ $or: or });
+        const or = [];
+        if (seedMessageIds.length) or.push({ message: { $in: seedMessageIds } });
+        if (seedFileIds.length) or.push({ file: { $in: seedFileIds } });
+        await Attachment.deleteMany({ $or: or });
     }
 
     // messages
     if (seedMessageIds.length) {
-    await Message.deleteMany({ _id: { $in: seedMessageIds } });
+        await Message.deleteMany({ _id: { $in: seedMessageIds } });
     }
 
     // rooms & members
-    if (seedRoomIds.length)   await Room.deleteMany({ _id: { $in: seedRoomIds } });
+    if (seedRoomIds.length) await Room.deleteMany({ _id: { $in: seedRoomIds } });
     if (seedMemberIds.length) await Member.deleteMany({ _id: { $in: seedMemberIds } });
 
     // servers, users, files
     if (seedServerIds.length) await Server.deleteMany({ _id: { $in: seedServerIds } });
-    if (seedUserIds.length)   await User.deleteMany({ _id: { $in: seedUserIds } });
-    if (seedFileIds.length)   await File.deleteMany({ _id: { $in: seedFileIds } });
+    if (seedUserIds.length) await User.deleteMany({ _id: { $in: seedUserIds } });
+    if (seedFileIds.length) await File.deleteMany({ _id: { $in: seedFileIds } });
 
 
     // ---------- 4) Recreate the seed data ----------
     // Files
     const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
         { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/bob.png',   original_name: 'bob.png',   mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/cara.png',  original_name: 'cara.png',  mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/icons/hub.png',     original_name: 'hub.png',   mime_type: 'image/png', byte_size: 12345  },
-        { storage_key: 'uploads/icons/dev.png',     original_name: 'dev.png',   mime_type: 'image/png', byte_size: 12345  },
-        { storage_key: 'uploads/docs/welcome.pdf',  original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
+        { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/icons/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
+        { storage_key: 'uploads/icons/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
+        { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
     ]);
 
     // Users (password_hash placeholders)
     const salt = await bcrypt.genSalt(Number(process.env.SALT));
-    
-    const [aliceHash, bobHash, caraHash] = await Promise.all([
+
+    const [aliceHash, bobHash, caraHash, adminHash] = await Promise.all([
         bcrypt.hash('alice123!', salt),
-        bcrypt.hash('bob123!',   salt),
-        bcrypt.hash('cara123!',  salt),
-        bcrypt.hash('admin123!',  salt),
+        bcrypt.hash('bob123!', salt),
+        bcrypt.hash('cara123!', salt),
+        bcrypt.hash('admin123!', salt),
     ]);
 
     const [alice, bob, cara] = await User.create([
         { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
-        { username: 'bob',   email: 'bob@example.com',   password_hash: bobHash,   icon_file: fBobAva._id,   role: 'USER', description: 'Backend dev' },
-        { username: 'cara',  email: 'cara@example.com',  password_hash: caraHash,  icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
-        { username: 'admin',  email: 'admin@example.com',  password_hash: adminHash,  icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
+        { username: 'bob', email: 'bob@example.com', password_hash: bobHash, icon_file: fBobAva._id, role: 'USER', description: 'Backend dev' },
+        { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
+        { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
     ]);
 
     // Servers
     const [hub, dev] = await Server.create([
         { server_name: 'General Hub' },
-        { server_name: 'Dev Corner'  },
+        { server_name: 'Dev Corner' },
     ]);
 
     // Rooms
     const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-        { title: 'general',       icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
+        { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
         { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
-        { title: 'dev-chat',      icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
+        { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
     ]);
 
     // Members
     const [aliceHub, bobHub, caraHub, aliceDev, bobDev] = await Member.create([
         { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
-        { user: bob._id,   server: hub._id, nickname: 'Bob',   role: 'member' },
-        { user: cara._id,  server: hub._id, nickname: 'Cara',  role: 'member' },
+        { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
+        { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
         { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
-        { user: bob._id,   server: dev._id, nickname: 'Bob',   role: 'moderator' },
+        { user: bob._id, server: dev._id, nickname: 'Bob', role: 'moderator' },
     ]);
 
     // Messages & Attachments
@@ -353,9 +353,9 @@ async function InitializeDatabaseStructures() {
 
     // Reactions: Bob 👍 on m1, Cara 🎉 on m1, Alice ❤️ on m2
     await Reaction.create([
-    { message: m1._id, member: bobHub._id,  emoji: '👍' },
-    { message: m1._id, member: caraHub._id, emoji: '🎉' },
-    { message: m2._id, member: aliceHub._id, emoji: '❤️' },
+        { message: m1._id, member: bobHub._id, emoji: '👍' },
+        { message: m1._id, member: caraHub._id, emoji: '🎉' },
+        { message: m2._id, member: aliceHub._id, emoji: '❤️' },
     ]);
 
     console.log('Seed complete ✔');
