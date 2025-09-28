@@ -6,7 +6,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarFooter,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuSub,
   SidebarMenuSubItem,
@@ -15,71 +14,35 @@ import {
 } from "@/components/ui/sidebar"
 
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Settings } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Menu items with avatar instead of icon
 const DMs = [
-  {
-    title: "Daniel",
-    url: "#",
-    avatar: {
-      src: "https://github.com/shadcn.png",
-      fallback: "HM",
-    },
-  },
-  {
-    title: "Malcolm",
-    url: "#",
-    avatar: {
-      src: "https://github.com/vercel.png",
-      fallback: "IN",
-    },
-  },
-  {
-    title: "Alex",
-    url: "#",
-    avatar: {
-      src: "https://github.com/nextjs.png",
-      fallback: "CA",
-    },
-  },
+  { title: "Daniel", url: "#", avatar: { src: "https://github.com/shadcn.png", fallback: "HM" } },
+  { title: "Malcolm", url: "#", avatar: { src: "https://github.com/vercel.png", fallback: "IN" } },
+  { title: "Alex", url: "#", avatar: { src: "https://github.com/nextjs.png", fallback: "CA" } },
 ]
 
 const Servers = [
-  {
-    title: "Server 1",
-    url: "#",
-    avatar: {
-      src: "https://github.com/shadcn.png",
-      fallback: "HM",
-    },
-    channels: ["general", "random", "memes"],
-  },
-  {
-    title: "Server 2",
-    url: "#",
-    avatar: {
-      src: "https://github.com/vercel.png",
-      fallback: "IN",
-    },
-    channels: ["announcements", "support"],
-  },
-  {
-    title: "Server 3",
-    url: "#",
-    avatar: {
-      src: "https://github.com/nextjs.png",
-      fallback: "CA",
-    },
-    channels: ["chat", "dev-talk", "design"],
-  },
+  { title: "Server 1", url: "#", avatar: { src: "https://github.com/shadcn.png", fallback: "HM" }, channels: ["general", "random", "memes"] },
+  { title: "Server 2", url: "#", avatar: { src: "https://github.com/vercel.png", fallback: "IN" }, channels: ["announcements", "support"] },
+  { title: "Server 3", url: "#", avatar: { src: "https://github.com/nextjs.png", fallback: "CA" }, channels: ["chat", "dev-talk", "design"] },
 ]
 
 export function AppSidebar() {
@@ -90,7 +53,6 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarContent>
-
         {/* KUSA logo */}
         <div className="pt-4 pl-4 mb-6">
           <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">
@@ -108,7 +70,7 @@ export function AppSidebar() {
               Servers
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Private Tab Content */}
           <TabsContent value="private" className="mt-4">
             <SidebarGroup>
@@ -176,18 +138,45 @@ export function AppSidebar() {
 
       {/* Sidebar Footer */}
       <SidebarFooter className="border-t px-4 py-3">
-        <div 
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={handleFooterClick}
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>ME</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">Your Name</span>
-            <span className="text-xs text-muted-foreground">@username</span>
+        <div className="flex items-center justify-between">
+          <div 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={handleFooterClick}
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="https://github.com/shadcn.png" />
+              <AvatarFallback>ME</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Your Name</span>
+              <span className="text-xs text-muted-foreground">@username</span>
+            </div>
           </div>
+
+          {/* Account Settings Dialog */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="p-2 rounded hover:bg-gray-200">
+                <Settings className="h-5 w-5 text-gray-600" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm bg-white text-black">
+              <DialogHeader>
+                <DialogTitle>Account Settings</DialogTitle>
+                <DialogDescription>
+                  Manage your account information and settings.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 mt-4">
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100">Change display name</button>
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100">Change email</button>
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100">Change phone number</button>
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100">Change password</button>
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-red-600">Sign out</button>
+                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-red-600">Delete account</button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </SidebarFooter>
     </Sidebar>
