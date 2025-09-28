@@ -3,10 +3,17 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const cookiesParser = require('cookie-parser');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+  credentials: true, // allow sending/receiving cookies
+}));
+
 app.use(express.json());
+app.use(cookiesParser());
 
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
@@ -15,13 +22,34 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
-// Small helpers
+// config (env)
+const ACCESS_TTL  = process.env.ACCESS_TTL  || '15m';
+const REFRESH_TTL = process.env.REFRESH_TTL || '14d';
+const JWT_ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || 'dev-access-secret';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
+
+// Helpers
 let db_status = false;
 const oid = (id) => mongoose.Types.ObjectId.isValid(id);
 const asInt = (v, d) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : d;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : d;
 };
+
+// Auth middleware
+function auth(req, res, next) {
+  try {
+    const token = req.cookies?.access_token;
+    if (!token) {
+      return res.status(401).json({ status: 'failed', message: 'Missing token' });
+    }
+    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET); // payload = { sub }
+    req.userId = sub; // store user id for handlers
+    next();
+  } catch {
+    return res.status(401).json({ status: 'failed', message: 'Expired or invalid token' });
+  }
+}
 
 // Health route
 app.get('/', async (req, res) => {
@@ -30,7 +58,33 @@ app.get('/', async (req, res) => {
     res.send(data);
 });
 
-// =============== AUTH (simple, no tokens yet) ===============
+const baseCookie = {
+    httpOnly: true,                         // JS can’t read it (safer)
+    sameSite: 'lax',                        // helps prevent CSRF; OK for SPA + API
+    secure: process.env.NODE_ENV === 'production', // HTTPS required in prod
+    path: '/api/v1',                              // available under /api/v1
+};
+
+function signAccess(payload)  { return jwt.sign(payload, JWT_ACCESS_SECRET,  { expiresIn: ACCESS_TTL }); }
+function signRefresh(payload) { return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: REFRESH_TTL }); }
+
+// ISO string for “now + ms”
+function epochMsPlus(ms) { return new Date(Date.now() + ms).toISOString(); }
+
+// Convert TTL to ms
+function parseTtlToMs(ttl) {
+    const m = /^(\d+)([smhd])$/.exec(ttl);
+    if (!m) throw new Error('Invalid TTL format. Use like "15m", "2h", "7d".');
+    const n = Number(m[1]); const unit = m[2];
+    return n * ({ s:1000, m:60000, h:3600000, d:86400000 }[unit]);
+}
+
+function setAuthCookies(res, accessToken, refreshToken) {
+    res.cookie('access_token',  accessToken,  { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
+    res.cookie('refresh_token', refreshToken, { ...baseCookie, maxAge: parseTtlToMs(REFRESH_TTL) });
+}
+
+// ==================== AUTH  ========================
 
 // Register
 app.post('/api/v1/login/register', async (req, res) => {
@@ -59,17 +113,17 @@ app.post('/api/v1/login/register', async (req, res) => {
         // Check if username already exists
         const existingUsername = await User.findOne({ username });
         if (existingUsername) {
-        return res.status(409).json({status: "failed", message: "This username is already taken"});
+            return res.status(409).json({status: "failed", message: "This username is already taken"});
         }
 
         // Check if password and password confirmation match
         if (password != password_confirmation) {
-            res.status(400).json({status: "failed", message: "Password and Confirm Password don't match"})
+            return res.status(400).json({status: "failed", message: "Password and Confirm Password don't match"})
         }
 
         // Hash password
         const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-        const password_hash = await bcrypt.hash(password, ROUNDS);
+        const hashedPassword = await bcrypt.hash(password, ROUNDS);
 
         // Create new user
         const newUser = new User({
@@ -79,43 +133,43 @@ app.post('/api/v1/login/register', async (req, res) => {
         });
 
         await newUser.save();
-        res.json({
-            status: "success",
-            message: "Registration Success",
-            user: { id: newUser._id, email: newUser.email}
-        });
+        return res.json({
+                status: "success",
+                message: "Registration Success",
+                user: { id: newUser._id, email: newUser.email}
+            });
     } catch (err) {
         console.error(err);
-        res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
+        return res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
     }
 });
 
 // Change password
-app.post('/api/v1/account/change-password', async (req, res) => {
-  try {
-    const { userId, old_password, new_password } = req.body; // no auth yet, pass userId explicitly
-    if (!userId || !old_password || !new_password) {
-      return res.status(400).json({ status: "failed", message: "Missing fields" });
+app.post('/api/v1/account/change-password', auth, async (req, res) => {
+    try {
+        const { old_password, new_password } = req.body;
+        if (!old_password || !new_password) {
+        return res.status(400).json({ status: "failed", message: "Missing fields" });
+        }
+        const user = await User.findById(req.userId).select('+password_hash');
+        if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
+
+        const ok = await bcrypt.compare(old_password, user.password_hash);
+        if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
+
+        if (new_password.length < 8) {
+        return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(new_password, ROUNDS);
+        await user.save();
+
+        return res.json({ status: "success", message: "Password updated" });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
     }
-    const user = await User.findById(userId).select('+password_hash');
-    if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
-
-    const ok = await bcrypt.compare(old_password, user.password_hash);
-    if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
-
-    if (new_password.length < 8) {
-      return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
-    }
-
-    const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-    user.password_hash = await bcrypt.hash(new_password, ROUNDS);
-    await user.save();
-
-    res.json({ status: "success", message: "Password updated" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ status: "failed", message: "Unable to change password" });
-  }
 });
 
 
@@ -142,84 +196,211 @@ app.post('/api/v1/login', async (req, res) => {
             return res.status(401).json({ status: "failed", message: "Invalid email or password" });
         }
 
-        // Generate tokens
+        // Create tokens
+        const payload = { sub: user._id.toString() };
+
+        const accessToken  = signAccess(payload);               // 15m by default
+        const refreshToken = signRefresh({ sub: payload.sub }); // 14d by default
 
         // Set Cookies
+        setAuthCookies(res, accessToken, refreshToken);
 
         // Send Success Response with Tokens
         const safeUser = user.toObject();
         delete safeUser.password_hash;
-        res.status(200).json({ status: "success", message: "Login successful", user: safeUser });
+
+        return res.status(200).json({
+            status: "success",
+            message: "Login successful",
+            user: safeUser,
+            session: {
+                access_expires_at:  epochMsPlus(parseTtlToMs(ACCESS_TTL)),
+                refresh_expires_at: epochMsPlus(parseTtlToMs(REFRESH_TTL)),
+            }
+         });
     } catch(err) {
         console.error(err);
-        res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
     }
+});
+
+// Who am I (protected)
+app.get('/api/v1/auth/me', auth, async (req, res) => {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
+    res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+});
+
+// Refresh access token from refresh cookie
+app.post('/api/v1/auth/refresh', (req, res) => {
+    try {
+        const rt = req.cookies?.refresh_token;
+        if (!rt) return res.status(401).json({ status: 'failed', message: 'No refresh token' });
+
+        const { sub } = jwt.verify(rt, JWT_REFRESH_SECRET);
+        const at = signAccess({ sub });
+        res.cookie('access_token', at, { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
+        res.json({ ok: true, access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)) });
+    } catch {
+        return res.status(401).json({ status: 'failed', message: 'Invalid refresh token' });
+    }
+});
+
+// Logout (clear cookies)
+app.post('/api/v1/auth/logout', (_req, res) => {
+  res.clearCookie('access_token',  { path: '/api/v1' });
+  res.clearCookie('refresh_token', { path: '/api/v1' });
+  res.json({ ok: true });
 });
 
 // ===================== USER ======================
 
 // Get user info
 app.get('/api/v1/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
 
-    const user = await User.findById(id)
-      .populate('icon_file')
-      .populate('banner_file')
-      .lean();
+        const user = await User.findById(id)
+        .populate('icon_file')
+        .populate('banner_file')
+        .lean();
 
-    if (!user) return res.status(404).json({ message: 'user not found' });
-    res.json({ status: 'success', user });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'failed to fetch user' });
-  }
+        if (!user) return res.status(404).json({ message: 'user not found' });
+        res.json({ status: 'success', user });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to fetch user' });
+    }
 });
+
 
 // Edit user info (username, description, icon/banner)
 app.patch('/api/v1/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
 
-    const { username, description, icon_file, banner_file } = req.body;
-    const update = {};
+        const { username, description, icon_file, banner_file } = req.body;
+        const update = {};
 
-    if (typeof username === 'string' && username.trim()) {
-      const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
-      if (exists) return res.status(409).json({ message: 'username already taken' });
-      update.username = username.trim();
+        if (typeof username === 'string' && username.trim()) {
+        const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
+        if (exists) return res.status(409).json({ message: 'username already taken' });
+        update.username = username.trim();
+        }
+        if (typeof description === 'string') update.description = description;
+
+        if (icon_file) {
+        if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
+        const f = await File.findById(icon_file).lean();
+        if (!f) return res.status(404).json({ message: 'icon file not found' });
+        update.icon_file = icon_file;
+        }
+        if (banner_file) {
+        if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
+        const f = await File.findById(banner_file).lean();
+        if (!f) return res.status(404).json({ message: 'banner file not found' });
+        update.banner_file = banner_file;
+        }
+
+        if (!Object.keys(update).length)
+        return res.status(400).json({ message: 'nothing to update' });
+
+        const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+        .populate('icon_file')
+        .populate('banner_file')
+        .lean();
+
+        if (!user) return res.status(404).json({ message: 'user not found' });
+        res.json({ status: 'success', user });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to update user' });
     }
-    if (typeof description === 'string') update.description = description;
+});
 
-    if (icon_file) {
-      if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
-      const f = await File.findById(icon_file).lean();
-      if (!f) return res.status(404).json({ message: 'icon file not found' });
-      update.icon_file = icon_file;
+// ===================== USERS LIST ======================
+// GET /api/v1/users?q=alice&page=1&limit=20&sort=-created_at
+app.get('/api/v1/users', async (req, res) => {
+    try {
+        const q      = (req.query.q || '').trim();
+        const page   = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit  = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
+        const sort   = (req.query.sort || '-created_at'); // e.g. 'username' or '-created_at'
+
+        const filter = {};
+        if (q) {
+        // case-insensitive search on username OR email
+        const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        filter.$or = [{ username: rx }, { email: rx }];
+        }
+
+        const cursor = User.find(filter)
+        .select('+created_at +updated_at') // password_hash is already select:false
+        .populate('icon_file')
+        .populate('banner_file')
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        const [items, total] = await Promise.all([
+        cursor,
+        User.countDocuments(filter)
+        ]);
+
+        res.json({
+        status: 'success',
+        page,
+        limit,
+        total,
+        has_more: page * limit < total,
+        users: items
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to list users' });
     }
-    if (banner_file) {
-      if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
-      const f = await File.findById(banner_file).lean();
-      if (!f) return res.status(404).json({ message: 'banner file not found' });
-      update.banner_file = banner_file;
+});
+
+// Helper: require auth (you already have `auth` middleware) + self-or-admin
+function isSelfOrAdmin(reqUserId, targetUserDoc) {
+    if (!targetUserDoc) return false;
+    if (targetUserDoc._id?.toString() === reqUserId) return true;
+    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN'); // optional if you store req.role
+}
+
+// DELETE /api/v1/users/:id
+app.delete('/api/v1/users/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+        // Fetch target
+        const target = await User.findById(id).lean();
+        if (!target) return res.status(404).json({ message: 'user not found' });
+
+        // Optional: if you store user role in token, decode earlier and set req.role.
+        // For now, allow only self-delete.
+        if (req.userId !== id) {
+        return res.status(403).json({ message: 'forbidden: can only delete your own account' });
+        }
+
+        await User.deleteOne({ _id: id });
+        // If you want "soft delete", flip a flag instead of deleting.
+
+        // Clear cookies if the user deleted themself
+        if (req.userId === id) {
+        res.clearCookie('access_token',  { path: '/api/v1' });
+        res.clearCookie('refresh_token', { path: '/api/v1' });
+        }
+
+        res.json({ status: 'success', deleted_id: id });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to delete user' });
     }
-
-    if (!Object.keys(update).length)
-      return res.status(400).json({ message: 'nothing to update' });
-
-    const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
-      .populate('icon_file')
-      .populate('banner_file')
-      .lean();
-
-    if (!user) return res.status(404).json({ message: 'user not found' });
-    res.json({ status: 'success', user });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'failed to update user' });
-  }
 });
 
 
@@ -286,7 +467,7 @@ async function InitializeDatabaseStructures() {
         $or: [
         { room: { $in: seedRoomIds } },
         { sender: { $in: seedMemberIds } },
-        { recipients: { $elemMatch: { $in: seedMemberIds } } },
+        { recipients: { $in: seedMemberIds } },
         ]
     }, { _id: 1 }).lean();
 
@@ -334,12 +515,12 @@ async function InitializeDatabaseStructures() {
     ]);
 
     // Users (password_hash placeholders)
-    const salt = await bcrypt.genSalt(Number(process.env.SALT));
+    const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
     
     const [aliceHash, bobHash, caraHash] = await Promise.all([
-        bcrypt.hash('alice123!', salt),
-        bcrypt.hash('bob123!',   salt),
-        bcrypt.hash('cara123!',  salt),
+        bcrypt.hash('alice123!', ROUNDS),
+        bcrypt.hash('bob123!',   ROUNDS),
+        bcrypt.hash('cara123!',  ROUNDS),
     ]);
 
     const [alice, bob, cara] = await User.create([
