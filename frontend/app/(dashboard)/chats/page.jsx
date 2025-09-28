@@ -84,7 +84,7 @@ export default function Chat() {
             <AvatarFallback>CN</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-semibold">Chat Group</h2>
+            <h2 className="font-semibold text-black">Chat Group</h2>
             <p className="text-sm text-gray-500">3 members</p>
           </div>
         </div>
@@ -126,10 +126,20 @@ export default function Chat() {
         </Button>
         <Textarea
           placeholder="Type a message"
-          className="flex-1 resize-none min-h-[40px] max-h-32"
+          className="flex-1 resize-none min-h-5 max-h-32 text-black"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={handleKeyPress}
+          style={{
+            height: 'auto',
+            overflowY: newMessage.split('\n').length > 4 ? 'auto' : 'hidden'
+          }}
+          ref={(textarea) => {
+            if (textarea) {
+              textarea.style.height = 'auto';
+              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px'; // 128px = max-h-32 (8 * 16px)
+            }
+          }}
         />
         <Button
           size="icon"
