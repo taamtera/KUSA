@@ -122,7 +122,7 @@ export default function Chat() {
       {/* Input area */}
       <div className="p-4 border-t bg-white flex items-end gap-2">
         <Button variant="outline" size="icon" className="shrink-0">
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="h-4 w-4 text-white" />
         </Button>
         <Textarea
           placeholder="Type a message"
