@@ -63,7 +63,7 @@ function Home() {
               }}
               className="flex justify-center"
             >
-              Kaseatsart University Social App
+              Kasetsart University Social App
             </Typography>
           </CardContent>
           <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
