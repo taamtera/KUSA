@@ -12,7 +12,6 @@ export function middleware(request){
     }
 
     return NextResponse.next()
-
 }
 
 export const config = {
