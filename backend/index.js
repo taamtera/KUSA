@@ -36,6 +36,12 @@ const asInt = (v, d) => {
     return Number.isFinite(n) ? n : d;
 };
 
+function isSelfOrAdmin(reqUserId, targetUserDoc) {
+    if (!targetUserDoc) return false;
+    if (targetUserDoc._id?.toString() === reqUserId) return true;
+    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
+}
+
 // Auth middleware
 function auth(req, res, next) {
   try {
@@ -248,9 +254,9 @@ app.post('/api/v1/auth/refresh', (req, res) => {
 
 // Logout (clear cookies)
 app.post('/api/v1/auth/logout', (_req, res) => {
-  res.clearCookie('access_token',  { path: '/api/v1' });
-  res.clearCookie('refresh_token', { path: '/api/v1' });
-  res.json({ ok: true });
+    res.clearCookie('access_token',  { path: '/api/v1' });
+    res.clearCookie('refresh_token', { path: '/api/v1' });
+    res.json({ ok: true });
 });
 
 // ===================== USER ======================
@@ -363,13 +369,6 @@ app.get('/api/v1/users', async (req, res) => {
         res.status(500).json({ status: 'failed', message: 'failed to list users' });
     }
 });
-
-// Helper: require auth (you already have `auth` middleware) + self-or-admin
-function isSelfOrAdmin(reqUserId, targetUserDoc) {
-    if (!targetUserDoc) return false;
-    if (targetUserDoc._id?.toString() === reqUserId) return true;
-    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN'); // optional if you store req.role
-}
 
 // DELETE /api/v1/users/:id
 app.delete('/api/v1/users/:id', auth, async (req, res) => {
