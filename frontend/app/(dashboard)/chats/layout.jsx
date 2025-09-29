@@ -1,24 +1,26 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-
+import { ChatSidebar } from "@/components/chat-sidebar"
 
 export default function Layout({ children }) {
   return (
     <SidebarProvider
       defaultOpen={true}
       collapsible="offcanvas"
-      breakpoint="md" // Collapse to offcanvas below md breakpoint
+      breakpoint="md"
     >
-      {/* Single sidebar instance */}
-      <AppSidebar />
-      
-      <main className="flex-1">
+
+        {/* Main Content */}
+        <main className="flex-1">
         {/* Mobile trigger
         <div className="md:hidden p-4">
           <SidebarTrigger />
         </div> */}
         {children}
-      </main>
+        </main>
+
+        {/* Right Sidebar */}
+        <ChatSidebar />
     </SidebarProvider>
   )
 }
