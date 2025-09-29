@@ -57,7 +57,7 @@ const baseCookie = {
     httpOnly: true,                         // JS can’t read it (safer)
     sameSite: 'lax',                        // helps prevent CSRF; OK for SPA + API
     secure: process.env.NODE_ENV === 'production', // HTTPS required in prod
-    path: '/api/v1',                              // available under /api/v1
+    path: '/',                              // available under root
 };
 
 function signAccess(payload)  { return jwt.sign(payload, JWT_ACCESS_SECRET,  { expiresIn: ACCESS_TTL }); }
@@ -243,8 +243,8 @@ app.post('/api/v1/auth/refresh', (req, res) => {
 
 // Logout (clear cookies)
 app.post('/api/v1/auth/logout', (_req, res) => {
-  res.clearCookie('access_token',  { path: '/api/v1' });
-  res.clearCookie('refresh_token', { path: '/api/v1' });
+  res.clearCookie('access_token',  { path: '/' });
+  res.clearCookie('refresh_token', { path: '/' });
   res.json({ ok: true });
 });
 
