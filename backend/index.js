@@ -1,75 +1,38 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-
 const bcrypt = require('bcrypt');
 
-const app = express().use(cors()).use(express.json());
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Import schema
-const { User, File, Server, Member, Room, Message, Attachment } = require('./schema.js');
-
-const PORT = 3001;
+// ---- DB CONNECT ----
+const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 
-const SALT = 10;
+// Models
+const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
+// Helpers
 let db_status = false;
 
-// //mongose Schema
-// const Task = mongoose.model('Task', new mongoose.Schema({
-//     text: String,
-//     completed: Boolean
-// }));
-
-// ROUTES
-
+// Health route
 app.get('/', async (req, res) => {
     console.log("Health check received");
     let data = { backend: true, database: db_status };
-    // let data = { profile: {username: "name", image: "asd.png"}}
     res.send(data);
 });
 
-// app.get('/profile/:id', async (req, res) => {
-//     console.log("Health check received");
-//     let data = { profile: {username: "name", image: "asd.png", id: req.params.id}}
-//     res.send(data);
-// });
+// =============== AUTH (simple, no tokens yet) ===============
 
-// post DATA FROM FRONTEND TO BACKEND (SAVE)
-app.post('/api/v1/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // Check if user exists
-        const user = await User.findOne({ username });
-        let isMatch = false;
-
-        if (user) {
-        isMatch = await bcrypt.compare(password, user.password_hash);
-        }
-
-        if (!user || !isMatch) {
-        console.warn(`Login failed for email: ${email}`); // log internally
-        return res.status(401).send("Wrong username or password ❌");
-        }
-
-        // If we get here → login success
-        res.send("✅ Login successful");
-    } catch(err) {
-        console.error(err);
-        res.status(500).send("Server error");
-    }
-});
-
-
-// CREATE ACCOUNT
+// Register
 app.post('/api/v1/login/register', async (req, res) => {
     try {
         console.log(req.body);
         const { username, email, password, password_confirmation } = req.body;
-        
+
 
         // Tell missing required fields
         const missing = [];
@@ -79,29 +42,29 @@ app.post('/api/v1/login/register', async (req, res) => {
         if (!password_confirmation) missing.push("password_confirmation");
 
         if (missing.length > 0) {
-        return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
+            return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
         }
-        
+
         // Check if email already exists
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
-        return res.status(409).send("This email has already been registered");
+            return res.status(409).json({ status: "failed", message: "This email has already been registered" });
         }
 
         // Check if username already exists
         const existingUsername = await User.findOne({ username });
         if (existingUsername) {
-        return res.status(409).send("This username is already taken");
+            return res.status(409).json({ status: "failed", message: "This username is already taken" });
         }
 
         // Check if password and password confirmation match
         if (password != password_confirmation) {
-            res.status(400).send("Password and Confirm Password don't match")
+            res.status(400).json({ status: "failed", message: "Password and Confirm Password don't match" })
         }
 
         // Hash password
-        const salt = await bcrypt.genSalt(SALT);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        const hashedPassword = await bcrypt.hash(password, ROUNDS);
 
         // Create new user
         const newUser = new User({
@@ -111,96 +74,92 @@ app.post('/api/v1/login/register', async (req, res) => {
         });
 
         await newUser.save();
-        res.json({message: "Registration Success", });
+        res.json({
+            status: "success",
+            message: "",
+            user: { id: newUser._id, email: newUser.email }
+        });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Server error");
+        return res.status(500).json({ status: "failed", message: "Unable to Register, please try again later" });
     }
 });
 
-
-app.get('/api/v1/user/:id', async (req, res) => {
-    const user = await User.findById(req.params.id).select("-_id -password_hash");
-
-    if (!user) {
-    return res.status(404).send("User not found");
-    }
-
-    const userJSON = JSON.stringify(user);
-    console.log(userJSON);
-    res.send(userJSON);
-});
-
-app.put('/api/v1/users/:id', async (req, res) => {
+// Change password
+app.post('/api/v1/account/change-password', async (req, res) => {
     try {
-        const { id } = req.params; // user id from URL
-        const { username, email, description } = req.body; // fields client can update
+        const { userId, old_password, new_password } = req.body; // no auth yet, pass userId explicitly
+        if (!userId || !old_password || !new_password) {
+            return res.status(400).json({ status: "failed", message: "Missing fields" });
+        }
+        const user = await User.findById(userId).select('+password_hash');
+        if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
 
-        // Find user by ID
-        const user = await User.findById(id);
-        if (!user) {
-        return res.status(404).send("User not found ❌");
-        }
-        
-        // Check if email is taken
-        if (email && email !== user.email) {
-        const emailExists = await User.findOne({ email });
-        if (emailExists) {
-            return res.status(409).send("Email is already taken ❌");
-        }
-        user.email = email;
-        }
-        
-        // Check if username is taken
-        if (username && username !== user.username) {
-        const nameExists = await User.findOne({ username });
-        if (nameExists) {
-            return res.status(409).send("Username is already taken ❌");
-        }
-        user.username = username;
+        const ok = await bcrypt.compare(old_password, user.password_hash);
+        if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
+
+        if (new_password.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
         }
 
-        // Update allowed fields only
-        if (username) user.username = username;
-        if (email) user.email = email;
-        if (description) user.description = description;
-
-        // Save updated user
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(new_password, ROUNDS);
         await user.save();
 
-        res.json({ message: "✅ Profile updated", user });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Server error ❌");
+        return res.json({ status: "success", message: "Password updated" });
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
     }
 });
 
-// get DATA FROM BACKEND TO FRONTEND
-// app.get('/tasks', async (req, res) => {
-//     const tasks = await Task.find();
-//     res.json(tasks);
-// });
 
-// post DATA FROM FRONTEND TO BACKEND (SAVE)
-// app.post('/tasks', async (req, res) => {
-//     const task = await Task.create(req.body);
-//     res.json(task);
-// });
+// Login
+app.post('/api/v1/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        // Check if email and password are provided
+        if (!email || !password) {
+            return res.status(400).json({ status: "failed", message: "Email and password are required" });
+        }
+        // admin bypass remove before production
+        if (email == "admin" && password == "admin") {
+            return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
+        }
 
-// putDATA FROM FRONTEND TO BACKEND (UPDATE)
-// app.put('/tasks/:id', async (req, res) => {
-//     const task = await Task.findByIdAndUpdate(req.params.id, req.body);
-//     res.json(task);
-// });
+        // Find user by email
+        const user = await User.findOne({ email }).select('+password_hash');
 
-// WILL NOT BE USING DELTE
-// instead use "active" flag to remove data
-// app.delete('/tasks/:id', async (req, res) => {
-//     await Task.findByIdAndDelete(req.params.id);
-//     res.sendStatus(204);
-// });
+        // Check if user exists
+        if (!user) {
+            return res.status(404).json({ status: "failed", message: "User not found" });
+        }
 
-async function ResetAndSeedSimple() {
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ status: "failed", message: "Invalid email or password" });
+        }
+
+        // Generate tokens
+
+        // Set Cookies
+
+        // Send Success Response with Tokens
+        const safeUser = user.toObject();
+        delete safeUser.password_hash;
+        console.log("success", safeUser);
+        return res.status(200).json({ status: "success", message: "Login successful", user: safeUser });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later" });
+    }
+});
+
+
+
+async function InitializeDatabaseStructures() {
     console.log('Resetting only seeded data, then inserting…');
 
     // ---------- 1) Define seed keys (unique identifiers) ----------
@@ -231,19 +190,19 @@ async function ResetAndSeedSimple() {
     ];
 
     // ---------- 2) Lookup existing seed docs ----------
-    const seedFiles   = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
-    const seedUsers   = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
+    const seedFiles = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
+    const seedUsers = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
     const seedServers = await Server.find({ server_name: { $in: SERVER_NAMES } }, { _id: 1 }).lean();
 
-    const seedFileIds   = seedFiles.map(d => d._id);
-    const seedUserIds   = seedUsers.map(d => d._id);
+    const seedFileIds = seedFiles.map(d => d._id);
+    const seedUserIds = seedUsers.map(d => d._id);
     const seedServerIds = seedServers.map(d => d._id);
 
     // Rooms and members depend on servers/users
-    const seedRooms   = await Room.find({
+    const seedRooms = await Room.find({
         $or: [
-        { server: { $in: seedServerIds } },
-        { title: { $in: ROOMS_BY_TITLE } }
+            { server: { $in: seedServerIds } },
+            { title: { $in: ROOMS_BY_TITLE } }
         ]
     }, { _id: 1 }).lean();
 
@@ -251,8 +210,8 @@ async function ResetAndSeedSimple() {
 
     const seedMembers = await Member.find({
         $or: [
-        { server: { $in: seedServerIds } },
-        { user: { $in: seedUserIds } }
+            { server: { $in: seedServerIds } },
+            { user: { $in: seedUserIds } }
         ]
     }, { _id: 1, server: 1, user: 1 }).lean();
 
@@ -261,21 +220,27 @@ async function ResetAndSeedSimple() {
     // Messages tied to (rooms or members)
     const seedMessages = await Message.find({
         $or: [
-        { room: { $in: seedRoomIds } },
-        { sender: { $in: seedMemberIds } },
-        { recipients: { $elemMatch: { $in: seedMemberIds } } },
+            { room: { $in: seedRoomIds } },
+            { sender: { $in: seedMemberIds } },
+            { recipients: { $elemMatch: { $in: seedMemberIds } } },
         ]
     }, { _id: 1 }).lean();
 
     const seedMessageIds = seedMessages.map(d => d._id);
 
     // ---------- 3) Delete only seed data (children → parents) ----------
-    // attachments by (message/file)
+
+    // reactions (child of message)
     if (seedMessageIds.length) {
-        await Attachment.deleteMany({ message: { $in: seedMessageIds } });
+        await Reaction.deleteMany({ message: { $in: seedMessageIds } });
     }
-    if (seedFileIds.length) {
-        await Attachment.deleteMany({ file: { $in: seedFileIds } });
+
+    // attachments by (message OR file)
+    if (seedMessageIds.length || seedFileIds.length) {
+        const or = [];
+        if (seedMessageIds.length) or.push({ message: { $in: seedMessageIds } });
+        if (seedFileIds.length) or.push({ file: { $in: seedFileIds } });
+        await Attachment.deleteMany({ $or: or });
     }
 
     // messages
@@ -284,62 +249,63 @@ async function ResetAndSeedSimple() {
     }
 
     // rooms & members
-    if (seedRoomIds.length) {
-        await Room.deleteMany({ _id: { $in: seedRoomIds } });
-    }
-    if (seedMemberIds.length) {
-        await Member.deleteMany({ _id: { $in: seedMemberIds } });
-    }
+    if (seedRoomIds.length) await Room.deleteMany({ _id: { $in: seedRoomIds } });
+    if (seedMemberIds.length) await Member.deleteMany({ _id: { $in: seedMemberIds } });
 
     // servers, users, files
-    if (seedServerIds.length) {
-        await Server.deleteMany({ _id: { $in: seedServerIds } });
-    }
-    if (seedUserIds.length) {
-        await User.deleteMany({ _id: { $in: seedUserIds } });
-    }
-    if (seedFileIds.length) {
-        await File.deleteMany({ _id: { $in: seedFileIds } });
-    }
+    if (seedServerIds.length) await Server.deleteMany({ _id: { $in: seedServerIds } });
+    if (seedUserIds.length) await User.deleteMany({ _id: { $in: seedUserIds } });
+    if (seedFileIds.length) await File.deleteMany({ _id: { $in: seedFileIds } });
+
 
     // ---------- 4) Recreate the seed data ----------
     // Files
     const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
         { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/bob.png',   original_name: 'bob.png',   mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/cara.png',  original_name: 'cara.png',  mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/icons/hub.png',     original_name: 'hub.png',   mime_type: 'image/png', byte_size: 12345  },
-        { storage_key: 'uploads/icons/dev.png',     original_name: 'dev.png',   mime_type: 'image/png', byte_size: 12345  },
-        { storage_key: 'uploads/docs/welcome.pdf',  original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
+        { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'uploads/icons/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
+        { storage_key: 'uploads/icons/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
+        { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
     ]);
 
     // Users (password_hash placeholders)
+    const salt = await bcrypt.genSalt(Number(process.env.SALT));
+
+    const [aliceHash, bobHash, caraHash, adminHash] = await Promise.all([
+        bcrypt.hash('alice123!', salt),
+        bcrypt.hash('bob123!', salt),
+        bcrypt.hash('cara123!', salt),
+        bcrypt.hash('admin123!', salt),
+    ]);
+
     const [alice, bob, cara] = await User.create([
-        { username: 'alice', email: 'alice@example.com', password_hash: 'bcrypt$example', icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
-        { username: 'bob',   email: 'bob@example.com',   password_hash: 'bcrypt$example', icon_file: fBobAva._id,   role: 'USER', description: 'Backend dev' },
-        { username: 'cara',  email: 'cara@example.com',  password_hash: 'bcrypt$example', icon_file: fCaraAva._id,  role: 'USER', description: 'Designer' },
+        { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
+        { username: 'bob', email: 'bob@example.com', password_hash: bobHash, icon_file: fBobAva._id, role: 'USER', description: 'Backend dev' },
+        { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
+        { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
     ]);
 
     // Servers
     const [hub, dev] = await Server.create([
         { server_name: 'General Hub' },
-        { server_name: 'Dev Corner'  },
+        { server_name: 'Dev Corner' },
     ]);
 
     // Rooms
     const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-        { title: 'general',       icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
+        { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
         { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
-        { title: 'dev-chat',      icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
+        { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
     ]);
 
     // Members
     const [aliceHub, bobHub, caraHub, aliceDev, bobDev] = await Member.create([
         { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
-        { user: bob._id,   server: hub._id, nickname: 'Bob',   role: 'member' },
-        { user: cara._id,  server: hub._id, nickname: 'Cara',  role: 'member' },
+        { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
+        { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
         { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
-        { user: bob._id,   server: dev._id, nickname: 'Bob',   role: 'moderator' },
+        { user: bob._id, server: dev._id, nickname: 'Bob', role: 'moderator' },
     ]);
 
     // Messages & Attachments
@@ -385,11 +351,14 @@ async function ResetAndSeedSimple() {
         message_type: 'text',
     });
 
-    console.log('Seed complete ✔');
-}
+    // Reactions: Bob 👍 on m1, Cara 🎉 on m1, Alice ❤️ on m2
+    await Reaction.create([
+        { message: m1._id, member: bobHub._id, emoji: '👍' },
+        { message: m1._id, member: caraHub._id, emoji: '🎉' },
+        { message: m2._id, member: aliceHub._id, emoji: '❤️' },
+    ]);
 
-async function InitializeDatabaseStructures() {
-    
+    console.log('Seed complete ✔');
 }
 
 // Keep db_status accurate on connection state changes
@@ -397,7 +366,6 @@ mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
     // check if there are any databse structures needed and create them if not
-    ResetAndSeedSimple();
     InitializeDatabaseStructures();
 });
 mongoose.connection.on('disconnected', () => {

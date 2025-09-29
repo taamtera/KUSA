@@ -126,6 +126,25 @@ const attachmentSchema = new Schema(
 attachmentSchema.index({ message: 1, position: 1 }, { unique: true });
 
 /* -----------------------------
+ * REACTIONS
+ * One doc = one member reacted with one emoji on one message
+ * ---------------------------*/
+const reactionSchema = new Schema(
+  {
+    message: { type: ObjectId, ref: 'message', required: true },
+    member:  { type: ObjectId, ref: 'member',  required: true },
+    emoji:   { type: String, required: true, trim: true }, // e.g. "👍" or ":thumbsup:"
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+// Prevent duplicate reaction of the same emoji by the same member on the same message
+reactionSchema.index({ message: 1, member: 1, emoji: 1 }, { unique: true });
+
+// Helpful for counts like “👍 x 3”
+reactionSchema.index({ message: 1, emoji: 1 });
+
+/* -----------------------------
  * MODELS (re-use if already compiled)
  * ---------------------------*/
 const File       = models.file       || model('file', fileSchema);
@@ -135,5 +154,6 @@ const Member     = models.member     || model('member', memberSchema);
 const Room       = models.room       || model('room', roomSchema);
 const Message    = models.message    || model('message', messageSchema);
 const Attachment = models.attachment || model('attachment', attachmentSchema);
+const Reaction = models.reaction || model('reaction', reactionSchema);
 
-module.exports = { User, File, Server, Member, Room, Message, Attachment };
+module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction };
