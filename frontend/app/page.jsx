@@ -37,7 +37,7 @@ function Home() {
       <Card
         className="flex basis-full items-center"
         sx={{
-          borderRadius: 3,
+          borderRadius: 4,
           background: "#dbdce1",
         }}
         elevation={5}
@@ -75,7 +75,14 @@ function Home() {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
             <a href="/register">
-              <Button className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
+              <Button 
+              className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
+            </a>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
+            <a href="/login2">
+              <Button 
+              className="flex w-64 my-4 shadow-xl cursor-pointer">login temporary</Button>
             </a>
           </div>
         </div>
