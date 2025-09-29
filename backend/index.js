@@ -8,8 +8,8 @@ const cookiesParser = require('cookie-parser');
 
 const app = express();
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
-  credentials: true, // allow sending/receiving cookies
+    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+    credentials: true, // allow sending/receiving cookies
 }));
 
 app.use(express.json());
@@ -23,9 +23,9 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
 // config (env)
-const ACCESS_TTL  = process.env.ACCESS_TTL  || '15m';
+const ACCESS_TTL = process.env.ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.REFRESH_TTL || '14d';
-const JWT_ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || 'dev-access-secret';
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 
 // Helpers
@@ -33,17 +33,17 @@ let db_status = false;
 
 // Auth middleware
 function auth(req, res, next) {
-  try {
-    const token = req.cookies?.access_token;
-    if (!token) {
-      return res.status(401).json({ status: 'failed', message: 'Missing token' });
+    try {
+        const token = req.cookies?.access_token;
+        if (!token) {
+            return res.status(401).json({ status: 'failed', message: 'Missing token' });
+        }
+        const { sub } = jwt.verify(token, JWT_ACCESS_SECRET); // payload = { sub }
+        req.userId = sub; // store user id for handlers
+        next();
+    } catch {
+        return res.status(401).json({ status: 'failed', message: 'Expired or invalid token' });
     }
-    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET); // payload = { sub }
-    req.userId = sub; // store user id for handlers
-    next();
-  } catch {
-    return res.status(401).json({ status: 'failed', message: 'Expired or invalid token' });
-  }
 }
 
 // Health route
@@ -56,11 +56,11 @@ app.get('/', async (req, res) => {
 const baseCookie = {
     httpOnly: true,                         // JS can’t read it (safer)
     sameSite: 'lax',                        // helps prevent CSRF; OK for SPA + API
-    secure: process.env.NODE_ENV === 'production', // HTTPS required in prod
-    path: '/api/v1',                              // available under /api/v1
+    secure: false,                          // HTTPS required in prod
+    path: '/',                              // available under root
 };
 
-function signAccess(payload)  { return jwt.sign(payload, JWT_ACCESS_SECRET,  { expiresIn: ACCESS_TTL }); }
+function signAccess(payload) { return jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: ACCESS_TTL }); }
 function signRefresh(payload) { return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: REFRESH_TTL }); }
 
 // ISO string for “now + ms”
@@ -71,11 +71,11 @@ function parseTtlToMs(ttl) {
     const m = /^(\d+)([smhd])$/.exec(ttl);
     if (!m) throw new Error('Invalid TTL format. Use like "15m", "2h", "7d".');
     const n = Number(m[1]); const unit = m[2];
-    return n * ({ s:1000, m:60000, h:3600000, d:86400000 }[unit]);
+    return n * ({ s: 1000, m: 60000, h: 3600000, d: 86400000 }[unit]);
 }
 
 function setAuthCookies(res, accessToken, refreshToken) {
-    res.cookie('access_token',  accessToken,  { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
+    res.cookie('access_token', accessToken, { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
     res.cookie('refresh_token', refreshToken, { ...baseCookie, maxAge: parseTtlToMs(REFRESH_TTL) });
 }
 
@@ -108,12 +108,12 @@ app.post('/api/v1/login/register', async (req, res) => {
         // Check if username already exists
         const existingUsername = await User.findOne({ username });
         if (existingUsername) {
-            return res.status(409).json({status: "failed", message: "This username is already taken"});
+            return res.status(409).json({ status: "failed", message: "This username is already taken" });
         }
 
         // Check if password and password confirmation match
         if (password != password_confirmation) {
-            return res.status(400).json({status: "failed", message: "Password and Confirm Password don't match"})
+            return res.status(400).json({ status: "failed", message: "Password and Confirm Password don't match" })
         }
 
         // Hash password
@@ -129,13 +129,13 @@ app.post('/api/v1/login/register', async (req, res) => {
 
         await newUser.save();
         return res.json({
-                status: "success",
-                message: "Registration Success",
-                user: { id: newUser._id, email: newUser.email}
-            });
+            status: "success",
+            message: "Registration Success",
+            user: { id: newUser._id, email: newUser.email }
+        });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({status: "failed", message: "Unable to Register, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to Register, please try again later" });
     }
 });
 
@@ -144,7 +144,7 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
     try {
         const { old_password, new_password } = req.body;
         if (!old_password || !new_password) {
-        return res.status(400).json({ status: "failed", message: "Missing fields" });
+            return res.status(400).json({ status: "failed", message: "Missing fields" });
         }
         const user = await User.findById(req.userId).select('+password_hash');
         if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
@@ -153,7 +153,7 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
         if (!ok) return res.status(401).json({ status: "failed", message: "Wrong current password" });
 
         if (new_password.length < 8) {
-        return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
         }
 
         const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
@@ -198,7 +198,7 @@ app.post('/api/v1/login', async (req, res) => {
         // Create tokens
         const payload = { sub: user._id.toString() };
 
-        const accessToken  = signAccess(payload);               // 15m by default
+        const accessToken = signAccess(payload);               // 15m by default
         const refreshToken = signRefresh({ sub: payload.sub }); // 14d by default
 
         // Set Cookies
@@ -213,13 +213,13 @@ app.post('/api/v1/login', async (req, res) => {
             message: "Login successful",
             user: safeUser,
             session: {
-                access_expires_at:  epochMsPlus(parseTtlToMs(ACCESS_TTL)),
+                access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)),
                 refresh_expires_at: epochMsPlus(parseTtlToMs(REFRESH_TTL)),
             }
-         });
-    } catch(err) {
+        });
+    } catch (err) {
         console.error(err);
-        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later"});
+        return res.status(500).json({ status: "failed", message: "Unable to login, please try again later" });
     }
 });
 
@@ -227,7 +227,8 @@ app.post('/api/v1/login', async (req, res) => {
 app.get('/api/v1/auth/me', auth, async (req, res) => {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
-    res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+    // return res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+    return res.status(200);
 });
 
 // Refresh access token from refresh cookie
@@ -247,9 +248,9 @@ app.post('/api/v1/auth/refresh', (req, res) => {
 
 // Logout (clear cookies)
 app.post('/api/v1/auth/logout', (_req, res) => {
-  res.clearCookie('access_token',  { path: '/api/v1' });
-  res.clearCookie('refresh_token', { path: '/api/v1' });
-  res.json({ ok: true });
+    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('refresh_token', { path: '/' });
+    res.json({ ok: true });
 });
 
 
@@ -314,9 +315,9 @@ async function InitializeDatabaseStructures() {
     // Messages tied to (rooms or members)
     const seedMessages = await Message.find({
         $or: [
-        { room: { $in: seedRoomIds } },
-        { sender: { $in: seedMemberIds } },
-        { recipients: { $in: seedMemberIds } },
+            { room: { $in: seedRoomIds } },
+            { sender: { $in: seedMemberIds } },
+            { recipients: { $in: seedMemberIds } },
         ]
     }, { _id: 1 }).lean();
 
@@ -365,18 +366,18 @@ async function InitializeDatabaseStructures() {
 
     // Users (password_hash placeholders)
     const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-    
+
     const [aliceHash, bobHash, caraHash] = await Promise.all([
         bcrypt.hash('alice123!', ROUNDS),
-        bcrypt.hash('bob123!',   ROUNDS),
-        bcrypt.hash('cara123!',  ROUNDS),
+        bcrypt.hash('bob123!', ROUNDS),
+        bcrypt.hash('cara123!', ROUNDS),
     ]);
 
     const [alice, bob, cara] = await User.create([
         { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
         { username: 'bob', email: 'bob@example.com', password_hash: bobHash, icon_file: fBobAva._id, role: 'USER', description: 'Backend dev' },
         { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
-        { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
+        // { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
     ]);
 
     // Servers
