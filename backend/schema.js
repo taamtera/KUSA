@@ -21,12 +21,18 @@ const fileSchema = new Schema(
 const userSchema = new Schema(
     {
         username:      { type: String, required: true, unique: true, trim: true },
+        display_name:  { type: String, default: function () {return this.username} }, 
         email:         { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
         role:          { type: String, required: true, default: 'USER' },
         icon_file:     { type: ObjectId, ref: 'file', default: null },
         banner_file:   { type: ObjectId, ref: 'file', default: null },
-        description:   { type: String, trim: true, default: null }
+        description:   { type: String, trim: true, default: null },
+        gender:        { type: String, default: null },
+        birthday:      { type: Date, default: null },
+        major:         { type: String, default: null },
+        faculty:       { type: String, default: null },
+        phone_number:         { type: String, default: null } 
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
