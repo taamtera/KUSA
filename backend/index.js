@@ -5,11 +5,13 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const cookiesParser = require('cookie-parser');
 
 const app = express();
 app.use(cors({
-    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
-    credentials: true, // allow sending/receiving cookies
+  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+  credentials: true, // allow sending/receiving cookies
 }));
 
 app.use(express.json());
@@ -23,13 +25,39 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
 // config (env)
-const ACCESS_TTL = process.env.ACCESS_TTL || '15m';
+const ACCESS_TTL  = process.env.ACCESS_TTL  || '15m';
 const REFRESH_TTL = process.env.REFRESH_TTL || '14d';
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
+const JWT_ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || 'dev-access-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 
 // Helpers
 let db_status = false;
+const oid = (id) => mongoose.Types.ObjectId.isValid(id);
+const asInt = (v, d) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : d;
+};
+
+function isSelfOrAdmin(reqUserId, targetUserDoc) {
+    if (!targetUserDoc) return false;
+    if (targetUserDoc._id?.toString() === reqUserId) return true;
+    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
+}
+
+// Auth middleware
+function auth(req, res, next) {
+  try {
+    const token = req.cookies?.access_token;
+    if (!token) {
+      return res.status(401).json({ status: 'failed', message: 'Missing token' });
+    }
+    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET); // payload = { sub }
+    req.userId = sub; // store user id for handlers
+    next();
+  } catch {
+    return res.status(401).json({ status: 'failed', message: 'Expired or invalid token' });
+  }
+}
 
 // Auth middleware
 function auth(req, res, next) {
@@ -119,6 +147,7 @@ app.post('/api/v1/login/register', async (req, res) => {
         // Hash password
         const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
         const hashedPassword = await bcrypt.hash(password, ROUNDS);
+        const hashedPassword = await bcrypt.hash(password, ROUNDS);
 
         // Create new user
         const newUser = new User({
@@ -129,10 +158,10 @@ app.post('/api/v1/login/register', async (req, res) => {
 
         await newUser.save();
         return res.json({
-            status: "success",
-            message: "Registration Success",
-            user: { id: newUser._id, email: newUser.email }
-        });
+                status: "success",
+                message: "Registration Success",
+                user: { id: newUser._id, email: newUser.email}
+            });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ status: "failed", message: "Unable to Register, please try again later" });
@@ -144,7 +173,7 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
     try {
         const { old_password, new_password } = req.body;
         if (!old_password || !new_password) {
-            return res.status(400).json({ status: "failed", message: "Missing fields" });
+        return res.status(400).json({ status: "failed", message: "Missing fields" });
         }
         const user = await User.findById(req.userId).select('+password_hash');
         if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
@@ -254,6 +283,179 @@ app.post('/api/v1/auth/logout', (_req, res) => {
 });
 
 
+// Who am I (protected)
+app.get('/api/v1/auth/me', auth, async (req, res) => {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
+    res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+});
+
+// Refresh access token from refresh cookie
+app.post('/api/v1/auth/refresh', (req, res) => {
+    try {
+        const rt = req.cookies?.refresh_token;
+        if (!rt) return res.status(401).json({ status: 'failed', message: 'No refresh token' });
+
+        const { sub } = jwt.verify(rt, JWT_REFRESH_SECRET);
+        const at = signAccess({ sub });
+        res.cookie('access_token', at, { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
+        res.json({ ok: true, access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)) });
+    } catch {
+        return res.status(401).json({ status: 'failed', message: 'Invalid refresh token' });
+    }
+});
+
+// Logout (clear cookies)
+app.post('/api/v1/auth/logout', (_req, res) => {
+    res.clearCookie('access_token',  { path: '/api/v1' });
+    res.clearCookie('refresh_token', { path: '/api/v1' });
+    res.json({ ok: true });
+});
+
+// ===================== USER ======================
+
+// Get user info
+app.get('/api/v1/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+        const user = await User.findById(id)
+        .populate('icon_file')
+        .populate('banner_file')
+        .lean();
+
+        if (!user) return res.status(404).json({ message: 'user not found' });
+        res.json({ status: 'success', user });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to fetch user' });
+    }
+});
+
+
+// Edit user info (username, description, icon/banner)
+app.patch('/api/v1/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+        const { username, description, icon_file, banner_file } = req.body;
+        const update = {};
+
+        if (typeof username === 'string' && username.trim()) {
+        const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
+        if (exists) return res.status(409).json({ message: 'username already taken' });
+        update.username = username.trim();
+        }
+        if (typeof description === 'string') update.description = description;
+
+        if (icon_file) {
+        if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
+        const f = await File.findById(icon_file).lean();
+        if (!f) return res.status(404).json({ message: 'icon file not found' });
+        update.icon_file = icon_file;
+        }
+        if (banner_file) {
+        if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
+        const f = await File.findById(banner_file).lean();
+        if (!f) return res.status(404).json({ message: 'banner file not found' });
+        update.banner_file = banner_file;
+        }
+
+        if (!Object.keys(update).length)
+        return res.status(400).json({ message: 'nothing to update' });
+
+        const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+        .populate('icon_file')
+        .populate('banner_file')
+        .lean();
+
+        if (!user) return res.status(404).json({ message: 'user not found' });
+        res.json({ status: 'success', user });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to update user' });
+    }
+});
+
+// ===================== USERS LIST ======================
+// GET /api/v1/users?q=alice&page=1&limit=20&sort=-created_at
+app.get('/api/v1/users', async (req, res) => {
+    try {
+        const q      = (req.query.q || '').trim();
+        const page   = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit  = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
+        const sort   = (req.query.sort || '-created_at'); // e.g. 'username' or '-created_at'
+
+        const filter = {};
+        if (q) {
+        // case-insensitive search on username OR email
+        const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        filter.$or = [{ username: rx }, { email: rx }];
+        }
+
+        const cursor = User.find(filter)
+        .select('+created_at +updated_at') // password_hash is already select:false
+        .populate('icon_file')
+        .populate('banner_file')
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        const [items, total] = await Promise.all([
+        cursor,
+        User.countDocuments(filter)
+        ]);
+
+        res.json({
+        status: 'success',
+        page,
+        limit,
+        total,
+        has_more: page * limit < total,
+        users: items
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to list users' });
+    }
+});
+
+// DELETE /api/v1/users/:id
+app.delete('/api/v1/users/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
+
+        // Fetch target
+        const target = await User.findById(id).lean();
+        if (!target) return res.status(404).json({ message: 'user not found' });
+
+        // Optional: if you store user role in token, decode earlier and set req.role.
+        // For now, allow only self-delete.
+        if (req.userId !== id) {
+        return res.status(403).json({ message: 'forbidden: can only delete your own account' });
+        }
+
+        await User.deleteOne({ _id: id });
+        // If you want "soft delete", flip a flag instead of deleting.
+
+        // Clear cookies if the user deleted themself
+        if (req.userId === id) {
+        res.clearCookie('access_token',  { path: '/api/v1' });
+        res.clearCookie('refresh_token', { path: '/api/v1' });
+        }
+
+        res.json({ status: 'success', deleted_id: id });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to delete user' });
+    }
+});
+
+
 async function InitializeDatabaseStructures() {
     console.log('Resetting only seeded data, then inserting…');
 
@@ -315,9 +517,9 @@ async function InitializeDatabaseStructures() {
     // Messages tied to (rooms or members)
     const seedMessages = await Message.find({
         $or: [
-            { room: { $in: seedRoomIds } },
-            { sender: { $in: seedMemberIds } },
-            { recipients: { $in: seedMemberIds } },
+        { room: { $in: seedRoomIds } },
+        { sender: { $in: seedMemberIds } },
+        { recipients: { $in: seedMemberIds } },
         ]
     }, { _id: 1 }).lean();
 
@@ -366,11 +568,11 @@ async function InitializeDatabaseStructures() {
 
     // Users (password_hash placeholders)
     const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-
+    
     const [aliceHash, bobHash, caraHash] = await Promise.all([
         bcrypt.hash('alice123!', ROUNDS),
-        bcrypt.hash('bob123!', ROUNDS),
-        bcrypt.hash('cara123!', ROUNDS),
+        bcrypt.hash('bob123!',   ROUNDS),
+        bcrypt.hash('cara123!',  ROUNDS),
     ]);
 
     const [alice, bob, cara] = await User.create([
