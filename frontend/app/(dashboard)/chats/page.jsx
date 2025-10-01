@@ -28,7 +28,7 @@ export default function Chat() {
   ]);
   
   const [newMessage, setNewMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,9 +76,9 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white p-4 border-b flex items-center justify-between">
+      <div className="bg-white p-4 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src="https://github.com/shadcn.png" />
@@ -94,7 +94,7 @@ export default function Chat() {
         </Button>
       </div>
 
-      {/* Messages area */}
+      {/* Messages - the only scrollable part */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -102,28 +102,30 @@ export default function Chat() {
             className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-xs lg:max-w-md rounded-lg px-4 py-2 ${message.sender === "user"
-                ? "bg-blue-500 text-white rounded-br-none"
-                : "bg-white text-gray-800 rounded-bl-none"
-                }`}
+              className={`max-w-xs lg:max-w-md rounded-lg px-4 py-2 ${
+                message.sender === "user"
+                  ? "bg-blue-500 text-white rounded-br-none"
+                  : "bg-white text-gray-800 rounded-bl-none"
+              }`}
             >
               <p className="break-words">{message.text}</p>
               <p
-                className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"
-                  }`}
+                className={`text-xs mt-1 ${
+                  message.sender === "user" ? "text-blue-100" : "text-gray-500"
+                }`}
               >
                 {formatTime(message.timestamp)}
               </p>
             </div>
           </div>
         ))}
-        {/* <div ref={messagesEndRef} /> */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input area */}
-      <div className="p-4 border-t bg-white flex items-end gap-2">
+      <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
         <Button variant="outline" size="icon" className="shrink-0">
-          <Paperclip className="h-4 w-4 text-white" />
+          <Paperclip className="h-4 w-4 text-gray-600" />
         </Button>
         <Textarea
           placeholder="Type a message"
@@ -138,7 +140,7 @@ export default function Chat() {
           ref={(textarea) => {
             if (textarea) {
               textarea.style.height = 'auto';
-              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px'; // 128px = max-h-32 (8 * 16px)
+              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
             }
           }}
         />
@@ -153,4 +155,5 @@ export default function Chat() {
       </div>
     </div>
   );
+
 }
