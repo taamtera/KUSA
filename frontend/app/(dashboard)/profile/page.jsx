@@ -1,22 +1,67 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
 
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null); // to show simple errors
+  
+  useEffect(() => {
+    // A small function to load the current user
+    const loadUser = async () => {
+      try {
+        // Call GET /api/v1/auth/me
+        const res = await fetch("http://localhost:3001/api/v1/auth/me", {
+          // include cookies (your access token) with the request
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+
+        // If response is not OK (e.g., 401), stop and show message
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError(body.message || `HTTP ${res.status}`);
+          setUser(null);
+          return;
+        }
+
+        // Example shape: { user: { id, username, email, role } }
+        const data = await res.json();
+
+        // Save only the user object, not the whole wrapper
+        setUser(data.user);
+        setError(null);
+      } catch (err) {
+        setError("Network error");
+        setUser(null);
+      }
+    };
+
+    loadUser();
+  }, []);
+  
   const [profile, setProfile] = useState({
     name: "John Doe",
-    username: "@johndoe",
+    username: user?.username,
     faculty: "Engineering",
     major: "Computer Science",
     gender: "Male",
     birthday: "2000-01-01",
     phone: "+1 234 567 890",
-    email: "johndoe@example.com",
+    email: "",
     bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-  });
+  });  
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        email: user?.email
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
@@ -73,7 +118,7 @@ export default function ProfilePage() {
             className="text-gray-500 border-b border-gray-300 focus:outline-none w-full"
           />
         ) : (
-          <p className="text-gray-500">{profile.username}</p>
+          <p className="text-gray-500">@{user?.username}</p>
         )}
 
         {/* Bio */}

@@ -31,6 +31,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronDown, Settings } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState, useEffect } from "react"
+// import { UserData } from "@/(dashboard)/chats/page"
 
 // Menu items with avatar instead of icon
 const DMs = [
@@ -49,6 +51,22 @@ export function AppSidebar() {
   const handleFooterClick = () => {
     window.location.pathname = "/profile";
   };
+
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const response = await fetch("http://localhost:3001/api/v1/auth/me", {
+        credentials: "include",
+      });
+      const data = await response.json();
+      setUser(data);
+    };
+
+    loadUser();
+  }, []);
+  // console.log(user.user.username);
+  // console.log(user);
 
   return (
     <Sidebar>
@@ -149,7 +167,7 @@ export function AppSidebar() {
             </Avatar>
             <div className="flex flex-col">
               <span className="text-sm font-medium">Your Name</span>
-              <span className="text-xs text-muted-foreground">@username</span>
+              <span className="text-xs text-muted-foreground">@{user?.user.username}</span>
             </div>
           </div>
 
