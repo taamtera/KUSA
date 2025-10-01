@@ -253,8 +253,8 @@ app.post('/api/v1/login', async (req, res) => {
 app.get('/api/v1/auth/me', auth, async (req, res) => {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
-    // return res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
-    return res.status(200);
+    return res.status(200).json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+    // return res.status(200);
 });
 
 // Refresh access token from refresh cookie
