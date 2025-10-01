@@ -5,8 +5,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
-const jwt = require('jsonwebtoken');
-const cookiesParser = require('cookie-parser');
 
 const app = express();
 app.use(cors({
@@ -146,7 +144,6 @@ app.post('/api/v1/login/register', async (req, res) => {
 
         // Hash password
         const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-        const hashedPassword = await bcrypt.hash(password, ROUNDS);
         const hashedPassword = await bcrypt.hash(password, ROUNDS);
 
         // Create new user

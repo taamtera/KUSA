@@ -24,9 +24,9 @@ const userSchema = new Schema(
         email:         { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
         role:          { type: String, required: true, default: 'USER' },
-        icon_file:     { type: ObjectId, ref: 'file' },
-        banner_file:   { type: ObjectId, ref: 'file' },
-        description:   { type: String, trim: true }
+        icon_file:     { type: ObjectId, ref: 'file', default: null },
+        banner_file:   { type: ObjectId, ref: 'file', default: null },
+        description:   { type: String, trim: true, default: null }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -48,7 +48,7 @@ const memberSchema = new Schema(
     {
         user:    { type: ObjectId, ref: 'user', required: true },
         server:  { type: ObjectId, ref: 'server', required: true },
-        nickname:{ type: String, trim: true },
+        nickname:{ type: String, trim: true, defautl: null },
         role:    { type: String, default: 'member' }
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
@@ -65,7 +65,7 @@ const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
 const roomSchema = new Schema(
     {
         title:     { type: String, required: true, trim: true },
-        icon_file: { type: ObjectId, ref: 'file' },
+        icon_file: { type: ObjectId, ref: 'file', default: null },
         server:    { type: ObjectId, ref: 'server', required: true },
         room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
     },
