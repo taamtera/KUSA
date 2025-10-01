@@ -253,7 +253,22 @@ app.post('/api/v1/login', async (req, res) => {
 app.get('/api/v1/auth/me', auth, async (req, res) => {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
-    return res.status(200).json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+    return res.status(200).json(
+        { user: 
+            { id: user._id, 
+                display_name: user.display_name, 
+                username: user.username, 
+                email: user.email, 
+                role: user.role,
+                icon_file: user.icon_file,
+                banner_file: user.banner_file,
+                description: user.description,
+                gender: user.gender,
+                birthday: user.birthday,
+                major: user.major,
+                faculty: user.faculty,
+                phone_number: user.phone_number
+            }});
     // return res.status(200);
 });
 

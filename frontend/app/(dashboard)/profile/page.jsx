@@ -5,10 +5,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
-
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null); // to show simple errors
-  
+  const [profile, setProfile] = useState({
+    name: "",
+    username: "",
+    faculty: "",
+    major: "",
+    gender: "",
+    birthday: "",
+    phone: "",
+    email: "",
+    description: "",
+  }); 
+
   useEffect(() => {
     // A small function to load the current user
     const loadUser = async () => {
@@ -30,38 +40,31 @@ export default function ProfilePage() {
 
         // Example shape: { user: { id, username, email, role } }
         const data = await res.json();
-
         // Save only the user object, not the whole wrapper
         setUser(data.user);
+        setProfile({
+          name: data.name || "",
+          username: data.username || "",
+          faculty: data.faculty || "",
+          major: data.major || "",
+          gender: data.gender || "",
+          birthday: data.birthday || "",
+          phone: data.phone || "",
+          email: data.email || "",
+          description: data.description || ""
+        })
+
         setError(null);
       } catch (err) {
-        setError("Network error");
+        setError("Network error", err);
         setUser(null);
       }
     };
 
     loadUser();
   }, []);
-  
-  const [profile, setProfile] = useState({
-    name: "John Doe",
-    username: user?.username,
-    faculty: "Engineering",
-    major: "Computer Science",
-    gender: "Male",
-    birthday: "2000-01-01",
-    phone: "+1 234 567 890",
-    email: "",
-    bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-  });  
 
-  useEffect(() => {
-    if (user) {
-      setProfile({
-        email: user?.email
-      });
-    }
-  }, [user]);
+  console.log(user)
 
   const handleChange = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
@@ -121,16 +124,16 @@ export default function ProfilePage() {
           <p className="text-gray-500">@{user?.username}</p>
         )}
 
-        {/* Bio */}
+        {/* description */}
         {isEditing ? (
           <textarea
-            name="bio"
-            value={profile.bio}
+            name="description"
+            value={profile.description}
             onChange={handleChange}
             className="mt-4 text-gray-700 border border-gray-300 rounded p-2 w-full"
           />
         ) : (
-          <p className="mt-4 text-gray-700">{profile.bio}</p>
+          <p className="mt-4 text-gray-700">{profile.description}</p>
         )}
 
         {/* Personal Info */}
