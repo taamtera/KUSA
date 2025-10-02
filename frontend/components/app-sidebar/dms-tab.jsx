@@ -22,6 +22,7 @@ export function DMsTab({ user }) {
 			<SidebarGroupContent>
 				<SidebarMenu>
 					{user?.friends?.map((friend) => (
+            console.log(user),
 						<SidebarMenuItem key={friend._id}>
 							<SidebarMenuButton
 								onClick={() => handleFriendClick(friend._id)}

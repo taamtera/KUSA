@@ -8,8 +8,8 @@ const cookiesParser = require('cookie-parser');
 
 const app = express();
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
-  credentials: true, // allow sending/receiving cookies
+    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+    credentials: true, // allow sending/receiving cookies
 }));
 
 app.use(express.json());
@@ -468,6 +468,153 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
     }
 });
 
+// ====================== Messges =====================
+// GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20
+app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
+    try {
+        const otherUserId = req.params.userId;
+        const currentUserId = req.userId;
+        
+        // Pagination
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+        
+        // Sort direction
+        const sortDir = req.query.sort === 'asc' ? 1 : -1; // Default: newest first
+
+        // Find all member IDs for both users
+        const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
+        const otherUserMembers = await Member.find({ user: otherUserId }).select('_id');
+        
+        const currentUserMemberIds = currentUserMembers.map(m => m._id);
+        const otherUserMemberIds = otherUserMembers.map(m => m._id);
+
+        // Find direct messages between the two users
+        const messages = await Message.find({
+            context_type: 'User',
+            $or: [
+                // Messages from current user to other user
+                { 
+                    context: otherUserId,
+                    sender: { $in: currentUserMemberIds }
+                },
+                // Messages from other user to current user
+                { 
+                    context: currentUserId,
+                    sender: { $in: otherUserMemberIds }
+                }
+            ]
+        })
+        .populate({
+            path: 'sender',
+            populate: {
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: {
+                    path: 'icon_file'
+                }
+            }
+        })
+        .populate({
+            path: 'recipients',
+            populate: {
+                path: 'user',
+                select: 'username display_name'
+            }
+        })
+        .populate('reply_to')
+        .populate({
+            path: 'context',
+            select: 'username display_name icon_file',
+            populate: {
+                path: 'icon_file'
+            }
+        })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        // Get total count for pagination
+        const total = await Message.countDocuments({
+            context_type: 'User',
+            $or: [
+                { 
+                    context: otherUserId,
+                    sender: { $in: currentUserMemberIds }
+                },
+                { 
+                    context: currentUserId,
+                    sender: { $in: otherUserMemberIds }
+                }
+            ]
+        });
+
+        res.json({
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            messages: messages
+        });
+
+    } catch (error) {
+        console.error('Error fetching user chat:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch chat messages' });
+    }
+});
+
+// POST /api/v1/chats/:userId/messages
+app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
+    try {
+        const otherUserId = req.params.userId;
+        const currentUserId = req.userId;
+        const { content, message_type = 'text' } = req.body;
+
+        // Get current user's member IDs
+        const currentUserMembers = await Member.find({ user: currentUserId });
+        if (currentUserMembers.length === 0) {
+            return res.status(404).json({ status: 'failed', message: 'Member record not found' });
+        }
+
+        // Get other user's member IDs for recipients
+        const otherUserMembers = await Member.find({ user: otherUserId });
+        const otherUserMemberIds = otherUserMembers.map(m => m._id);
+
+        // Create the message
+        const message = await Message.create({
+            sender: currentUserMembers[0]._id, // Use first member record
+            recipients: otherUserMemberIds,
+            context: otherUserId,
+            context_type: 'User',
+            content,
+            message_type
+        });
+
+        // Populate and return the created message
+        const populatedMessage = await Message.findById(message._id)
+            .populate({
+                path: 'sender',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name icon_file'
+                }
+            })
+            .populate('recipients')
+            .lean();
+
+        res.json({
+            status: 'success',
+            message: populatedMessage
+        });
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to send message' });
+    }
+});
+
 
 async function InitializeDatabaseStructures() {
     // ---------- 1) Define seed keys (unique identifiers) ----------
@@ -626,54 +773,105 @@ async function InitializeDatabaseStructures() {
     ]);
 
     // Messages & Attachments
-    const m1 = await Message.create({
-        sender: aliceHub._id,
-        room: roomGeneral._id,
-        content: 'Welcome to **General Hub**! 📌 Please check the announcement channel.',
-        message_type: 'text',
-    });
+const m1 = await Message.create({
+    sender: aliceHub._id,
+    recipients: [aliceHub._id, bobHub._id, caraHub._id], // Add recipients for room messages
+    context: roomGeneral._id,
+    context_type: 'Room',
+    content: 'Welcome to **General Hub**! 📌 Please check the announcement channel.',
+    message_type: 'text',
+});
 
-    const m2 = await Message.create({
-        sender: bobHub._id,
-        room: roomGeneral._id,
-        reply_to: m1._id,
-        content: 'Thanks @alice! I just uploaded the onboarding guide.',
-        message_type: 'text',
-    });
+const m2 = await Message.create({
+    sender: bobHub._id,
+    recipients: [aliceHub._id, bobHub._id, caraHub._id],
+    context: roomGeneral._id,
+    context_type: 'Room',
+    reply_to: m1._id,
+    content: 'Thanks @alice! I just uploaded the onboarding guide.',
+    message_type: 'text',
+});
 
-    await Attachment.create({
-        message: m2._id,
-        file: fWelcomeDoc._id,
-        position: 1,
-    });
+await Attachment.create({
+    message: m2._id,
+    file: fWelcomeDoc._id,
+    position: 1,
+});
 
-    const dm1 = await Message.create({
-        sender: aliceHub._id,
-        recipients: [bobHub._id],
-        content: 'Hey Bob, quick question about the API keys.',
-        message_type: 'text',
-    });
+// Direct messages (1-on-1) - Alice to Bob
+const dm1 = await Message.create({
+    sender: aliceHub._id,
+    recipients: [bobHub._id],
+    context: bob._id,  // Bob's User ID (not member ID)
+    context_type: 'User',
+    content: 'Hey Bob, quick question about the API keys.',
+    message_type: 'text',
+});
 
-    const gdm1 = await Message.create({
-        sender: bobHub._id,
-        recipients: [aliceHub._id, caraHub._id],
-        content: 'Team—design handoff at 3 PM. Can you both review the Figma?',
-        message_type: 'text',
-    });
+// Group direct message - Bob to Alice & Cara
+const gdm1 = await Message.create({
+    sender: bobHub._id,
+    recipients: [aliceHub._id, caraHub._id],
+    context: alice._id,  // Can use any user ID as context, or create a group DM room
+    context_type: 'User',
+    content: 'Team—design handoff at 3 PM. Can you both review the Figma?',
+    message_type: 'text',
+});
 
-    await Message.create({
-        sender: bobDev._id,
-        room: roomDevChat._id,
-        content: 'Heads up: staging deploy at 17:00 UTC+7. Ping me if you see issues.',
-        message_type: 'text',
-    });
+// Dev room message
+await Message.create({
+    sender: bobDev._id,
+    recipients: [bobDev._id], // Add appropriate recipients
+    context: roomDevChat._id,
+    context_type: 'Room',
+    content: 'Heads up: staging deploy at 17:00 UTC+7. Ping me if you see issues.',
+    message_type: 'text',
+});
 
-    // Reactions: Bob 👍 on m1, Cara 🎉 on m1, Alice ❤️ on m2
-    await Reaction.create([
-        { message: m1._id, member: bobHub._id, emoji: '👍' },
-        { message: m1._id, member: caraHub._id, emoji: '🎉' },
-        { message: m2._id, member: aliceHub._id, emoji: '❤️' },
-    ]);
+// Private messages between Alice and everyone else
+const aliceToBobDM = await Message.create({
+    sender: aliceHub._id,
+    recipients: [bobHub._id],
+    context: bob._id,  // Bob's User ID
+    context_type: 'User',
+    content: 'Hey Bob, are we still meeting tomorrow?',
+    message_type: 'text',
+});
+
+const aliceToCaraDM = await Message.create({
+    sender: aliceHub._id,
+    recipients: [caraHub._id],
+    context: cara._id,  // Cara's User ID
+    context_type: 'User',
+    content: 'Hi Cara, I loved your design mockups!',
+    message_type: 'text',
+});
+
+// Responses to Alice's DMs
+const bobToAliceDM = await Message.create({
+    sender: bobHub._id,
+    recipients: [aliceHub._id],
+    context: alice._id,  // Alice's User ID
+    context_type: 'User',
+    content: 'Yes, meeting is still on for 2 PM!',
+    message_type: 'text',
+});
+
+const caraToAliceDM = await Message.create({
+    sender: caraHub._id,
+    recipients: [aliceHub._id],
+    context: alice._id,  // Alice's User ID
+    context_type: 'User',
+    content: 'Thanks Alice! Working on the final revisions now.',
+    message_type: 'text',
+});
+
+// Reactions: Bob 👍 on m1, Cara 🎉 on m1, Alice ❤️ on m2
+await Reaction.create([
+    { message: m1._id, member: bobHub._id, emoji: '👍' },
+    { message: m1._id, member: caraHub._id, emoji: '🎉' },
+    { message: m2._id, member: aliceHub._id, emoji: '❤️' },
+]);
 
     console.log('Seed complete ✔');
 }
@@ -691,7 +889,7 @@ mongoose.connection.on('connected', () => {
             InitializeDatabaseStructures();
         }).catch(err => {console.error('Error dropping database:', err);});
     } else {
-        console.log('Skipping database seed/reset in non-development environment');
+        console.log('Skipping database seed/reset.');
     }
 
 });
