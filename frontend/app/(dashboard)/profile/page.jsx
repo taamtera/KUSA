@@ -2,35 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const [isEditing, setIsEditing] = useState(false);
   const [user, setUser] = useState(null);
-  const [error, setError] = useState(null); // to show simple errors
-  const [profile, setProfile] = useState({
-    name: "",
-    username: "",
-    faculty: "",
-    major: "",
-    gender: "",
-    birthday: "",
-    phone: "",
-    email: "",
-    description: "",
-  }); 
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // A small function to load the current user
     const loadUser = async () => {
       try {
-        // Call GET /api/v1/auth/me
         const res = await fetch("http://localhost:3001/api/v1/auth/me", {
-          // include cookies (your access token) with the request
           credentials: "include",
           headers: { Accept: "application/json" },
         });
 
-        // If response is not OK (e.g., 401), stop and show message
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           setError(body.message || `HTTP ${res.status}`);
@@ -38,25 +25,11 @@ export default function ProfilePage() {
           return;
         }
 
-        // Example shape: { user: { id, username, email, role } }
         const data = await res.json();
-        // Save only the user object, not the whole wrapper
         setUser(data.user);
-        setProfile({
-          name: data.name || "",
-          username: data.username || "",
-          faculty: data.faculty || "",
-          major: data.major || "",
-          gender: data.gender || "",
-          birthday: data.birthday || "",
-          phone: data.phone || "",
-          email: data.email || "",
-          description: data.description || ""
-        })
-
         setError(null);
       } catch (err) {
-        setError("Network error", err);
+        setError("Network error");
         setUser(null);
       }
     };
@@ -64,15 +37,17 @@ export default function ProfilePage() {
     loadUser();
   }, []);
 
-  console.log(user)
-
-  const handleChange = (e) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+  const handleEditClick = () => {
+    router.push('/profile/edit');
   };
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-  };
+  if (error) {
+    return <div className="p-8 text-red-600">Error: {error}</div>;
+  }
+
+  if (!user) {
+    return <div className="p-8">Loading...</div>;
+  }
 
   return (
     <div className="w-full">
@@ -85,97 +60,59 @@ export default function ProfilePage() {
         />
         <div className="absolute -bottom-12 left-0 w-full px-8 flex items-center justify-between">
           <Avatar className="w-24 h-24 border-4 border-white">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>CN</AvatarFallback>
+            <AvatarImage src={user.icon_url || "https://github.com/shadcn.png"} />
+            <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
           </Avatar>
-          <button
-            onClick={handleEditToggle}
+          <Button
+            onClick={handleEditClick}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            {isEditing ? "Save" : "Edit Profile"}
-          </button>
+            Edit Profile
+          </Button>
         </div>
       </div>
 
       {/* Profile Info Section */}
       <div className="mt-16 px-8 max-w-2xl">
         {/* Name and Username */}
-        {isEditing ? (
-          <input
-            type="text"
-            name="name"
-            value={profile.name}
-            onChange={handleChange}
-            className="text-2xl font-bold border-b border-gray-300 focus:outline-none w-full"
-          />
-        ) : (
-          <h1 className="text-2xl font-bold">{profile.name}</h1>
-        )}
+        <h1 className="text-2xl font-bold">{user.name || user.username}</h1>
+        <p className="text-gray-500">@{user.username}</p>
 
-        {isEditing ? (
-          <input
-            type="text"
-            name="username"
-            value={profile.username}
-            onChange={handleChange}
-            className="text-gray-500 border-b border-gray-300 focus:outline-none w-full"
-          />
-        ) : (
-          <p className="text-gray-500">@{user?.username}</p>
-        )}
-
-        {/* description */}
-        {isEditing ? (
-          <textarea
-            name="description"
-            value={profile.description}
-            onChange={handleChange}
-            className="mt-4 text-gray-700 border border-gray-300 rounded p-2 w-full"
-          />
-        ) : (
-          <p className="mt-4 text-gray-700">{profile.description}</p>
-        )}
+        {/* Description */}
+        <p className="mt-4 text-gray-700">{user.description || "No description available."}</p>
 
         {/* Personal Info */}
         <h2 className="text-xl font-semibold mt-6 mb-4">Personal Information</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {["faculty", "major", "gender", "birthday"].map((field) => (
-            <div key={field}>
-              <span className="font-medium text-gray-600 capitalize">{field}:</span>{" "}
-              {isEditing ? (
-                <input
-                  type={field === "birthday" ? "date" : "text"}
-                  name={field}
-                  value={profile[field]}
-                  onChange={handleChange}
-                  className="border-b border-gray-300 focus:outline-none w-full"
-                />
-              ) : (
-                <span className="text-gray-800">{profile[field]}</span>
-              )}
-            </div>
-          ))}
+          <div>
+            <span className="font-medium text-gray-600">Faculty:</span>{" "}
+            <span className="text-gray-800">{user.faculty || "Not specified"}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Major:</span>{" "}
+            <span className="text-gray-800">{user.major || "Not specified"}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Gender:</span>{" "}
+            <span className="text-gray-800">{user.gender || "Not specified"}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Birthday:</span>{" "}
+            <span className="text-gray-800">{user.birthday || "Not specified"}</span>
+          </div>
         </div>
 
         {/* Contact Info */}
         <h2 className="text-xl font-semibold mt-6 mb-4">Contact Information</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {["phone", "email"].map((field) => (
-            <div key={field}>
-              <span className="font-medium text-gray-600 capitalize">{field}:</span>{" "}
-              {isEditing ? (
-                <input
-                  type={field === "email" ? "email" : "text"}
-                  name={field}
-                  value={profile[field]}
-                  onChange={handleChange}
-                  className="border-b border-gray-300 focus:outline-none w-full"
-                />
-              ) : (
-                <span className="text-gray-800">{profile[field]}</span>
-              )}
-            </div>
-          ))}
+          <div>
+            <span className="font-medium text-gray-600">Phone:</span>{" "}
+            <span className="text-gray-800">{user.phone || "Not specified"}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Email:</span>{" "}
+            <span className="text-gray-800">{user.email}</span>
+          </div>
         </div>
       </div>
     </div>
