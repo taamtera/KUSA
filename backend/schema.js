@@ -11,6 +11,11 @@ const fileSchema = new Schema(
         original_name: { type: String, required: true, trim: true },
         mime_type:     { type: String, required: true, trim: true },
         byte_size:     { type: Number, required: true, min: 0 },
+        is_external: { 
+            type: Boolean, 
+            default: false,
+            required: true 
+        }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -32,7 +37,8 @@ const userSchema = new Schema(
         birthday:      { type: Date, default: null },
         major:         { type: String, default: null },
         faculty:       { type: String, default: null },
-        phone_number:         { type: String, default: null } 
+        phone_number:         { type: String, default: null },
+        friends:        [{ type: ObjectId, ref: 'user' }],
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );

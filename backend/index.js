@@ -18,6 +18,7 @@ app.use(cookiesParser());
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
@@ -251,25 +252,25 @@ app.post('/api/v1/login', async (req, res) => {
 
 // Who am I (protected)
 app.get('/api/v1/auth/me', auth, async (req, res) => {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
-    return res.status(200).json(
-        { user: 
-            { id: user._id, 
-                display_name: user.display_name, 
-                username: user.username, 
-                email: user.email, 
-                role: user.role,
-                icon_file: user.icon_file,
-                banner_file: user.banner_file,
-                description: user.description,
-                gender: user.gender,
-                birthday: user.birthday,
-                major: user.major,
-                faculty: user.faculty,
-                phone_number: user.phone_number
-            }});
-    // return res.status(200);
+    try {
+        const user = await User.findById(req.userId)
+            .populate('icon_file')
+            .populate('banner_file')
+            .populate({
+            path: 'friends',
+            select: '_id username icon_file',
+            populate: { path: 'icon_file' }
+            })
+        if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
+        const userObject = user.toObject ? user.toObject() : user;
+        
+        // Explicitly remove password_hash and any other sensitive fields
+        const { password_hash, __v, ...safeUserData } = userObject;
+        return res.status(200).json({status: 'success', user: safeUserData});
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ status: 'failed', message: 'Server error' });
+    }
 });
 
 // Refresh access token from refresh cookie
@@ -469,8 +470,6 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
 
 async function InitializeDatabaseStructures() {
-    console.log('Resetting only seeded data, then inserting…');
-
     // ---------- 1) Define seed keys (unique identifiers) ----------
     const FILE_KEYS = [
         'uploads/avatars/alice.png',
@@ -570,12 +569,16 @@ async function InitializeDatabaseStructures() {
     // ---------- 4) Recreate the seed data ----------
     // Files
     const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
-        { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
+        // { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
+        // { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
+        // { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
+        { storage_key: 'https://github.com/shadcn.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
+        { storage_key: 'https://github.com/vercel.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
+        { storage_key: 'https://github.com/nextjs.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
         { storage_key: 'uploads/icons/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
         { storage_key: 'uploads/icons/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
         { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
+
     ]);
 
     // Users (password_hash placeholders)
@@ -593,6 +596,12 @@ async function InitializeDatabaseStructures() {
         { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
         // { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
     ]);
+
+    //Friends
+    alice.friends = [bob._id, cara._id];
+    bob.friends = [alice._id, cara._id];
+    cara.friends = [alice._id, bob._id];
+    await Promise.all([alice.save(), bob.save(), cara.save()]);
 
     // Servers
     const [hub, dev] = await Server.create([
@@ -674,7 +683,17 @@ mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
     // check if there are any databse structures needed and create them if not
-    InitializeDatabaseStructures();
+    if (process.env.RESET_SEEDED_DATA == 'true') {
+        console.log('Resetting and seeding database structures...');
+        // drop all collections (if exist)
+        mongoose.connection.db.dropDatabase().then(() => {
+            console.log('Database dropped');
+            InitializeDatabaseStructures();
+        }).catch(err => {console.error('Error dropping database:', err);});
+    } else {
+        console.log('Skipping database seed/reset in non-development environment');
+    }
+
 });
 mongoose.connection.on('disconnected', () => {
     console.warn('MongoDB disconnected');
