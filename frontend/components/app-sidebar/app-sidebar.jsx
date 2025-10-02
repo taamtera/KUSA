@@ -9,6 +9,7 @@ import { Settings } from "lucide-react";
 import { DMsTab } from "./dms-tab";
 import { ServersTab } from "./servers-tab";
 
+
 export function AppSidebar() {
   const [user, setUser] = useState(null);
 
