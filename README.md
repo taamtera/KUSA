@@ -16,7 +16,7 @@ To get started with the project, follow these steps:
 2. **Setup MongoDB**:
    Make sure you have Docker installed and running. Then, run the following command to start a MongoDB container:
    ```bash
-   docker run --name mongo -d -p 27017:27017 -v ./mongo-data:/data/db mongo
+   docker run --name mongo -d -p 27017:27017 -v ./mongod-data:/data/db mongo
    ```
 
 3. **Setup Backend**:
