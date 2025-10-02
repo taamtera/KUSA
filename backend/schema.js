@@ -97,7 +97,16 @@ const messageSchema = new Schema(
     {
         sender:       { type: ObjectId, ref: 'member', required: true },
         recipients:   [{ type: ObjectId, ref: 'member' }],
-        room:         { type: ObjectId, ref: 'room' }, // null for DM/group DM
+        context:      { 
+            type: ObjectId, 
+            required: true,
+            refPath: 'context_type'
+        },
+        context_type: { 
+            type: String, 
+            enum: ['Room', 'User'],
+            required: true 
+        },
         content:      { type: String, trim: true },
         reply_to:     { type: ObjectId, ref: 'message' },
         message_type: { type: String, default: 'text' },
