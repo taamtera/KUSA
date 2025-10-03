@@ -12,17 +12,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl, getAvatarFallback } from "@/components/utils";
 
 export function DMsTab({ user }) {
-  const handleFriendClick = (friendId) => {
+	const handleFriendClick = (friendId) => {
     // Navigate to the DM page with the selected friend
     window.location.href = `/chats/${friendId}`;
-  };
+	};
 
 	return (
 		<SidebarGroup>
 			<SidebarGroupContent>
 				<SidebarMenu>
 					{user?.friends?.map((friend) => (
-            console.log(user),
 						<SidebarMenuItem key={friend._id}>
 							<SidebarMenuButton
 								onClick={() => handleFriendClick(friend._id)}

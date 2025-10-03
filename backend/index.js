@@ -18,14 +18,14 @@ app.use(cookiesParser());
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; // Set this to true if drop database and recreate seed data is needed
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
 
 // config (env)
-const ACCESS_TTL  = process.env.ACCESS_TTL  || '15m';
-const REFRESH_TTL = process.env.REFRESH_TTL || '14d';
+const ACCESS_TTL  = process.env.ACCESS_TTL  || '1d';
+const REFRESH_TTL = process.env.REFRESH_TTL || '90d';
 const JWT_ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || 'dev-access-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 
@@ -41,21 +41,6 @@ function isSelfOrAdmin(reqUserId, targetUserDoc) {
     if (!targetUserDoc) return false;
     if (targetUserDoc._id?.toString() === reqUserId) return true;
     return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
-}
-
-// Auth middleware
-function auth(req, res, next) {
-  try {
-    const token = req.cookies?.access_token;
-    if (!token) {
-      return res.status(401).json({ status: 'failed', message: 'Missing token' });
-    }
-    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET); // payload = { sub }
-    req.userId = sub; // store user id for handlers
-    next();
-  } catch {
-    return res.status(401).json({ status: 'failed', message: 'Expired or invalid token' });
-  }
 }
 
 // Auth middleware
@@ -295,36 +280,6 @@ app.post('/api/v1/auth/logout', (_req, res) => {
     res.json({ ok: true });
 });
 
-
-// Who am I (protected)
-app.get('/api/v1/auth/me', auth, async (req, res) => {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
-    res.json({ user: { id: user._id, username: user.username, email: user.email, role: user.role } });
-});
-
-// Refresh access token from refresh cookie
-app.post('/api/v1/auth/refresh', (req, res) => {
-    try {
-        const rt = req.cookies?.refresh_token;
-        if (!rt) return res.status(401).json({ status: 'failed', message: 'No refresh token' });
-
-        const { sub } = jwt.verify(rt, JWT_REFRESH_SECRET);
-        const at = signAccess({ sub });
-        res.cookie('access_token', at, { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
-        res.json({ ok: true, access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)) });
-    } catch {
-        return res.status(401).json({ status: 'failed', message: 'Invalid refresh token' });
-    }
-});
-
-// Logout (clear cookies)
-app.post('/api/v1/auth/logout', (_req, res) => {
-    res.clearCookie('access_token',  { path: '/api/v1' });
-    res.clearCookie('refresh_token', { path: '/api/v1' });
-    res.json({ ok: true });
-});
-
 // ===================== USER ======================
 
 // Get user info
@@ -468,7 +423,7 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
     }
 });
 
-// ====================== Messges =====================
+// ====================== Messages =====================
 // GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20
 app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
@@ -480,7 +435,7 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
         
         // Sort direction
-        const sortDir = req.query.sort === 'asc' ? 1 : -1; // Default: newest first
+        const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
         // Find all member IDs for both users
         const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
