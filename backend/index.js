@@ -881,7 +881,7 @@ mongoose.connection.on('connected', () => {
     console.log('MongoDB connected');
     db_status = true;
     // check if there are any databse structures needed and create them if not
-    if (process.env.RESET_SEEDED_DATA == 'true') {
+    if (RESET_SEEDED_DATA == 'true') {
         console.log('Resetting and seeding database structures...');
         // drop all collections (if exist)
         mongoose.connection.db.dropDatabase().then(() => {
