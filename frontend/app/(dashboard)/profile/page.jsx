@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import Calendar from "./calendar";
+import InfoCard from "./infoCard";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -50,7 +52,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full">
+    <div className=" w-[calc(100vw-260px)]">
       {/* Banner Section */}
       <div className="relative w-full h-48 bg-gray-300">
         <img
@@ -72,48 +74,13 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Profile Info Section */}
-      <div className="mt-16 px-8 max-w-2xl">
-        {/* Name and Username */}
-        <h1 className="text-2xl font-bold">{user.name || user.username}</h1>
-        <p className="text-gray-500">@{user.username}</p>
 
-        {/* Description */}
-        <p className="mt-4 text-gray-700">{user.description || "No description available."}</p>
 
-        {/* Personal Info */}
-        <h2 className="text-xl font-semibold mt-6 mb-4">Personal Information</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <span className="font-medium text-gray-600">Faculty:</span>{" "}
-            <span className="text-gray-800">{user.faculty || "Not specified"}</span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-600">Major:</span>{" "}
-            <span className="text-gray-800">{user.major || "Not specified"}</span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-600">Gender:</span>{" "}
-            <span className="text-gray-800">{user.gender || "Not specified"}</span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-600">Birthday:</span>{" "}
-            <span className="text-gray-800">{user.birthday || "Not specified"}</span>
-          </div>
-        </div>
-
-        {/* Contact Info */}
-        <h2 className="text-xl font-semibold mt-6 mb-4">Contact Information</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <span className="font-medium text-gray-600">Phone:</span>{" "}
-            <span className="text-gray-800">{user.phone || "Not specified"}</span>
-          </div>
-          <div>
-            <span className="font-medium text-gray-600">Email:</span>{" "}
-            <span className="text-gray-800">{user.email}</span>
-          </div>
-        </div>
+      <div className="flex">
+        {/* Profile Info Section */}
+        <InfoCard user={user} />
+        {/* Calendar Session */}
+        <Calendar />
       </div>
     </div>
   );
