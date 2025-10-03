@@ -1,156 +1,28 @@
-"use client";
-import { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, Hash, Users, Construction, ConstructionIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-export default function Chat() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hey there! How's it going?",
-      sender: "other",
-      timestamp: new Date(Date.now() - 3600000),
-    },
-    {
-      id: 2,
-      text: "Pretty good! Just working on some React projects.",
-      sender: "user",
-      timestamp: new Date(Date.now() - 3500000),
-    },
-    {
-      id: 3,
-      text: "That's cool! What are you building?",
-      sender: "other",
-      timestamp: new Date(Date.now() - 3400000),
-    },
-  ]);
-  
-  const [newMessage, setNewMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim() === "") return;
-
-    const message = {
-      id: messages.length + 1,
-      text: newMessage,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
-    setMessages([...messages, message]);
-    setNewMessage("");
-
-    // Simulate a reply after a short delay
-    setTimeout(() => {
-      const reply = {
-        id: messages.length + 2,
-        text: "Thanks for your message!",
-        sender: "other",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, reply]);
-    }, 1000);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-gray-100">
-      {/* Header */}
-      <div className="bg-white p-4 border-b flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>CN</AvatarFallback>
-          </Avatar>
-          <div>
-            <h2 className="font-semibold text-black">Chat Group</h2>
-            <p className="text-sm text-gray-500">3 members</p>
-          </div>
-        </div>
-        <Button variant="ghost" size="icon">
-          <Users className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-xs lg:max-w-md rounded-lg px-4 py-2 ${message.sender === "user"
-                ? "bg-blue-500 text-white rounded-br-none"
-                : "bg-white text-gray-800 rounded-bl-none"
-                }`}
-            >
-              <p className="break-words">{message.text}</p>
-              <p
-                className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"
-                  }`}
-              >
-                {formatTime(message.timestamp)}
-              </p>
+// app/chat/page.js
+export default function ChatEmptyPage() {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="text-center">
+                {/* Icon */}
+                <div className="mx-auto w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                </div>
+                
+                {/* Message */}
+                <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+                    Select a conversation
+                </h2>
+                <p className="text-gray-500 mb-6 max-w-md">
+                    Choose a user or server from the sidebar to start messaging, or create a new conversation.
+                </p>
+                
+                {/* Optional Action Button */}
+                {/* <button className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                    Start New Chat
+                </button> */}
             </div>
-          </div>
-        ))}
-        {/* <div ref={messagesEndRef} /> */}
-      </div>
-
-      {/* Input area */}
-      <div className="p-4 border-t bg-white flex items-end gap-2">
-        <Button variant="outline" size="icon" className="shrink-0">
-          <Paperclip className="h-4 w-4 text-white" />
-        </Button>
-        <Textarea
-          placeholder="Type a message"
-          className="flex-1 resize-none min-h-5 max-h-32 text-black"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyPress}
-          style={{
-            height: 'auto',
-            overflowY: newMessage.split('\n').length > 4 ? 'auto' : 'hidden'
-          }}
-          ref={(textarea) => {
-            if (textarea) {
-              textarea.style.height = 'auto';
-              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px'; // 128px = max-h-32 (8 * 16px)
-            }
-          }}
-        />
-        <Button
-          size="icon"
-          className="shrink-0"
-          onClick={handleSendMessage}
-          disabled={newMessage.trim() === ""}
-        >
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
+        </div>
+    );
 }

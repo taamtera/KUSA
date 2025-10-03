@@ -1,5 +1,4 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
 import { ChatSidebar } from "@/components/chat-sidebar"
 
 export default function Layout({ children }) {
