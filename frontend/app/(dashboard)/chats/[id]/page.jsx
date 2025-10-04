@@ -40,8 +40,13 @@ export default function Chat() {
     });
 
     socket.on("receive_message", (msg) => {
-      console.log("📩 Received:", msg);
-      setMessages((prev) => [...prev, msg]);
+      // only update if the message belongs to this chat
+      const isRelevant =
+        msg.sender?.user?._id === otherUserId || msg.context === otherUserId;
+      if (isRelevant) {
+        messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
+        setMessages((prev) => [...prev, msg]);
+      }
     });
 
     socket.on("disconnect", () => {
@@ -125,8 +130,7 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Send message
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
     const tempMessage = {
@@ -138,33 +142,16 @@ export default function Chat() {
       temp: true,
     };
 
-    setMessages((prev) => [...prev, tempMessage]);
+    // setMessages((prev) => [...prev, tempMessage]);
+    const messageToSend = {
+      fromUserId: user._id,
+      toUserId: otherUserId,
+      content: newMessage,
+      message_type: "text",
+    };
+
+    socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
-
-    try {
-      const response = await fetch(
-        `http://localhost:3001/api/v1/chats/${otherUserId}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: newMessage, message_type: "text" }),
-          credentials: "include",
-        }
-      );
-
-      const data = await response.json();
-      if (data.status === "success") {
-        setMessages((prev) =>
-          [...prev.filter((m) => m._id !== tempMessage._id), data.message]
-        );
-        // optionally emit socket event
-        socketRef.current?.emit("send_message", data.message);
-      } else {
-        console.error("Failed to send message:", data.message);
-      }
-    } catch (error) {
-      console.error("Failed to send message:", error);
-    }
   };
 
   // Render

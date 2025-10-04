@@ -40,7 +40,6 @@ export default function CardDemo() {
       if (response.ok) {
         console.log("Redirecting to /chats");
         window.location.href = "/chats";
-        alert("✅ " + data.message);
       } else {
         alert("❌ " + data.message);
       }

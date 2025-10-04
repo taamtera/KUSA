@@ -2,19 +2,13 @@
 
 import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getAvatarUrl, getAvatarFallback, formatTime} from "@/components/utils";
+import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 
-export default function MessageGroup({
-  sender,
-  messages,
-  fromCurrentUser,
-}) {
+export default function MessageGroup({ sender, messages, fromCurrentUser }) {
   const senderName = fromCurrentUser
     ? "You"
     : sender?.display_name || sender?.username || "User";
-  const senderAvatar = fromCurrentUser
-    ? null
-    : getAvatarUrl(sender?.icon_file);
+  const senderAvatar = fromCurrentUser ? null : getAvatarUrl(sender?.icon_file);
 
   return (
     <div
@@ -29,12 +23,15 @@ export default function MessageGroup({
             <AvatarImage src={senderAvatar} />
             <AvatarFallback>{getAvatarFallback(senderName)}</AvatarFallback>
           </Avatar>
+
           <div className="flex flex-col items-start">
             {/* Sender name on top */}
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
               {senderName}
             </span>
-            <div className="flex flex-col space-y-1">
+
+            {/* Individual bubble widths */}
+            <div className="flex flex-col items-start space-y-1">
               {messages.map((message) => (
                 <MessageBubble
                   key={message._id}
@@ -43,7 +40,10 @@ export default function MessageGroup({
                 />
               ))}
             </div>
-            <p className="text-[10px] mt-1 opacity-75">{formatTime(messages[messages.length - 1]?.created_at)}</p>
+
+            <p className="text-[10px] mt-1 opacity-75">
+              {formatTime(messages[messages.length - 1]?.created_at)}
+            </p>
           </div>
         </div>
       )}
@@ -54,15 +54,20 @@ export default function MessageGroup({
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
             You
           </span>
+
           <div className="flex flex-col items-end space-y-1">
             {messages.map((message) => (
               <MessageBubble
                 key={message._id}
                 message={message}
+                fromCurrentUser={fromCurrentUser}
               />
             ))}
           </div>
-          <p className="text-[10px] mt-1 opacity-75">{formatTime(messages[messages.length - 1]?.created_at)}</p>
+
+          <p className="text-[10px] mt-1 opacity-75">
+            {formatTime(messages[messages.length - 1]?.created_at)}
+          </p>
         </div>
       )}
     </div>
