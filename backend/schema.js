@@ -37,8 +37,9 @@ const userSchema = new Schema(
         birthday:      { type: Date, default: null },
         major:         { type: String, default: null },
         faculty:       { type: String, default: null },
-        phone_number:         { type: String, default: null },
-        friends:        [{ type: ObjectId, ref: 'User' }],
+        phone_number:  { type: String, default: null },
+        friends:       [{ type: ObjectId, ref: 'User' }],
+        time_table:    [{ type: ObjectId, ref: "TimeSlot" }]
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -60,7 +61,7 @@ const memberSchema = new Schema(
     {
         user:    { type: ObjectId, ref: 'User', required: true },
         server:  { type: ObjectId, ref: 'Server', required: true },
-        nickname:{ type: String, trim: true, defautl: null },
+        nickname:{ type: String, trim: true, default: null },
         role:    { type: String, default: 'member' }
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
@@ -166,6 +167,32 @@ reactionSchema.index({ message: 1, member: 1, emoji: 1 }, { unique: true });
 reactionSchema.index({ message: 1, emoji: 1 });
 
 /* -----------------------------
+ * Time Slot
+ * ---------------------------*/
+const DAY_ENUM = ["mon","tue","wed","thu","fri","sat","sun"];
+
+const timeSlotSchema = new Schema(
+    {
+        title:        { type: String, required: true, trim: true, maxlength: 120 },
+        description:  { type: String, default: null, trim: true },
+        day:          { type: String, enum: DAY_ENUM, required: true, index: true },
+        start_min:    { type: Number, required: true, min: 0, max: 1439 },
+        end_min:      { type: Number, required: true, min: 1, max: 1440 },
+        location:     { type: String, default: null, trim: true },
+        color:        { type: String, default: null}
+    },
+    { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+)
+
+// Validate start < end
+timeSlotSchema.path("end_min").validate(function (v) {
+  return v > this.start_min;
+}, "end time must be after start time");
+
+// Sort-friendly index per user/day
+timeSlotSchema.index({ day: 1, start_min: 1 });
+
+/* -----------------------------
  * MODELS (re-use if already compiled)
  * ---------------------------*/
 const File       = models.File       || model('File', fileSchema);
@@ -176,5 +203,6 @@ const Room       = models.Room       || model('Room', roomSchema);
 const Message    = models.Message    || model('Message', messageSchema);
 const Attachment = models.Attachment || model('Attachment', attachmentSchema);
 const Reaction   = models.Reaction   || model('Reaction', reactionSchema);
+const TimeSlot   = models.TimeSlot   || model('TimeSlot', timeSlotSchema);
 
-module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction };
+module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot };
