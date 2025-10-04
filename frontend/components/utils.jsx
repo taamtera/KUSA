@@ -9,6 +9,11 @@ export function getAvatarUrl(iconFile) {
     }
 }
 
+export function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
 // Helper function to get fallback text
 export function getAvatarFallback(username) {
     return username ? username.charAt(0).toUpperCase() : 'U';

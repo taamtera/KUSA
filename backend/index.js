@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
+const Socket_Server = require("socket.io");
+const http = require('http');
 
 const app = express();
 app.use(cors({
@@ -15,10 +17,18 @@ app.use(cors({
 app.use(express.json());
 app.use(cookiesParser());
 
+const chat_server = http.createServer(app);
+const io = new Socket_Server.Server(chat_server, {
+    cors: {
+        origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+        credentials: true,
+    },
+});
+
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; // Set this to true if drop database and recreate seed data is needed
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; 
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
@@ -570,6 +580,59 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// --- SOCKET LOGIC ---
+io.on("connection", (socket) => {
+console.log("✅ New WebSocket connection:", socket.id);
+
+// Join room per user ID (from query or handshake)
+const userId = socket.handshake.query.userId;
+if (userId) socket.join(userId);
+
+// Listen for "send_message" event from client
+socket.on("send_message", async (msgData) => {
+    try {
+    const { fromUserId, toUserId, content, message_type = "text" } = msgData;
+
+    // 💾 Save message in DB using your existing logic
+    const currentUserMembers = await Member.find({ user: fromUserId });
+    const otherUserMembers = await Member.find({ user: toUserId });
+    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+
+    const message = await Message.create({
+        sender: currentUserMembers[0]._id,
+        recipients: otherUserMemberIds,
+        context: toUserId,
+        context_type: "User",
+        content,
+        message_type,
+    });
+
+    const populatedMessage = await Message.findById(message._id)
+        .populate({
+        path: "sender",
+        populate: {
+            path: "user",
+            select: "username display_name icon_file",
+        },
+        })
+        .populate("recipients")
+        .lean();
+
+        // Emit the message to both sender and recipient
+        io.to(fromUserId).emit("receive_message", populatedMessage);
+        io.to(toUserId).emit("receive_message", populatedMessage);
+
+        console.log("📨 Message delivered via WS:", content);
+        } catch (err) {
+        console.error("Socket message error:", err);
+        }
+    });
+
+    socket.on("disconnect", () => {
+        console.log("❌ WebSocket disconnected:", socket.id);
+    });
+});
+
 
 async function InitializeDatabaseStructures() {
     // ---------- 1) Define seed keys (unique identifiers) ----------
@@ -864,8 +927,8 @@ const connectWithRetry = async () => {
     }
 };
 
-// Start the HTTP server once
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+// Start the combined server (handles both HTTP + WS)
+chat_server.listen(PORT, () => console.log(`🚀 Backend + WS running on port ${PORT}`));
 
 // Initialize DB connection (with retry)
 connectWithRetry();

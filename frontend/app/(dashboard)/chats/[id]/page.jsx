@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Send, Paperclip, Users } from "lucide-react";
@@ -6,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback } from "@/components/utils";
+import MessageGroup from "./messagegroup";
+import { useUser } from "@/context/UserContext";
 
 export default function Chat() {
   const params = useParams();
   const otherUserId = params.id;
-  
+  const { user } = useUser();
+
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
@@ -22,18 +26,19 @@ export default function Chat() {
     const fetchMessages = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3001/api/v1/chats/${otherUserId}/messages?page=1&limit=50`, {
-          credentials: 'include'
-        });
+        const response = await fetch(
+          `http://localhost:3001/api/v1/chats/${otherUserId}/messages?page=1&limit=50`,
+          { credentials: "include" }
+        );
         const data = await response.json();
-        
-        if (data.status === 'success') {
+
+        if (data.status === "success") {
           setMessages(data.messages);
-          
+
           // Extract other user info from first message
           if (data.messages.length > 0) {
             const firstMessage = data.messages[0];
-            if (firstMessage.context_type === 'User') {
+            if (firstMessage.context_type === "User") {
               setOtherUser(firstMessage.context);
             } else if (firstMessage.sender?.user?._id !== otherUserId) {
               setOtherUser(firstMessage.sender?.user);
@@ -41,7 +46,7 @@ export default function Chat() {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch messages:', error);
+        console.error("Failed to fetch messages:", error);
       } finally {
         setLoading(false);
       }
@@ -52,97 +57,112 @@ export default function Chat() {
     }
   }, [otherUserId]);
 
-  // Fetch other user info if not available from messages
+  // Fetch other user info if missing
   useEffect(() => {
     const fetchOtherUser = async () => {
       if (!otherUser && otherUserId) {
         try {
-          const response = await fetch(`http://localhost:3001/api/v1/users/${otherUserId}`);
+          const response = await fetch(
+            `http://localhost:3001/api/v1/users/${otherUserId}`
+          );
           const data = await response.json();
-          if (data.status === 'success') {
+          if (data.status === "success") {
             setOtherUser(data.user);
           }
         } catch (error) {
-          console.error('Failed to fetch user:', error);
+          console.error("Failed to fetch user:", error);
         }
       }
     };
-
     fetchOtherUser();
   }, [otherUserId, otherUser]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Connect to WebSocket
+  useEffect(() => {
+    const s = io("http://localhost:3001", { query: { userId } });
+    setSocket(s);
+
+    s.on("connect", () => console.log("🟢 Connected to WebSocket"));
+    s.on("receive_message", (msg) => {
+      console.log("📩 Message received:", msg);
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      s.disconnect();
+    };
+  }, [user?._id]);
+
+  const groupMessages = (messages) => {
+    const groups = [];
+    let currentGroup = null;
+
+    messages.forEach((msg) => {
+      const senderId = msg.sender?.user?._id || "unknown";
+      if (!currentGroup || currentGroup.senderId !== senderId) {
+        currentGroup = { senderId, sender: msg.sender?.user, messages: [msg] };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.messages.push(msg);
+      }
+    });
+
+    return groups;
   };
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Send message
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
 
-    // Optimistically add message to UI
     const tempMessage = {
       _id: `temp-${Date.now()}`,
       content: newMessage,
-      sender: { user: { username: "You" } }, // Temporary sender info
+      sender: { user: { username: "You" } },
       created_at: new Date(),
-      message_type: 'text'
+      message_type: "text",
+      temp: true,
     };
 
-    setMessages(prev => [...prev, tempMessage]);
+    setMessages((prev) => [...prev, tempMessage]);
     setNewMessage("");
 
     try {
-      // Send message to API
-      const response = await fetch(`http://localhost:3001/api/v1/chats/${otherUserId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: newMessage,
-          message_type: 'text'
-        }),
-        credentials: 'include'
-      });
+      const response = await fetch(
+        `http://localhost:3001/api/v1/chats/${otherUserId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: newMessage, message_type: "text" }),
+          credentials: "include",
+        }
+      );
 
       const data = await response.json();
-      
-      if (data.status === 'success') {
-        // Replace temp message with real one from server
-        setMessages(prev => prev.filter(msg => msg._id !== tempMessage._id));
-        setMessages(prev => [...prev, data.message]);
+
+      if (data.status === "success") {
+        setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
+        setMessages((prev) => [...prev, data.message]);
       } else {
-        // Handle error - remove temp message
-        setMessages(prev => prev.filter(msg => msg._id !== tempMessage._id));
-        console.error('Failed to send message:', data.message);
+        setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
+        console.error("Failed to send message:", data.message);
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg._id !== tempMessage._id));
+      console.error("Failed to send message:", error);
+      setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Determine if message is from current user
-  const isCurrentUser = (message) => {
-    // This would need to compare with actual current user ID from your auth context
-    // For now, we'll assume you have a way to get current user ID
-    return message.sender?.user?._id !== otherUserId;
+  const formatDividerTime = (dateString) => {
+    const d = new Date(dateString);
+    return `${d.getDate()}/${d.getMonth() + 1} ${d
+      .getHours()
+      .toString()
+      .padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -160,11 +180,13 @@ export default function Chat() {
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={getAvatarUrl(otherUser?.icon_file)} />
-            <AvatarFallback>{getAvatarFallback(otherUser?.username)}</AvatarFallback>
+            <AvatarFallback>
+              {getAvatarFallback(otherUser?.username)}
+            </AvatarFallback>
           </Avatar>
           <div>
             <h2 className="font-semibold text-black">
-              {otherUser?.display_name || otherUser?.username || 'User'}
+              {otherUser?.display_name || otherUser?.username || "User"}
             </h2>
             <p className="text-sm text-gray-500">Direct message</p>
           </div>
@@ -174,41 +196,65 @@ export default function Chat() {
         </Button>
       </div>
 
-      {/* Messages - the only scrollable part */}
+      {/* Messages Section */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             No messages yet. Start a conversation!
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message._id}
-              className={`flex ${isCurrentUser(message) ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md rounded-lg px-4 py-2 ${
-                  isCurrentUser(message)
-                    ? "bg-blue-500 text-white rounded-br-none"
-                    : "bg-white text-gray-800 rounded-bl-none"
-                }`}
-              >
-                <p className="break-words">{message.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    isCurrentUser(message) ? "text-blue-100" : "text-gray-500"
-                  }`}
-                >
-                  {formatTime(message.created_at)}
-                </p>
-              </div>
-            </div>
-          ))
+          (() => {
+            const messageGroups = groupMessages(messages);
+            const elements = [];
+            let lastTimestamp = null;
+
+            messageGroups.forEach((group, gIndex) => {
+              const firstMsgTime = new Date(group.messages[0].created_at);
+              const lastTime = lastTimestamp ? new Date(lastTimestamp) : null;
+
+              // Insert a divider if hour or date changes
+              const needsDivider =
+                !lastTime ||
+                firstMsgTime.getHours() !== lastTime.getHours() ||
+                firstMsgTime.getDate() !== lastTime.getDate();
+
+              if (needsDivider) {
+                elements.push(
+                  <div
+                    key={`divider-${gIndex}`}
+                    className="flex items-center justify-center my-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="h-px w-[calc(40vw-200px)] bg-gray-300" />
+                      <span className="text-xs opacity-75">
+                        {formatDividerTime(firstMsgTime)}
+                      </span>
+                      <div className="h-px w-[calc(40vw-200px)] bg-gray-300" />
+                    </div>
+                  </div>
+                );
+              }
+
+              const fromCurrentUser = group.senderId !== otherUserId;
+              elements.push(
+                <MessageGroup
+                  key={`group-${gIndex}`}
+                  sender={group.sender}
+                  messages={group.messages}
+                  fromCurrentUser={fromCurrentUser}
+                />
+              );
+
+              lastTimestamp = group.messages[group.messages.length - 1].created_at;
+            });
+
+            return elements;
+          })()
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
         <Button variant="outline" size="icon" className="shrink-0">
           <Paperclip className="h-4 w-4 text-gray-600" />
@@ -218,15 +264,21 @@ export default function Chat() {
           className="flex-1 resize-none min-h-5 max-h-32 text-black"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyPress}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
           style={{
-            height: 'auto',
-            overflowY: newMessage.split('\n').length > 4 ? 'auto' : 'hidden'
+            height: "auto",
+            overflowY: newMessage.split("\n").length > 4 ? "auto" : "hidden",
           }}
           ref={(textarea) => {
             if (textarea) {
-              textarea.style.height = 'auto';
-              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
+              textarea.style.height = "auto";
+              textarea.style.height =
+                Math.min(textarea.scrollHeight, 128) + "px";
             }
           }}
         />
