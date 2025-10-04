@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+
+  mongo:
+    image: mongo
+    container_name: mongo
+    ports:
+      - "27017:27017"
+
+  kusa-backend:
+    build: ./backend
+    container_name: kusa-Backend-Container
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/kusa
+    depends_on:
+      - mongo
+
+  kusa-frontend:
+    build: ./frontend
+    container_name: kusa-Frontend-Container
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kusa-backend

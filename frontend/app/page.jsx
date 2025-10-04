@@ -3,6 +3,7 @@
 import { SettingsApplications } from "@mui/icons-material";
 import { Card, CardContent, Typography } from "@mui/material";
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default Home;
 function Home() {
@@ -32,12 +33,12 @@ function Home() {
   }, [backend_status, db_status]);
 
   return (
-    <div className="flex min-h-screen p-8 pb-20 gap-16 sm:p-20 max-w-400 mx-auto">
+    <div className="flex min-h-screen">
       <Card
         className="flex basis-full items-center"
         sx={{
           borderRadius: 3,
-          background: "linear-gradient(120deg, #2a004aff 5% , #14408bff 100%)",
+          background: "#dbdce1",
         }}
         elevation={5}
       >
@@ -46,45 +47,37 @@ function Home() {
             <Typography
               variant="h3"
               sx={{
-                color: "#ffffffff",
+                color: "#0e0b0e",
                 fontWeight: 200,
                 letterSpacing: "0.2em",
               }}
               gutt
+              className="flex justify-center"
             >
               KUSA
             </Typography>
             <Typography
               sx={{
-                color: "#a4c7ffe6",
+                color: "#0e0b0e",
                 fontWeight: 400,
               }}
+              className="flex justify-center"
             >
-              Kaseatsart University Social App
-            </Typography>
-            {/* Backend Status */}
-            <Typography sx={{ fontWeight: 400 }}>
-              <span style={{ color: "#a4c7ffe6" }}>Backend :</span>{" "}
-              <span
-                style={{
-                  color: backend_status ? "#a4c7ffe6" : "#ffa4a4e6",
-                }}
-              >
-                {backend_status ? "Online" : "Offline"}
-              </span>
-            </Typography>
-            {/* db status */}
-            <Typography sx={{ fontWeight: 400 }}>
-              <span style={{ color: "#a4c7ffe6" }}>Database :</span>{" "}
-              <span
-                style={{
-                  color: db_status ? "#a4c7ffe6" : "#ffa4a4e6",
-                }}
-              >
-                {db_status ? "Online" : "Offline"}
-              </span>
+              Kasetsart University Social App
             </Typography>
           </CardContent>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
+            <a href="/login">
+            <Button 
+            className="flex w-64 my-4 shadow-xl cursor-pointer"
+            >
+              Log in</Button></a>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
+            <a href="/register">
+              <Button className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
+            </a>
+          </div>
         </div>
       </Card>
     </div>
