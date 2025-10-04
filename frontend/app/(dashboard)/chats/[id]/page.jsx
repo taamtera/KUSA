@@ -6,9 +6,10 @@ import { Send, Paperclip, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarUrl, getAvatarFallback } from "@/components/utils";
+import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components/utils";
 import MessageGroup from "./messagegroup";
 import { useUser } from "@/context/UserContext";
+import { io } from "socket.io-client";
 
 export default function Chat() {
   const params = useParams();
@@ -20,6 +21,37 @@ export default function Chat() {
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // WebSocket setup
+  useEffect(() => {
+    if (!user?._id) return;
+
+    socketRef.current = io("http://localhost:3001", {
+      query: { userId: user._id },
+      withCredentials: true,
+      transports: ["websocket"],
+    });
+
+    const socket = socketRef.current;
+
+    socket.on("connect", () => {
+      console.log("🟢 Connected as:", user.username);
+    });
+
+    socket.on("receive_message", (msg) => {
+      console.log("📩 Received:", msg);
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("🔴 Disconnected");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?._id]);
 
   // Fetch messages from API
   useEffect(() => {
@@ -35,7 +67,6 @@ export default function Chat() {
         if (data.status === "success") {
           setMessages(data.messages);
 
-          // Extract other user info from first message
           if (data.messages.length > 0) {
             const firstMessage = data.messages[0];
             if (firstMessage.context_type === "User") {
@@ -52,9 +83,7 @@ export default function Chat() {
       }
     };
 
-    if (otherUserId) {
-      fetchMessages();
-    }
+    if (otherUserId) fetchMessages();
   }, [otherUserId]);
 
   // Fetch other user info if missing
@@ -62,13 +91,9 @@ export default function Chat() {
     const fetchOtherUser = async () => {
       if (!otherUser && otherUserId) {
         try {
-          const response = await fetch(
-            `http://localhost:3001/api/v1/users/${otherUserId}`
-          );
+          const response = await fetch(`http://localhost:3001/api/v1/users/${otherUserId}`);
           const data = await response.json();
-          if (data.status === "success") {
-            setOtherUser(data.user);
-          }
+          if (data.status === "success") setOtherUser(data.user);
         } catch (error) {
           console.error("Failed to fetch user:", error);
         }
@@ -77,22 +102,7 @@ export default function Chat() {
     fetchOtherUser();
   }, [otherUserId, otherUser]);
 
-    // Connect to WebSocket
-  useEffect(() => {
-    const s = io("http://localhost:3001", { query: { userId } });
-    setSocket(s);
-
-    s.on("connect", () => console.log("🟢 Connected to WebSocket"));
-    s.on("receive_message", (msg) => {
-      console.log("📩 Message received:", msg);
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    return () => {
-      s.disconnect();
-    };
-  }, [user?._id]);
-
+  // Group messages (no hooks here)
   const groupMessages = (messages) => {
     const groups = [];
     let currentGroup = null;
@@ -110,7 +120,7 @@ export default function Chat() {
     return groups;
   };
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -122,7 +132,7 @@ export default function Chat() {
     const tempMessage = {
       _id: `temp-${Date.now()}`,
       content: newMessage,
-      sender: { user: { username: "You" } },
+      sender: { user },
       created_at: new Date(),
       message_type: "text",
       temp: true,
@@ -143,28 +153,21 @@ export default function Chat() {
       );
 
       const data = await response.json();
-
       if (data.status === "success") {
-        setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) =>
+          [...prev.filter((m) => m._id !== tempMessage._id), data.message]
+        );
+        // optionally emit socket event
+        socketRef.current?.emit("send_message", data.message);
       } else {
-        setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
         console.error("Failed to send message:", data.message);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
     }
   };
 
-  const formatDividerTime = (dateString) => {
-    const d = new Date(dateString);
-    return `${d.getDate()}/${d.getMonth() + 1} ${d
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-  };
-
+  // Render
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-gray-100 items-center justify-center">
@@ -180,9 +183,7 @@ export default function Chat() {
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={getAvatarUrl(otherUser?.icon_file)} />
-            <AvatarFallback>
-              {getAvatarFallback(otherUser?.username)}
-            </AvatarFallback>
+            <AvatarFallback>{getAvatarFallback(otherUser?.username)}</AvatarFallback>
           </Avatar>
           <div>
             <h2 className="font-semibold text-black">
@@ -211,8 +212,6 @@ export default function Chat() {
             messageGroups.forEach((group, gIndex) => {
               const firstMsgTime = new Date(group.messages[0].created_at);
               const lastTime = lastTimestamp ? new Date(lastTimestamp) : null;
-
-              // Insert a divider if hour or date changes
               const needsDivider =
                 !lastTime ||
                 firstMsgTime.getHours() !== lastTime.getHours() ||
@@ -245,7 +244,8 @@ export default function Chat() {
                 />
               );
 
-              lastTimestamp = group.messages[group.messages.length - 1].created_at;
+              lastTimestamp =
+                group.messages[group.messages.length - 1].created_at;
             });
 
             return elements;
@@ -268,17 +268,6 @@ export default function Chat() {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSendMessage();
-            }
-          }}
-          style={{
-            height: "auto",
-            overflowY: newMessage.split("\n").length > 4 ? "auto" : "hidden",
-          }}
-          ref={(textarea) => {
-            if (textarea) {
-              textarea.style.height = "auto";
-              textarea.style.height =
-                Math.min(textarea.scrollHeight, 128) + "px";
             }
           }}
         />
