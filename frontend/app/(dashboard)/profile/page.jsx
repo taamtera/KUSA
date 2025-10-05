@@ -112,8 +112,6 @@ export default function ProfilePage() {
           </DialogContent>
         </Dialog>
       </div>
-      {/* ฝากแก้ 
-        1. ณ ตอนนี้ป */}
       <div className="flex flex-1 max-h-[80vh]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
