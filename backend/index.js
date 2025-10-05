@@ -518,6 +518,41 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// ====================== Servers =====================
+
+// List servers (that the user is a member of)
+app.get('/api/v1/servers', auth, async (req, res) => {
+    try {
+
+        // Find member records for the user
+        const memberRecords = await Member.find({ user: userId }).select('_id server');
+
+        const memberServerIds = memberRecords.map(m => m.server);
+
+        // Find servers where the user is a member
+        const servers = await Server.find({ _id: { $in: memberServerIds } })
+            .populate('icon_file')
+            .lean();
+
+        // find rooms for each server
+        for (let server of servers) {
+            const rooms = await Room.find({ server: server._id })
+                .populate('icon_file')
+                .lean();
+            server.rooms = rooms;
+        }
+
+        res.json({
+            status: 'success',
+            servers
+        });
+
+    } catch (error) {
+        console.error('Error fetching servers:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
+    }
+});
+
 // POST /api/v1/chats/:userId/messages
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {

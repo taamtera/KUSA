@@ -55,7 +55,8 @@ const userSchema = new Schema(
  * ---------------------------*/
 const serverSchema = new Schema(
     {
-        server_name: { type: String, required: true, trim: true }
+        server_name: { type: String, required: true, trim: true },
+        icon_file:   { type: ObjectId, ref: 'File', default: null },
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -84,7 +85,6 @@ const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
 const roomSchema = new Schema(
     {
         title:     { type: String, required: true, trim: true },
-        icon_file: { type: ObjectId, ref: 'File', default: null },
         server:    { type: ObjectId, ref: 'Server', required: true },
         room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
     },

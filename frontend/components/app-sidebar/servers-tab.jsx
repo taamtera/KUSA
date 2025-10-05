@@ -16,14 +16,37 @@ import {
 } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
+import { useEffect , useState } from "react";
 
-const Servers = [
-  { title: "Server 1", url: "#", avatar: { src: "https://github.com/shadcn.png", fallback: "HM" }, channels: ["general", "random", "memes"] },
-  { title: "Server 2", url: "#", avatar: { src: "https://github.com/vercel.png", fallback: "IN" }, channels: ["announcements", "support"] },
-  { title: "Server 3", url: "#", avatar: { src: "https://github.com/nextjs.png", fallback: "CA" }, channels: ["chat", "dev-talk", "design"] },
-];
+// const Servers = [
+//   { title: "Server 1", url: "#", avatar: { src: "https://github.com/shadcn.png", fallback: "HM" }, channels: ["general", "random", "memes"] },
+//   { title: "Server 2", url: "#", avatar: { src: "https://github.com/vercel.png", fallback: "IN" }, channels: ["announcements", "support"] },
+//   { title: "Server 3", url: "#", avatar: { src: "https://github.com/nextjs.png", fallback: "CA" }, channels: ["chat", "dev-talk", "design"] },
+// ];
 
-export function ServersTab() {
+export function ServersTab({ user }) {
+  const [Servers , setServers] = useState([]);
+
+  useEffect(() => {
+    // load server list
+    const fetchServers = async () => {
+      try {
+        // fetch server
+        // const response = await fetch('/api/servers');
+        // });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setServers(data.servers);
+        // } else {
+        //   console.error('Failed to fetch servers');
+        // }
+        // /
+      } catch (error) {
+        console.error('Error fetching servers:', error);
+      }
+    }
+  }, [user]);
+
   return (
     <SidebarGroup>
       <SidebarGroupContent>

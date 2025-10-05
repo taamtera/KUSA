@@ -43,7 +43,7 @@ export function AppSidebar() {
           </TabsContent>
 
           <TabsContent value="servers" className="mt-4">
-            <ServersTab />
+            <ServersTab user={user} />
           </TabsContent>
         </Tabs>
       </SidebarContent>
