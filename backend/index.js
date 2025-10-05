@@ -21,7 +21,7 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; // Set this to true if drop database and recreate seed data is needed
 
 // Models
-const { User, File, Server, Member, Room, Message, Attachment, Reaction } = require('./schema.js');
+const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
 
 // config (env)
 const ACCESS_TTL  = process.env.ACCESS_TTL  || '1d';
