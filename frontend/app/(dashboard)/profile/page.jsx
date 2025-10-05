@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import Image from 'next/image';
 import Calendar from "./calendar";
+import pbanner from "@/components/img/pbanner.jpg";
 import InfoCard from "./infoCard";
 
 export default function ProfilePage() {
@@ -55,10 +57,10 @@ export default function ProfilePage() {
     <div className=" w-[calc(100vw-260px)]">
       {/* Banner Section */}
       <div className="relative w-full h-48 bg-gray-300">
-        <img
-          src="/images/profile-banner.jpg"
+        <Image
+          src={pbanner}
           alt="Profile Banner"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover flex"
         />
         <div className="absolute -bottom-12 left-0 w-full px-8 flex items-center justify-between">
           <Avatar className="w-24 h-24 border-4 border-white">
@@ -73,10 +75,9 @@ export default function ProfilePage() {
           </Button>
         </div>
       </div>
-
-
-
-      <div className="flex max-h-[90vh]">
+      ฝากแก้ 
+        1. ณ ตอนนี้ป
+      <div className="flex flex-1 max-h-[80vh]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* Calendar Session */}
