@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
@@ -13,7 +12,6 @@ import { useUser } from "@/context/UserContext";
 
 export default function ProfilePage() {
   const { user } = useUser();
-  const [open, setOpen] = useState(false);
   const router = useRouter();
 
   const handleEditClick = () => {
@@ -53,7 +51,7 @@ export default function ProfilePage() {
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* TimeTable Session */}
-        <TimeTable />
+        <TimeTable user={user} />
       </div>
     </div>
   );

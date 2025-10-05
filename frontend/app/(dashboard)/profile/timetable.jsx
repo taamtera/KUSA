@@ -3,22 +3,10 @@
 import React, { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 import TimeTableGrid from "./timetablegrid"
-import { useUser } from "@/context/UserContext"
 
-export default function ProfilePage() {
-    const { user } = useUser()
+export default function ProfilePage(user) {
     const [open, setOpen] = useState(false)
-    const router = useRouter()
-
-    const handleEditClick = () => {
-        router.push("/profile/edit")
-    }
-
-    if (user === null) {
-        return <div className="p-8">Loading...</div>
-    }
 
     return (
         <div class="">
@@ -68,7 +56,7 @@ export default function ProfilePage() {
                 </DialogContent>
             </Dialog>
             {/* TimeTable Session */}
-            <TimeTableGrid />
+            <TimeTableGrid user={user} />
         </div>
     )
 }
