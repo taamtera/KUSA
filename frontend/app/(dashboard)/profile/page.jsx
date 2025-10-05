@@ -6,8 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
-import { Settings } from "lucide-react";
-import Calendar from "./calendar";
+import TimeTable from "./timetable";
 import pbanner from "@/components/img/pbanner.jpg";
 import InfoCard from "./infoCard";
 import { useUser } from "@/context/UserContext";
@@ -47,78 +46,14 @@ export default function ProfilePage() {
           </Button>
           
         </div>
-        <Button 
-        className="absolute py-3 mt-5 px-4 right-10 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded"
-        >
-          share
-        </Button>
-        <Button 
-        className="absolute py-3 mt-5 px-4 right-30 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded"
-        >
-          save
-        </Button>
-        <Button 
-        className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded"
-        >
-          edit
-        </Button>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="absolute py-3 mt-5 px-4 right-70 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">
-              add
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm bg-white text-black">
-            <DialogHeader>
-              <DialogTitle>Add to Timetable</DialogTitle>
-            </DialogHeader>
-            <form className="w-full max-w-sm space-y-4">
-              <div>
-                <label>Class name</label>
-                <input className="w-full border rounded p-2" />
-              </div>
-              <div>
-                <label>Description</label>
-                <input className="w-full border rounded p-2" />
-              </div>
-              <div>
-                <label>Day</label>
-                <input className="w-full border rounded p-2" />
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label>Time</label>
-                  <input className="w-full border rounded p-2" placeholder="From" />
-                </div>
-                <div className="flex-1">
-                  <label className="invisible">To</label>
-                  <input className="w-full border rounded p-2" placeholder="To" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  className="cursor-pointer bg-transparent"
-                  onClick={() => setOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="cursor-pointer">
-                  Save
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
       {/* ฝากแก้ 
         1. ณ ตอนนี้ป */}
-      <div className="flex flex-1 max-h-[80vh]">
+      <div className="flex">
         {/* Profile Info Section */}
         <InfoCard user={user} />
-        {/* Calendar Session */}
-        <Calendar />
+        {/* TimeTable Session */}
+        <TimeTable />
       </div>
     </div>
   );
