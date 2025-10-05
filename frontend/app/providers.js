@@ -4,7 +4,7 @@ import { ThemeProvider, CssBaseline, createTheme } from "@mui/material";
 
 const theme = createTheme({
   palette: {
-    mode: "dark",
+    mode: "light",
   },
   typography: {
     fontFamily: 'var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',

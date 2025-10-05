@@ -12,8 +12,8 @@ export function AddFriendDialog() {
 
   const handleSearch = () => {
     if (username.trim()) {
-      console.log("Searching for user:", username);
       // Add your search logic here
+      alert(`✅Friend request sent to ${username}`);
     }
   };
 

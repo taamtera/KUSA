@@ -51,7 +51,7 @@ body {
 
 :root {
   --radius: 0.625rem;
-  --background: #000000;
+  --background: #fcfcfc;
   --foreground: #252525;
   --card: #ffffff;
   --card-foreground: #252525;

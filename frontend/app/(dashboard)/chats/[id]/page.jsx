@@ -10,12 +10,16 @@ import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components
 import MessageGroup from "./messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
+import SearchChatDialog from "./searchchatdialog";
+import { Search } from "lucide-react"
+
 
 export default function Chat() {
   const params = useParams();
   const otherUserId = params.id;
   const { user } = useUser();
 
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
@@ -179,9 +183,14 @@ export default function Chat() {
             <p className="text-sm text-gray-500">Direct message</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon">
-          <Users className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
+            <Search className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <Users className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Messages Section */}
@@ -267,6 +276,14 @@ export default function Chat() {
           <Send className="h-4 w-4" />
         </Button>
       </div>
+
+      <SearchChatDialog
+        open={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+        messages={messages}
+        user={user}
+        otherUser={otherUser}
+      />
     </div>
   );
 }
