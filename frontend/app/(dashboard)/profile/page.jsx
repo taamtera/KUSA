@@ -76,7 +76,7 @@ export default function ProfilePage() {
 
 
 
-      <div className="flex">
+      <div className="flex max-h-[90vh]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* Calendar Session */}
