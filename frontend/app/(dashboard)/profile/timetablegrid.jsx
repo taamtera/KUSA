@@ -90,7 +90,7 @@ export default function TimeTable(user) {
           {gridCells.map((cell, index) => (
             <div
               key={index}
-              class="border-r border-b border-t border-gray-200 dark:border-gray-200/5"
+              className="border-r border-b border-t border-gray-200 dark:border-gray-200/5"
               style={{ gridColumn: cell.col, gridRow: cell.row}}
             ></div>
           ))}
