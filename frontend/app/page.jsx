@@ -35,14 +35,30 @@ function Home() {
   return (
     <div className="flex min-h-screen">
       <Card
-        className="flex basis-full items-center"
+        className="flex basis-full"
         sx={{
           borderRadius: 3,
           background: "#dbdce1",
         }}
         elevation={5}
       >
-        <div className="basis-full justify-items-center">
+        {/* Login Button */}
+        <div className="flex flex-wrap absolute top-0 right-50 gap-2 md:flex-row">
+          <a href="/login">
+          <Button 
+          className="flex w-40 my-4 shadow-xl cursor-pointer"
+          >
+            Log in</Button></a>
+        </div>
+        {/* Create account Button */}
+        <div className="flex flex-wrap absolute top-4 right-4 gap-2 md:flex-row">
+          <a href="/register">
+            <Button 
+            className="flex w-40 shadow-xl cursor-pointer"
+            >
+              Create account</Button></a>
+        </div>
+        <div className="basis-full">
           <CardContent>
             <Typography
               variant="h3"
@@ -52,7 +68,7 @@ function Home() {
                 letterSpacing: "0.2em",
               }}
               gutt
-              className="flex justify-center"
+              className="flex"
             >
               KUSA
             </Typography>
@@ -61,23 +77,48 @@ function Home() {
                 color: "#0e0b0e",
                 fontWeight: 400,
               }}
-              className="flex justify-center"
+              className="flex"
             >
               Kasetsart University Social App
             </Typography>
-          </CardContent>
-          <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
-            <a href="/login">
-            <Button 
-            className="flex w-64 my-4 shadow-xl cursor-pointer"
+            <Typography
+              sx={{
+                color: "#0e0b0e",
+                fontWeight: 350,
+              }}
+              className="flex justify-center"
             >
-              Log in</Button></a>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 md:flex-row">
-            <a href="/register">
-              <Button className="flex w-64 shadow-xl cursor-pointer">Create account</Button>
-            </a>
-          </div>
+              <p class="text-[48px] mt-24">
+                Welcome to KUSA
+              </p>
+            </Typography>
+            <Typography
+              sx={{
+                color: "#0e0b0e",
+                fontWeight: 350,
+              }}
+              className="flex justify-center"
+            >
+              <p class="text-[48px]">
+                A social media platform for KU
+              </p>
+            </Typography>
+            <div class="mt-24">
+              <img class="float-left ml-100" src="/ex-server.png" alt="Server Demo" />
+              <img class="float-right mr-100" src="/ex-profile.png" alt="Profile Demo" />
+            </div>
+            <Typography
+              sx={{
+                color: "#0e0b0e",
+                fontWeight: 350,
+              }}
+              className="flex justify-center"
+            >
+              <p class="text-[24px] text-center mt-12">
+              KUSA aims to provide a KU social media and chat platform, allowing users to interact in servers, chat rooms, and private messaging spaces with a focus on usability, privacy, and multimedia support
+              </p>
+            </Typography>
+          </CardContent>
         </div>
       </Card>
     </div>
