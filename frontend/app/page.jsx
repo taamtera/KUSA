@@ -4,6 +4,7 @@ import { SettingsApplications } from "@mui/icons-material";
 import { Card, CardContent, Typography } from "@mui/material";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export default Home;
 function Home() {
@@ -67,7 +68,7 @@ function Home() {
                 fontWeight: 200,
                 letterSpacing: "0.2em",
               }}
-              gutt
+              gutt="true"
               className="flex"
             >
               KUSA
@@ -104,8 +105,8 @@ function Home() {
               </p>
             </Typography>
             <div class="mt-24">
-              <img class="float-left ml-100" src="/ex-server.png" alt="Server Demo" />
-              <img class="float-right mr-100" src="/ex-profile.png" alt="Profile Demo" />
+              <Image class="float-left ml-100" width={300} height={100} src="/public/ex-server.png" alt="Server Demo" />
+              <Image class="float-right mr-100" width={300} height={100} src="/public/ex-profile.png" alt="Profile Demo" />
             </div>
             <Typography
               sx={{
