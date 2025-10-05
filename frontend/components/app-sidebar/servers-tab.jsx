@@ -48,7 +48,7 @@ export function ServersTab() {
                         <a href="#" className="pl-8 text-sm text-muted-foreground hover:text-foreground">
                           #{channel}
                         </a>
-                      </SidebarMenuSubItem>
+                      </SidebarMenuSubItem> 
                     ))}
                   </SidebarMenuSub>
                 </CollapsibleContent>
