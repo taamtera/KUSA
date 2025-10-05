@@ -133,12 +133,47 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
             bcrypt.hash('cara123!',  ROUNDS),
         ]);
     
-        const [alice, bob, cara] = await User.create([
-            { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
-            { username: 'bob', email: 'bob@example.com', password_hash: bobHash, icon_file: fBobAva._id, role: 'USER', description: 'Backend dev' },
-            { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
-            // { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
-        ]);
+const [alice, bob, cara] = await User.create([
+    {
+        username: "alice",
+        email: "alice@example.com",
+        password_hash: aliceHash,
+        icon_file: fAliceAva._id,
+        banner_file: fHubIcon._id,
+        role: "USER",
+        bio: "Product manager focused on collaboration and growth.",
+        major: "Business Management",
+        faculty: "Business",
+        pronouns: "She/Her",
+        phone: "0909092200",
+    },
+    {
+        username: "bob",
+        email: "bob@example.com",
+        password_hash: bobHash,
+        icon_file: fBobAva._id,
+        banner_file: fDevIcon._id,
+        role: "USER",
+        bio: "Backend developer who loves clean APIs and strong coffee.",
+        major: "Computer Engineering",
+        faculty: "Engineering",
+        pronouns: "He/Him",
+        phone: "0909092201",
+    },
+    {
+        username: "cara",
+        email: "cara@example.com",
+        password_hash: caraHash,
+        icon_file: fCaraAva._id,
+        banner_file: fHubIcon._id,
+        role: "USER",
+        bio: "Designer passionate about creating accessible, beautiful interfaces.",
+        major: "Design and Communication",
+        faculty: "Arts",
+        pronouns: "They/Them",
+        phone: "0909092202",
+    },
+])
     
         //Friends
         alice.friends = [bob._id, cara._id];

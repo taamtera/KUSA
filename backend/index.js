@@ -269,6 +269,39 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
     }
 });
 
+app.patch('/api/v1/auth/me', auth, async (req, res) => {
+    try {
+        // 	username: data.user.username || "",
+        // 	faculty: data.user.faculty || "",
+        // 	major: data.user.major || "",
+        // 	pronouns: data.user.pronouns || "",
+        // 	birthday: data.user.birthday || "",
+        // 	phone: data.user.phone || "",
+        // 	email: data.user.email || "",
+        // 	bio: data.user.bio || "",
+        const fields = ['username', 'faculty', 'major', 'pronouns', 'birthday', 'phone', 'email', 'bio'];
+        const updates = {};
+        fields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        });
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: 'no valid fields to update' });
+        }        
+        console.log("Updating user:", req.userId, updates);
+        const result = await User.updateOne({ _id: req.userId }, updates);
+        console.log("Update result:", result);
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'user not found' });
+        }
+        res.json({ status: 'success', message: 'user updated' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to update user' });
+    }
+});
+
 // Refresh access token from refresh cookie
 app.post('/api/v1/auth/refresh', (req, res) => {
     try {
@@ -309,52 +342,6 @@ app.get('/api/v1/users/:id', async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'failed to fetch user' });
-    }
-});
-
-
-// Edit user info (username, description, icon/banner)
-app.patch('/api/v1/users/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
-
-        const { username, description, icon_file, banner_file } = req.body;
-        const update = {};
-
-        if (typeof username === 'string' && username.trim()) {
-        const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
-        if (exists) return res.status(409).json({ message: 'username already taken' });
-        update.username = username.trim();
-        }
-        if (typeof description === 'string') update.description = description;
-
-        if (icon_file) {
-        if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
-        const f = await File.findById(icon_file).lean();
-        if (!f) return res.status(404).json({ message: 'icon file not found' });
-        update.icon_file = icon_file;
-        }
-        if (banner_file) {
-        if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
-        const f = await File.findById(banner_file).lean();
-        if (!f) return res.status(404).json({ message: 'banner file not found' });
-        update.banner_file = banner_file;
-        }
-
-        if (!Object.keys(update).length)
-        return res.status(400).json({ message: 'nothing to update' });
-
-        const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
-        .populate('icon_file')
-        .populate('banner_file')
-        .lean();
-
-        if (!user) return res.status(404).json({ message: 'user not found' });
-        res.json({ status: 'success', user });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ message: 'failed to update user' });
     }
 });
 

@@ -26,20 +26,26 @@ const fileSchema = new Schema(
 const userSchema = new Schema(
     {
         username:      { type: String, required: true, unique: true, trim: true },
-        display_name:  { type: String, default: function () {return this.username} }, 
+        display_name:  { type: String, default: function () { return this.username } },
         email:         { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
-        role:          { type: String, required: true, default: 'USER' },
-        icon_file:     { type: ObjectId, ref: 'File', default: null },
-        banner_file:   { type: ObjectId, ref: 'File', default: null },
-        description:   { type: String, trim: true, default: null },
-        gender:        { type: String, default: null },
+        role:          { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+
+        // Profile images
+        icon_file:     { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+        banner_file:   { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+
+        // Personal details
+        bio:           { type: String, trim: true, default: '' },
+        pronouns:      { type: String, trim: true, default: '' },
         birthday:      { type: Date, default: null },
-        major:         { type: String, default: null },
-        faculty:       { type: String, default: null },
-        phone_number:  { type: String, default: null },
-        friends:       [{ type: ObjectId, ref: 'User' }],
-        time_table:    [{ type: ObjectId, ref: "TimeSlot" }]
+        major:         { type: String, trim: true, default: '' },
+        faculty:       { type: String, trim: true, default: '' },
+        phone:  { type: String, trim: true, default: '' },
+
+        // Relations
+        friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        time_table:    [{ type: mongoose.Schema.Types.ObjectId, ref: "TimeSlot" }],
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
