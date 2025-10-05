@@ -5,6 +5,8 @@ import { Card, CardContent, Typography } from "@mui/material";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import exProfile from "@/components/img/ex-profile.png";
+import exServer from "@/components/img/ex-server.png";
 
 export default Home;
 function Home() {
@@ -104,19 +106,19 @@ function Home() {
                 A social media platform for KU
               </p>
             </Typography>
-            <div class="mt-24">
-              <Image class="float-left ml-100" width={300} height={100} src="/public/ex-server.png" alt="Server Demo" />
-              <Image class="float-right mr-100" width={300} height={100} src="/public/ex-profile.png" alt="Profile Demo" />
+            <div class="mt-12">
+              <Image class="float-left ml-100" width={300} height={100} src={exServer} alt="Server Demo" />
+              <Image class="float-right mr-100" width={300} height={100} src={exProfile} alt="Profile Demo" />
             </div>
             <Typography
               sx={{
                 color: "#0e0b0e",
                 fontWeight: 350,
               }}
-              className="flex justify-center"
+              className="flex justify-center w-full"
             >
               <p class="text-[24px] text-center mt-12">
-              KUSA aims to provide a KU social media and chat platform, allowing users to interact in servers, chat rooms, and private messaging spaces with a focus on usability, privacy, and multimedia support
+                KUSA aims to provide a KU social media and chat platform, allowing users to interact in servers, chat rooms, and private messaging spaces with a focus on usability, privacy, and multimedia support
               </p>
             </Typography>
           </CardContent>
