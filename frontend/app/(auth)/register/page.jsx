@@ -43,7 +43,7 @@ export default function CardDemo() {
                 data = JSON.parse(data);
             } catch (jsonError) {
                 // If it's plain text (like 400 missing fields response)
-                data = { message: data }; 
+                data = { message: data };
             }
 
             if (response.ok) {
@@ -51,13 +51,6 @@ export default function CardDemo() {
                 setIsError(false);
                 setMessage(`Registration Success! Welcome, ${username}.`);
                 window.location.href = "/login";
-                // alert("✅ " + data.message);
-
-                // Clear form fields on success
-                setEmail('');
-                setUsername('');
-                setPassword('');
-                setPassword_confirmation('');
             } else {
                 // API Error: Status 400, 409, 500
                 setIsError(true);
@@ -67,7 +60,7 @@ export default function CardDemo() {
                     setMessage(`Registration Failed: ${data.message}`);
                 } else if (typeof data.message === 'string') {
                     // This handles your 400 (Missing required fields)
-                     setMessage(data.message); 
+                    setMessage(data.message);
                 } else {
                     setMessage(`Registration failed with status: ${response.status}`);
                 }
@@ -98,7 +91,7 @@ export default function CardDemo() {
                             {message}
                         </p>
                     )}
-                    
+
                     {/* The form structure*/}
                     <form onSubmit={handleSubmit}>
                         <div className="flex flex-col gap-6">
@@ -132,7 +125,7 @@ export default function CardDemo() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    required 
+                                    required
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -144,14 +137,14 @@ export default function CardDemo() {
                                     type="password"
                                     value={password_confirmation}
                                     onChange={(e) => setPassword_confirmation(e.target.value)}
-                                    required 
+                                    required
                                 />
                             </div>
                         </div>
                         <div className='mt-6'>
-                            <Button 
-                                type="submit" 
-                                className="w-full" 
+                            <Button
+                                type="submit"
+                                className="w-full"
                                 disabled={loading}
                             >
                                 {loading ? 'Creating Account...' : 'Create Account'}

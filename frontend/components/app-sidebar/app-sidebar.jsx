@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,24 +8,10 @@ import { DMsTab } from "./dms-tab";
 import { ServersTab } from "./servers-tab";
 import { AccountSettingsDialog } from "./account-settings-dialog";
 import { AddFriendDialog } from "./add-friend-dialog";
+import { useUser } from "@/context/UserContext";
 
 export function AppSidebar() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const response = await fetch("http://localhost:3001/api/v1/auth/me", {
-          credentials: "include",
-        });
-        const data = await response.json();
-        setUser(data.user);
-      } catch (error) {
-        console.error("Failed to load user:", error);
-      }
-    };
-    loadUser();
-  }, []);
+  const { user } = useUser();
 
   const handleFooterClick = () => {
     window.location.pathname = "/profile";
