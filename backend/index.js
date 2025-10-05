@@ -1,10 +1,13 @@
 require('dotenv').config();
+const InitializeDatabaseStructures = require('./seedDatabase');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
+const Socket_Server = require("socket.io");
+const http = require('http');
 
 const app = express();
 app.use(cors({
@@ -15,10 +18,18 @@ app.use(cors({
 app.use(express.json());
 app.use(cookiesParser());
 
+const chat_server = http.createServer(app);
+const io = new Socket_Server.Server(chat_server, {
+    cors: {
+        origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+        credentials: true,
+    },
+});
+
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; // Set this to true if drop database and recreate seed data is needed
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; 
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
@@ -258,6 +269,39 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
     }
 });
 
+app.patch('/api/v1/auth/me', auth, async (req, res) => {
+    try {
+        // 	username: data.user.username || "",
+        // 	faculty: data.user.faculty || "",
+        // 	major: data.user.major || "",
+        // 	pronouns: data.user.pronouns || "",
+        // 	birthday: data.user.birthday || "",
+        // 	phone: data.user.phone || "",
+        // 	email: data.user.email || "",
+        // 	bio: data.user.bio || "",
+        const fields = ['username', 'faculty', 'major', 'pronouns', 'birthday', 'phone', 'email', 'bio'];
+        const updates = {};
+        fields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        });
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: 'no valid fields to update' });
+        }        
+        console.log("Updating user:", req.userId, updates);
+        const result = await User.updateOne({ _id: req.userId }, updates);
+        console.log("Update result:", result);
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'user not found' });
+        }
+        res.json({ status: 'success', message: 'user updated' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'failed to update user' });
+    }
+});
+
 // Refresh access token from refresh cookie
 app.post('/api/v1/auth/refresh', (req, res) => {
     try {
@@ -298,52 +342,6 @@ app.get('/api/v1/users/:id', async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'failed to fetch user' });
-    }
-});
-
-
-// Edit user info (username, description, icon/banner)
-app.patch('/api/v1/users/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
-
-        const { username, description, icon_file, banner_file } = req.body;
-        const update = {};
-
-        if (typeof username === 'string' && username.trim()) {
-        const exists = await User.findOne({ username, _id: { $ne: id } }).lean();
-        if (exists) return res.status(409).json({ message: 'username already taken' });
-        update.username = username.trim();
-        }
-        if (typeof description === 'string') update.description = description;
-
-        if (icon_file) {
-        if (!oid(icon_file)) return res.status(400).json({ message: 'invalid icon_file id' });
-        const f = await File.findById(icon_file).lean();
-        if (!f) return res.status(404).json({ message: 'icon file not found' });
-        update.icon_file = icon_file;
-        }
-        if (banner_file) {
-        if (!oid(banner_file)) return res.status(400).json({ message: 'invalid banner_file id' });
-        const f = await File.findById(banner_file).lean();
-        if (!f) return res.status(404).json({ message: 'banner file not found' });
-        update.banner_file = banner_file;
-        }
-
-        if (!Object.keys(update).length)
-        return res.status(400).json({ message: 'nothing to update' });
-
-        const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
-        .populate('icon_file')
-        .populate('banner_file')
-        .lean();
-
-        if (!user) return res.status(404).json({ message: 'user not found' });
-        res.json({ status: 'success', user });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ message: 'failed to update user' });
     }
 });
 
@@ -570,284 +568,77 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// --- SOCKET LOGIC ---
+io.on("connection", (socket) => {
+console.log("✅ New WebSocket connection:", socket.id);
 
-async function InitializeDatabaseStructures() {
-    // ---------- 1) Define seed keys (unique identifiers) ----------
-    const FILE_KEYS = [
-        'uploads/avatars/alice.png',
-        'uploads/avatars/bob.png',
-        'uploads/avatars/cara.png',
-        'uploads/icons/hub.png',
-        'uploads/icons/dev.png',
-        'uploads/docs/welcome.pdf',
-    ];
+// Join room per user ID (from query or handshake)
+const userId = socket.handshake.query.userId;
+if (userId) socket.join(userId);
 
-    const USER_EMAILS = [
-        'alice@example.com',
-        'bob@example.com',
-        'cara@example.com',
-    ];
+// Listen for "send_message" event from client
+socket.on("send_message", async (msgData) => {
+    try {
+    const { fromUserId, toUserId, content, message_type = "text" } = msgData;
 
-    const SERVER_NAMES = [
-        'General Hub',
-        'Dev Corner',
-    ];
+    // 💾 Save message in DB using your existing logic
+    const currentUserMembers = await Member.find({ user: fromUserId });
+    const otherUserMembers = await Member.find({ user: toUserId });
+    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
 
-    const ROOMS_BY_TITLE = [
-        'general',
-        'announcements',
-        'dev-chat',
-    ];
+    const message = await Message.create({
+        sender: currentUserMembers[0]._id,
+        recipients: otherUserMemberIds,
+        context: toUserId,
+        context_type: "User",
+        content,
+        message_type,
+    });
 
-    // ---------- 2) Lookup existing seed docs ----------
-    const seedFiles = await File.find({ storage_key: { $in: FILE_KEYS } }, { _id: 1 }).lean();
-    const seedUsers = await User.find({ email: { $in: USER_EMAILS } }, { _id: 1 }).lean();
-    const seedServers = await Server.find({ server_name: { $in: SERVER_NAMES } }, { _id: 1 }).lean();
+    const populatedMessage = await Message.findById(message._id)
+        .populate({
+        path: "sender",
+        populate: {
+            path: "user",
+            select: "username display_name icon_file",
+        },
+        })
+        .populate("recipients")
+        .lean();
 
-    const seedFileIds = seedFiles.map(d => d._id);
-    const seedUserIds = seedUsers.map(d => d._id);
-    const seedServerIds = seedServers.map(d => d._id);
+        // Emit the message to both sender and recipient
+        io.to(fromUserId).emit("receive_message", populatedMessage);
+        io.to(toUserId).emit("receive_message", populatedMessage);
 
-    // Rooms and members depend on servers/users
-    const seedRooms = await Room.find({
-        $or: [
-            { server: { $in: seedServerIds } },
-            { title: { $in: ROOMS_BY_TITLE } }
-        ]
-    }, { _id: 1 }).lean();
+        console.log("📨 Message delivered via WS:", content);
+        } catch (err) {
+        console.error("Socket message error:", err);
+        }
+    });
 
-    const seedRoomIds = seedRooms.map(d => d._id);
-
-    const seedMembers = await Member.find({
-        $or: [
-            { server: { $in: seedServerIds } },
-            { user: { $in: seedUserIds } }
-        ]
-    }, { _id: 1, server: 1, user: 1 }).lean();
-
-    const seedMemberIds = seedMembers.map(d => d._id);
-
-    // Messages tied to (rooms or members)
-    const seedMessages = await Message.find({
-        $or: [
-        { room: { $in: seedRoomIds } },
-        { sender: { $in: seedMemberIds } },
-        { recipients: { $in: seedMemberIds } },
-        ]
-    }, { _id: 1 }).lean();
-
-    const seedMessageIds = seedMessages.map(d => d._id);
-
-    // ---------- 3) Delete only seed data (children → parents) ----------
-
-    // reactions (child of message)
-    if (seedMessageIds.length) {
-        await Reaction.deleteMany({ message: { $in: seedMessageIds } });
-    }
-
-    // attachments by (message OR file)
-    if (seedMessageIds.length || seedFileIds.length) {
-        const or = [];
-        if (seedMessageIds.length) or.push({ message: { $in: seedMessageIds } });
-        if (seedFileIds.length) or.push({ file: { $in: seedFileIds } });
-        await Attachment.deleteMany({ $or: or });
-    }
-
-    // messages
-    if (seedMessageIds.length) {
-        await Message.deleteMany({ _id: { $in: seedMessageIds } });
-    }
-
-    // rooms & members
-    if (seedRoomIds.length) await Room.deleteMany({ _id: { $in: seedRoomIds } });
-    if (seedMemberIds.length) await Member.deleteMany({ _id: { $in: seedMemberIds } });
-
-    // servers, users, files
-    if (seedServerIds.length) await Server.deleteMany({ _id: { $in: seedServerIds } });
-    if (seedUserIds.length) await User.deleteMany({ _id: { $in: seedUserIds } });
-    if (seedFileIds.length) await File.deleteMany({ _id: { $in: seedFileIds } });
-
-
-    // ---------- 4) Recreate the seed data ----------
-    // Files
-    const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
-        // { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
-        // { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
-        // { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
-        { storage_key: 'https://github.com/shadcn.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-        { storage_key: 'https://github.com/vercel.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-        { storage_key: 'https://github.com/nextjs.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-        { storage_key: 'uploads/icons/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
-        { storage_key: 'uploads/icons/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
-        { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
-
-    ]);
-
-    // Users (password_hash placeholders)
-    const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
-    
-    const [aliceHash, bobHash, caraHash] = await Promise.all([
-        bcrypt.hash('alice123!', ROUNDS),
-        bcrypt.hash('bob123!',   ROUNDS),
-        bcrypt.hash('cara123!',  ROUNDS),
-    ]);
-
-    const [alice, bob, cara] = await User.create([
-        { username: 'alice', email: 'alice@example.com', password_hash: aliceHash, icon_file: fAliceAva._id, role: 'USER', description: 'Product manager' },
-        { username: 'bob', email: 'bob@example.com', password_hash: bobHash, icon_file: fBobAva._id, role: 'USER', description: 'Backend dev' },
-        { username: 'cara', email: 'cara@example.com', password_hash: caraHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
-        // { username: 'admin', email: 'admin@example.com', password_hash: adminHash, icon_file: fCaraAva._id, role: 'USER', description: 'Designer' },
-    ]);
-
-    //Friends
-    alice.friends = [bob._id, cara._id];
-    bob.friends = [alice._id, cara._id];
-    cara.friends = [alice._id, bob._id];
-    await Promise.all([alice.save(), bob.save(), cara.save()]);
-
-    // Servers
-    const [hub, dev] = await Server.create([
-        { server_name: 'General Hub' },
-        { server_name: 'Dev Corner' },
-    ]);
-
-    // Rooms
-    const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-        { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
-        { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
-        { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
-    ]);
-
-    // Members
-    const [aliceHub, bobHub, caraHub, aliceDev, bobDev] = await Member.create([
-        { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
-        { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
-        { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
-        { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
-        { user: bob._id, server: dev._id, nickname: 'Bob', role: 'moderator' },
-    ]);
-
-    // Messages & Attachments
-const m1 = await Message.create({
-    sender: aliceHub._id,
-    recipients: [aliceHub._id, bobHub._id, caraHub._id], // Add recipients for room messages
-    context: roomGeneral._id,
-    context_type: 'Room',
-    content: 'Welcome to **General Hub**! 📌 Please check the announcement channel.',
-    message_type: 'text',
+    socket.on("disconnect", () => {
+        console.log("❌ WebSocket disconnected:", socket.id);
+    });
 });
 
-const m2 = await Message.create({
-    sender: bobHub._id,
-    recipients: [aliceHub._id, bobHub._id, caraHub._id],
-    context: roomGeneral._id,
-    context_type: 'Room',
-    reply_to: m1._id,
-    content: 'Thanks @alice! I just uploaded the onboarding guide.',
-    message_type: 'text',
-});
+mongoose.connection.on("connected", () => {
+    console.log("MongoDB connected")
+    db_status = true
 
-await Attachment.create({
-    message: m2._id,
-    file: fWelcomeDoc._id,
-    position: 1,
-});
-
-// Direct messages (1-on-1) - Alice to Bob
-const dm1 = await Message.create({
-    sender: aliceHub._id,
-    recipients: [bobHub._id],
-    context: bob._id,  // Bob's User ID (not member ID)
-    context_type: 'User',
-    content: 'Hey Bob, quick question about the API keys.',
-    message_type: 'text',
-});
-
-// Group direct message - Bob to Alice & Cara
-const gdm1 = await Message.create({
-    sender: bobHub._id,
-    recipients: [aliceHub._id, caraHub._id],
-    context: alice._id,  // Can use any user ID as context, or create a group DM room
-    context_type: 'User',
-    content: 'Team—design handoff at 3 PM. Can you both review the Figma?',
-    message_type: 'text',
-});
-
-// Dev room message
-await Message.create({
-    sender: bobDev._id,
-    recipients: [bobDev._id], // Add appropriate recipients
-    context: roomDevChat._id,
-    context_type: 'Room',
-    content: 'Heads up: staging deploy at 17:00 UTC+7. Ping me if you see issues.',
-    message_type: 'text',
-});
-
-// Private messages between Alice and everyone else
-const aliceToBobDM = await Message.create({
-    sender: aliceHub._id,
-    recipients: [bobHub._id],
-    context: bob._id,  // Bob's User ID
-    context_type: 'User',
-    content: 'Hey Bob, are we still meeting tomorrow?',
-    message_type: 'text',
-});
-
-const aliceToCaraDM = await Message.create({
-    sender: aliceHub._id,
-    recipients: [caraHub._id],
-    context: cara._id,  // Cara's User ID
-    context_type: 'User',
-    content: 'Hi Cara, I loved your design mockups!',
-    message_type: 'text',
-});
-
-// Responses to Alice's DMs
-const bobToAliceDM = await Message.create({
-    sender: bobHub._id,
-    recipients: [aliceHub._id],
-    context: alice._id,  // Alice's User ID
-    context_type: 'User',
-    content: 'Yes, meeting is still on for 2 PM!',
-    message_type: 'text',
-});
-
-const caraToAliceDM = await Message.create({
-    sender: caraHub._id,
-    recipients: [aliceHub._id],
-    context: alice._id,  // Alice's User ID
-    context_type: 'User',
-    content: 'Thanks Alice! Working on the final revisions now.',
-    message_type: 'text',
-});
-
-// Reactions: Bob 👍 on m1, Cara 🎉 on m1, Alice ❤️ on m2
-await Reaction.create([
-    { message: m1._id, member: bobHub._id, emoji: '👍' },
-    { message: m1._id, member: caraHub._id, emoji: '🎉' },
-    { message: m2._id, member: aliceHub._id, emoji: '❤️' },
-]);
-
-    console.log('Seed complete ✔');
-}
-
-// Keep db_status accurate on connection state changes
-mongoose.connection.on('connected', () => {
-    console.log('MongoDB connected');
-    db_status = true;
-    // check if there are any databse structures needed and create them if not
-    if (RESET_SEEDED_DATA == 'true') {
-        console.log('Resetting and seeding database structures...');
-        // drop all collections (if exist)
-        mongoose.connection.db.dropDatabase().then(() => {
-            console.log('Database dropped');
-            InitializeDatabaseStructures();
-        }).catch(err => {console.error('Error dropping database:', err);});
+    if (RESET_SEEDED_DATA === "true") {
+        console.log("Resetting and seeding database structures...")
+        mongoose.connection.db
+            .dropDatabase()
+            .then(() => {
+                console.log("Database dropped")
+                InitializeDatabaseStructures(RESET_SEEDED_DATA)
+            })
+            .catch((err) => console.error("Error dropping database:", err))
     } else {
-        console.log('Skipping database seed/reset.');
+        console.log("Skipping database seed/reset.")
     }
+})
 
-});
 mongoose.connection.on('disconnected', () => {
     console.warn('MongoDB disconnected');
     db_status = false;
@@ -864,8 +655,8 @@ const connectWithRetry = async () => {
     }
 };
 
-// Start the HTTP server once
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+// Start the combined server (handles both HTTP + WS)
+chat_server.listen(PORT, () => console.log(`🚀 Backend + WS running on port ${PORT}`));
 
 // Initialize DB connection (with retry)
 connectWithRetry();

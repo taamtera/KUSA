@@ -39,7 +39,6 @@ export default function CardDemo() {
 
             if (response.ok) {
                 window.location.href = "/login";
-                alert("✅ " + data.message);
             } else {
                 alert("❌ " + data.message);
             }
