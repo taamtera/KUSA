@@ -45,7 +45,6 @@ const userSchema = new Schema(
 
         // Relations
         friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-        time_table:    [{ type: mongoose.Schema.Types.ObjectId, ref: "TimeSlot" }],
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -185,7 +184,8 @@ const timeSlotSchema = new Schema(
         start_min:    { type: Number, required: true, min: 0, max: 1439 },
         end_min:      { type: Number, required: true, min: 1, max: 1440 },
         location:     { type: String, default: null, trim: true },
-        color:        { type: String, default: null}
+        color:        { type: String, default: null},
+        owner:        { type: ObjectId, ref: 'User', required: true }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 )
@@ -196,7 +196,8 @@ timeSlotSchema.path("end_min").validate(function (v) {
 }, "end time must be after start time");
 
 // Sort-friendly index per user/day
-timeSlotSchema.index({ day: 1, start_min: 1 });
+timeSlotSchema.index({ owner: 1, day: 1, start_min: 1 });
+timeSlotSchema.index({ owner: 1 });
 
 /* -----------------------------
  * MODELS (re-use if already compiled)

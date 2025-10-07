@@ -102,6 +102,14 @@ function setAuthCookies(res, accessToken, refreshToken) {
     res.cookie('refresh_token', refreshToken, { ...baseCookie, maxAge: parseTtlToMs(REFRESH_TTL) });
 }
 
+// Time table helpers
+const DAY_ENUM = ["mon","tue","wed","thu","fri","sat","sun"];
+
+// Overlap check helper: returns true if new [s,e) overlaps any existing range
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return Math.max(aStart, bStart) < Math.min(aEnd, bEnd);
+}
+
 // ==================== AUTH  =====================
 
 // Register
@@ -418,6 +426,65 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ status: 'failed', message: 'failed to delete user' });
+    }
+});
+
+// ===================== Time Table ====================
+// Create a time slot for the current user
+app.post('api/v1/timetable', auth, async (req, res) => {
+    try {
+        const { title, description, day, start_min, end_min, location, color } = req.body;
+
+        // Basic validation
+        if (!title || !day || start_min == null || end_min == null) {
+            return res.status(400).json({ status: 'failed', message: 'title, day, start_min, end_min are required' });
+        }
+        if (!DAY_ENUM.includes(day)) {
+            return res.status(400).json({ status: 'failed', message: 'invalid day' });
+        }
+        if (start_min < 0 || start_min > 1439 || end_min < 1 || end_min > 1440 || start_min >= end_min) {
+            return res.status(400).json({ status: 'failed', message: 'invalid time range' });
+        }
+
+        // Overlap guard (same owner + same day)
+        const existing = await TimeSlot.find({ owner: req.userId, day}).lean();
+        const clash = existing.find(s => overlaps(start_min, end_min, s.start_min, s.end_min));
+        if (clash) {
+            return res.status(409).json({
+                status: 'failed',
+                message: `overlaps with "${clash.title}" (${clash.start_min}-${clash.end_min})`
+            });
+        }
+
+        // Create
+        const slot = await TimeSlot.create({
+            owner: req.userId,
+            title, description: description ?? null, day, start_min, end_min, location: location ?? null, color: color ?? null
+        });
+
+        return res.json({ status: 'success', slot });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ status: 'failed', message: 'failed to create slot' });
+    }
+});
+
+// Get my timetable
+app.get('api/v1/timetable', auth, async (req, res) => {
+    try {
+        const { day } = req.query;
+        const filter = { owner: req.userId };
+        if (day) {
+            if (!DAY_ENUM.includes(day)) {
+                return res.status(400).json({ status: 'failed', message: 'invalid day' });
+            }
+            filter.day = day;
+        }
+        const slots = await TimeSlot.find(filter).sort({ day: 1, start_min: 1 }).lean();
+        req.json({ status: 'success', slots })
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ status: 'failed', message: 'failed to fetch timetable' });
     }
 });
 
