@@ -48,6 +48,8 @@ const asInt = (v, d) => {
     return Number.isFinite(n) ? n : d;
 };
 
+const norm = v => (typeof v === 'string' && v.trim() === '' ? null : v);
+
 function isSelfOrAdmin(reqUserId, targetUserDoc) {
     if (!targetUserDoc) return false;
     if (targetUserDoc._id?.toString() === reqUserId) return true;
@@ -431,7 +433,7 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
 // ===================== Time Table ====================
 // Create a time slot for the current user
-app.post('api/v1/timetable', auth, async (req, res) => {
+app.post('/api/v1/timetable', auth, async (req, res) => {
     try {
         const { title, description, day, start_min, end_min, location, color } = req.body;
 
@@ -459,7 +461,13 @@ app.post('api/v1/timetable', auth, async (req, res) => {
         // Create
         const slot = await TimeSlot.create({
             owner: req.userId,
-            title, description: description ?? null, day, start_min, end_min, location: location ?? null, color: color ?? null
+            title,
+            description: norm(description),
+            day,
+            start_min,
+            end_min,
+            location: norm(location),
+            color: norm(color),
         });
 
         return res.json({ status: 'success', slot });
@@ -470,7 +478,7 @@ app.post('api/v1/timetable', auth, async (req, res) => {
 });
 
 // Get my timetable
-app.get('api/v1/timetable', auth, async (req, res) => {
+app.get('/api/v1/timetable', auth, async (req, res) => {
     try {
         const { day } = req.query;
         const filter = { owner: req.userId };
