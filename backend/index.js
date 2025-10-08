@@ -525,7 +525,7 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     try {
 
         // Find member records for the user
-        const memberRecords = await Member.find({ user: userId }).select('_id server');
+        const memberRecords = await Member.find({ user: req.userId }).select('_id server');
 
         const memberServerIds = memberRecords.map(m => m.server);
 
@@ -537,7 +537,6 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         // find rooms for each server
         for (let server of servers) {
             const rooms = await Room.find({ server: server._id })
-                .populate('icon_file')
                 .lean();
             server.rooms = rooms;
         }
