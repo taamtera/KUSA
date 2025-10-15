@@ -71,6 +71,19 @@ function auth(req, res, next) {
     }
 }
 
+// optionalAuth middleware, ignore bad/missing token; treat as anonymous
+function optionalAuth(req, res, next) {
+  try {
+    const token = req.cookies?.access_token;
+    if (!token) return next();
+    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET);
+    req.userId = sub;
+    next();
+  } catch {
+    next();
+  }
+}
+
 // Health route
 app.get('/', async (req, res) => {
     console.log("Health check received");
@@ -434,67 +447,178 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 // ===================== Time Table ====================
 // Create a time slot for the current user
 app.post('/api/v1/timetable', auth, async (req, res) => {
-    try {
-        const { title, description, day, start_min, end_min, location, color } = req.body;
+  try {
+    // 1) coerce numbers up front
+    const title = req.body.title;
+    const description = norm(req.body.description);
+    const dayRaw = req.body.day;
+    const start = asInt(req.body.start_min, -1);
+    const end   = asInt(req.body.end_min,   -1);
+    const location = norm(req.body.location);
+    const color = norm(req.body.color);
 
-        // Basic validation
-        if (!title || !day || start_min == null || end_min == null) {
-            return res.status(400).json({ status: 'failed', message: 'title, day, start_min, end_min are required' });
-        }
-        if (!DAY_ENUM.includes(day)) {
-            return res.status(400).json({ status: 'failed', message: 'invalid day' });
-        }
-        if (start_min < 0 || start_min > 1439 || end_min < 1 || end_min > 1440 || start_min >= end_min) {
-            return res.status(400).json({ status: 'failed', message: 'invalid time range' });
-        }
-
-        // Overlap guard (same owner + same day)
-        const existing = await TimeSlot.find({ owner: req.userId, day}).lean();
-        const clash = existing.find(s => overlaps(start_min, end_min, s.start_min, s.end_min));
-        if (clash) {
-            return res.status(409).json({
-                status: 'failed',
-                message: `overlaps with "${clash.title}" (${clash.start_min}-${clash.end_min})`
-            });
-        }
-
-        // Create
-        const slot = await TimeSlot.create({
-            owner: req.userId,
-            title,
-            description: norm(description),
-            day,
-            start_min,
-            end_min,
-            location: norm(location),
-            color: norm(color),
-        });
-
-        return res.json({ status: 'success', slot });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ status: 'failed', message: 'failed to create slot' });
+    // 2) normalize/validate
+    const day = (typeof dayRaw === 'string') ? dayRaw.toLowerCase() : dayRaw;
+    if (!title || !day || start === -1 || end === -1) {
+      return res.status(400).json({ status: 'failed', message: 'title, day, start_min, end_min are required' });
     }
+    if (!DAY_ENUM.includes(day)) {
+      return res.status(400).json({ status: 'failed', message: 'invalid day' });
+    }
+    if (start < 0 || start > 1439 || end < 1 || end > 1440 || start >= end) {
+      return res.status(400).json({ status: 'failed', message: 'invalid time range' });
+    }
+
+    // 3) Mongo-side overlap check (faster than pulling all)
+    const clash = await TimeSlot.findOne({
+      owner: req.userId,
+      day,
+      start_min: { $lt: end },
+      end_min:   { $gt: start },
+    }).lean();
+
+    if (clash) {
+      return res.status(409).json({
+        status: 'failed',
+        message: `overlaps with "${clash.title}" (${clash.start_min}-${clash.end_min})`
+      });
+    }
+
+    // 4) Create
+    const slot = await TimeSlot.create({
+      owner: req.userId,
+      title,
+      description,
+      day,
+      start_min: start,
+      end_min: end,
+      location,
+      color,
+    });
+
+    return res.status(201).json({ status: 'success', slot });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: 'failed', message: 'failed to create slot' });
+  }
 });
 
-// Get my timetable
-app.get('/api/v1/timetable', auth, async (req, res) => {
-    try {
-        const { day } = req.query;
-        const filter = { owner: req.userId };
-        if (day) {
-            if (!DAY_ENUM.includes(day)) {
-                return res.status(400).json({ status: 'failed', message: 'invalid day' });
-            }
-            filter.day = day;
-        }
-        const slots = await TimeSlot.find(filter).sort({ day: 1, start_min: 1 }).lean();
-        req.json({ status: 'success', slots })
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ status: 'failed', message: 'failed to fetch timetable' });
+// GET timetable
+app.get('/api/v1/users/:userId/timetable', optionalAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    let { day } = req.query;
+
+    if (!oid(userId)) return res.status(400).json({ status: 'failed', message: 'invalid user id' });
+
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
+
+    const isOwner = req.userId?.toString() === userId.toString();
+
+    if (!isOwner && user.timetable_visibility !== 'public') {
+      return res.status(403).json({ status: 'failed', message: 'this timetable is private' });
     }
+
+    // normalize/validate day
+    if (typeof day === 'string') day = day.toLowerCase();
+    if (day && !DAY_ENUM.includes(day)) {
+      return res.status(400).json({ status: 'failed', message: 'invalid day' });
+    }
+
+    const filter = { owner: userId };
+    if (day) filter.day = day;
+
+    const PUBLIC_FIELDS = 'title day start_min end_min location color';
+    const projection = isOwner ? undefined : PUBLIC_FIELDS;
+
+    // temporary sort: by day order + start_min (see §2 for stable day-order)
+    const slots = await TimeSlot.find(filter)
+      .select(projection)
+      .sort({ start_min: 1 }) // we'll reorder by day below
+      .lean();
+
+    // reorder by semantic day order
+    const dayIndex = d => ({mon:0,tue:1,wed:2,thu:3,fri:4,sat:5,sun:6})[d];
+    slots.sort((a,b) => (dayIndex(a.day) - dayIndex(b.day)) || (a.start_min - b.start_min));
+
+    res.json({
+      status: 'success',
+      owner: { _id: user._id, username: user.username, visibility: user.timetable_visibility },
+      slots
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ status: 'failed', message: 'failed to fetch timetable' });
+  }
 });
+
+// Update a slot I own
+app.patch('/api/v1/timetable/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
+
+    const slot = await TimeSlot.findOne({ _id: id, owner: req.userId });
+    if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
+
+    // 1) apply updates (coerce and normalize)
+    if ('title'       in req.body) slot.title       = req.body.title;
+    if ('description' in req.body) slot.description = norm(req.body.description);
+    if ('location'    in req.body) slot.location    = norm(req.body.location);
+    if ('color'       in req.body) slot.color       = norm(req.body.color);
+    if ('day'         in req.body) slot.day         = (typeof req.body.day === 'string') ? req.body.day.toLowerCase() : req.body.day;
+    if ('start_min'   in req.body) slot.start_min   = asInt(req.body.start_min, slot.start_min);
+    if ('end_min'     in req.body) slot.end_min     = asInt(req.body.end_min,   slot.end_min);
+
+    // 2) validate
+    if (!DAY_ENUM.includes(slot.day)) {
+      return res.status(400).json({ status: 'failed', message: 'invalid day' });
+    }
+    if (slot.start_min < 0 || slot.start_min > 1439 || slot.end_min < 1 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
+      return res.status(400).json({ status: 'failed', message: 'invalid time range' });
+    }
+
+    // 3) Mongo-side overlap check (exclude self)
+    const clash = await TimeSlot.findOne({
+      owner: req.userId,
+      day: slot.day,
+      _id: { $ne: slot._id },
+      start_min: { $lt: slot.end_min },
+      end_min:   { $gt: slot.start_min },
+    }).lean();
+
+    if (clash) {
+      return res.status(409).json({
+        status: 'failed',
+        message: `overlaps with "${clash.title}" (${clash.start_min}–${clash.end_min})`
+      });
+    }
+
+    // 4) save
+    await slot.save();
+    res.json({ status: 'success', slot });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ status: 'failed', message: 'failed to update slot' });
+  }
+});
+
+// Delete a slot I own
+app.delete('/api/v1/timetable/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
+    const slot = await TimeSlot.findOneAndDelete({ _id: id, owner: req.userId });
+    if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
+
+    res.json({ status: 'success', deleted_id: id });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ status: 'failed', message: 'failed to delete slot' });
+  }
+});
+
 
 // ====================== Messages =====================
 // GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20

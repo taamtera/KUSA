@@ -45,6 +45,12 @@ const userSchema = new Schema(
 
         // Relations
         friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+
+        timetable_visibility: {
+                          type: String,
+                          enum: ['private', 'public'],
+                          default: 'private'
+                        }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -196,7 +202,7 @@ timeSlotSchema.path("end_min").validate(function (v) {
 }, "end time must be after start time");
 
 // Sort-friendly index per user/day
-timeSlotSchema.index({ owner: 1, day: 1, start_min: 1 });
+timeSlotSchema.index({ owner: 1, day: 1, start_min: 1, end_min: 1 });
 timeSlotSchema.index({ owner: 1 });
 
 /* -----------------------------
