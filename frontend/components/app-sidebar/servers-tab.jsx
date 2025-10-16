@@ -39,6 +39,11 @@ export function ServersTab({ user }) {
     if (user) fetchServers();
   }, [user]);
 
+  const handleRoomClick = (roomID) => {
+    // Navigate to the chat page with the selected room
+    window.location.href = `/chats/${roomID}`;
+  };
+
   return (
     <SidebarGroup>
       <SidebarGroupContent>
@@ -62,9 +67,12 @@ export function ServersTab({ user }) {
                   <SidebarMenuSub>
                     {server.rooms?.map((room) => (
                       <SidebarMenuSubItem key={room._id}>
-                        <a href="#" className="pl-8 text-sm text-muted-foreground hover:text-foreground">
+                        <SidebarMenuButton
+                          onClick={() => handleRoomClick(room._id)}
+                          className="pl-8 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
                           #{room.title}
-                        </a>
+                        </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     ))}
                   </SidebarMenuSub>

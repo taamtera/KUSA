@@ -422,7 +422,7 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 });
 
 // ====================== Messages =====================
-// GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20
+// Get paginated and sorted messages in a DM with another user
 app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
@@ -515,6 +515,70 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     } catch (error) {
         console.error('Error fetching user chat:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch chat messages' });
+    }
+});
+
+// Get paginated and sorted messages in a room
+app.get('/api/v1/rooms/:roomId/messages', auth, async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+
+        // Pagination
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+
+        // Sort direction
+        const sortDir = req.query.sort === 'desc' ? -1 : 1; // same behavior as user DM endpoint
+
+        // Find messages sent to the room
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: roomId
+        })
+        .populate({
+            path: 'sender',
+            populate: {
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: {
+                    path: 'icon_file'
+                }
+            }
+        })
+        .populate({
+            path: 'recipients',
+            populate: {
+                path: 'user',
+                select: 'username display_name'
+            }
+        })
+        .populate('reply_to')
+        .populate({
+            path: 'context',
+            select: 'title room_type server'
+        })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        // Get total count for pagination
+        const total = await Message.countDocuments({
+            context_type: 'Room',
+            context: roomId
+        });
+
+        res.json({
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            messages
+        });
+    } catch (error) {
+        console.error('Error fetching room messages:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch room messages' });
     }
 });
 
@@ -650,7 +714,7 @@ socket.on("send_message", async (msgData) => {
         }
     });
 
-    socket.on("disconnect", () => {
+socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });
