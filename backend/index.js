@@ -521,52 +521,49 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 // POST /api/v1/chats/:userId/messages
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
-        const otherUserId   = req.params.userId;
+        const otherUserId = req.params.userId;
         const currentUserId = req.userId;
-        const { content, message_type = 'text', reply_to } = req.body;
+        const { content, message_type = 'text' } = req.body;
 
-        // 1) resolve sender/recipients as you already do
+        // Get current user's member IDs
         const currentUserMembers = await Member.find({ user: currentUserId });
         if (currentUserMembers.length === 0) {
-        return res.status(404).json({ status: 'failed', message: 'Member record not found' });
+            return res.status(404).json({ status: 'failed', message: 'Member record not found' });
         }
-        const otherUserMembers   = await Member.find({ user: otherUserId });
+
+        // Get other user's member IDs for recipients
+        const otherUserMembers = await Member.find({ user: otherUserId });
         const otherUserMemberIds = otherUserMembers.map(m => m._id);
 
-        // 2) build reply preview if provided
-        let reply_preview = null;
-        if (reply_to) {
-        const original = await Message.findById(reply_to).lean();
-        if (!original) return res.status(404).json({ status: 'failed', message: 'original message not found' });
-        // basic same-DM check (optional safety)
-        if (original.context_type !== 'User') {
-            return res.status(400).json({ status: 'failed', message: 'Reply target must be a DM message' });
-        }
-        reply_preview = (original.content || '').slice(0, 120);
-        }
-
-        // 3) create
+        // Create the message
         const message = await Message.create({
-        sender:        currentUserMembers[0]._id,
-        recipients:    otherUserMemberIds,
-        context:       otherUserId,
-        context_type:  'User',
-        content,
-        message_type,
-        reply_to,
-        reply_preview
+            sender: currentUserMembers[0]._id, // Use first member record
+            recipients: otherUserMemberIds,
+            context: otherUserId,
+            context_type: 'User',
+            content,
+            message_type
         });
 
-        // 4) populate & return (include reply_to minimal fields)
-        const populated = await Message.findById(message._id)
-        .populate({ path: 'sender', populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } })
-        .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
-        .populate({ path: 'reply_to', select: 'content sender created_at', populate: { path: 'sender', select: 'user', populate: { path: 'user', select: 'username display_name' } } })
-        .lean();
+        // Populate and return the created message
+        const populatedMessage = await Message.findById(message._id)
+            .populate({
+                path: 'sender',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name icon_file'
+                }
+            })
+            .populate('recipients')
+            .lean();
 
-        res.json({ status: 'success', message: populated });
-    } catch (e) {
-        console.error('Error sending message:', e);
+        res.json({
+            status: 'success',
+            message: populatedMessage
+        });
+
+    } catch (error) {
+        console.error('Error sending message:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to send message' });
     }
 });
