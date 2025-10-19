@@ -15,8 +15,8 @@ export default function TimeTableGrid( {propUserId} ) {
 
   // new: slots state
   const [slots, setSlots] = useState([]);
-  // const { user } = useUser();
-  const userId = propUserId;
+  const { user } = useUser();
+  const userId = propUserId || user?._id;
 
   if (!userId) {
     return <div>Loading...</div>;
@@ -31,7 +31,7 @@ export default function TimeTableGrid( {propUserId} ) {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/users/${userId}/timetable`, {
+        const res = await fetch(`http://localhost:3001/api/v1/users/${userId}/timetable`, {
           credentials: 'include' // include cookies for auth if needed
         });
         if (!res.ok) {

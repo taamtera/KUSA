@@ -22,7 +22,7 @@ export default function ProfilePage(user) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
 
-    const handleSubmit = async (e) => {
+    const handleSubmitAdd = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage('');
@@ -84,7 +84,7 @@ export default function ProfilePage(user) {
                     <DialogHeader>
                         <DialogTitle>Edit Timetable</DialogTitle>
                     </DialogHeader>
-                    <form className="w-full max-w-sm space-y-4" onSubmit={handleSubmit}>
+                    <form className="w-full max-w-sm space-y-4">
                         <div>
                             <label>Select Time Slot</label>
                             <div className="grid place-items-center">
@@ -146,7 +146,7 @@ export default function ProfilePage(user) {
                     <DialogHeader>
                         <DialogTitle>Add to Timetable</DialogTitle>
                     </DialogHeader>
-                    <form className="w-full max-w-sm space-y-4" onSubmit={handleSubmit}>
+                    <form className="w-full max-w-sm space-y-4" onSubmit={handleSubmitAdd}>
                         <div>
                             <label>Class name</label>
                             <Input 
