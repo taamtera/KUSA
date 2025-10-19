@@ -45,7 +45,12 @@ const userSchema = new Schema(
 
         // Relations
         friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-        time_table:    [{ type: mongoose.Schema.Types.ObjectId, ref: "TimeSlot" }],
+
+        timetable_visibility: {
+                          type: String,
+                          enum: ['private', 'public'],
+                          default: 'private'
+                        }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -55,7 +60,8 @@ const userSchema = new Schema(
  * ---------------------------*/
 const serverSchema = new Schema(
     {
-        server_name: { type: String, required: true, trim: true }
+        server_name: { type: String, required: true, trim: true },
+        icon_file:   { type: ObjectId, ref: 'File', default: null },
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -84,7 +90,6 @@ const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
 const roomSchema = new Schema(
     {
         title:     { type: String, required: true, trim: true },
-        icon_file: { type: ObjectId, ref: 'File', default: null },
         server:    { type: ObjectId, ref: 'Server', required: true },
         room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
     },
@@ -116,6 +121,10 @@ const messageSchema = new Schema(
         },
         content:      { type: String, trim: true },
         reply_to:     { type: ObjectId, ref: 'Message' },
+        forward_of:   { type: ObjectId, ref: 'Message' },
+
+        reply_preview: { type: String, default: null },
+        forward_preview: { type: String, default: null },
         message_type: { type: String, default: 'text' },
 
         active:       { type: Boolean, default: true },
@@ -124,16 +133,23 @@ const messageSchema = new Schema(
     { timestamps: { createdAt: 'created_at', updatedAt: 'edited_at' } }
 );
 
-messageSchema.index({ room: 1, created_at: -1 });
+messageSchema.index({ context: 1, context_type: 1, created_at: -1 });
 messageSchema.index({ recipients: 1, created_at: -1 });
 messageSchema.index({ sender: 1, created_at: -1 });
 
 // Simple rule: either room OR recipients (but not both / not neither)
 messageSchema.pre('validate', function (next) {
-    const hasRoom = !!this.room;
+    const isRoom = this.context_type === 'Room';
+    const isDM   = this.context_type === 'User';
     const hasRecipients = Array.isArray(this.recipients) && this.recipients.length > 0;
-    if (hasRoom === hasRecipients) {
-        return next(new Error('Message must have either room (for channel) OR recipients (for DM/group DM), but not both.'));
+
+    // Channel/room message: must be Room context and recipients = []
+    // DM/group DM: must be User context and recipients non-empty
+    if (isRoom && hasRecipients) {
+        return next(new Error('Room message must not have recipients.'));
+    }
+    if (isDM && !hasRecipients) {
+        return next(new Error('DM/group DM must have recipients.'));
     }
     next();
 });
@@ -185,7 +201,8 @@ const timeSlotSchema = new Schema(
         start_min:    { type: Number, required: true, min: 0, max: 1439 },
         end_min:      { type: Number, required: true, min: 1, max: 1440 },
         location:     { type: String, default: null, trim: true },
-        color:        { type: String, default: null}
+        color:        { type: String, default: null},
+        owner:        { type: ObjectId, ref: 'User', required: true }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 )
@@ -196,7 +213,8 @@ timeSlotSchema.path("end_min").validate(function (v) {
 }, "end time must be after start time");
 
 // Sort-friendly index per user/day
-timeSlotSchema.index({ day: 1, start_min: 1 });
+timeSlotSchema.index({ owner: 1, day: 1, start_min: 1, end_min: 1 });
+timeSlotSchema.index({ owner: 1 });
 
 /* -----------------------------
  * MODELS (re-use if already compiled)

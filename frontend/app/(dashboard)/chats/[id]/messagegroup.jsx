@@ -51,9 +51,9 @@ export default function MessageGroup({ sender, messages, fromCurrentUser }) {
       {/* Right side (current user) */}
       {fromCurrentUser && (
         <div className="flex flex-col items-end">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {/* <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
             You
-          </span>
+          </span> */}
 
           <div className="flex flex-col items-end space-y-1">
             {messages.map((message) => (
