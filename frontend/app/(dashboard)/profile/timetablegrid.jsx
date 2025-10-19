@@ -1,12 +1,71 @@
 "use client";
 import React from "react";
+import { useState, useEffect } from "react";
+import { useUser } from "../../../context/UserContext";
 
-export default function TimeTable(user) {
+export default function TimeTableGrid( {propUserId} ) {
   const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const Hours = [
     "0:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00","8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
   ];
+
   const time_width = 150;
+  const minutesPerColumn = 60; // change to 15 for finer resolution
+  const colsPerDay = (24 * 60) / minutesPerColumn; // e.g. 48 for 30-min steps
+
+  // new: slots state
+  const [slots, setSlots] = useState([]);
+  // const { user } = useUser();
+  const userId = propUserId;
+
+  if (!userId) {
+    return <div>Loading...</div>;
+  }
+
+  // helper map to convert backend day ('mon') -> row index where Sun=0
+  const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+
+  // Fetch slots from backend and set state
+  useEffect(() => {
+    if (!userId) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/users/${userId}/timetable`, {
+          credentials: 'include' // include cookies for auth if needed
+        });
+        if (!res.ok) {
+          console.warn('Failed to load timetable', await res.text());
+          return;
+        }
+        const data = await res.json();
+        if (mounted && Array.isArray(data.slots)) {
+          setSlots(data.slots);
+        }
+      } catch (err) {
+        console.error('Error fetching timetable', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId]);
+
+  // Convert slots into grid placement props
+  const mappedSlots = slots.map((s) => {
+    const startMin = Number(s.start_min);
+    const endMin = Number(s.end_min);
+    const startCol = Math.floor(startMin / minutesPerColumn) + 2; // grid columns start at 2
+    const spanCols = Math.max(1, Math.ceil((endMin - startMin) / minutesPerColumn));
+    const row = (DAY_TO_INDEX[s.day] ?? 0) + 2; // grid rows start at 2
+    return {
+      id: s._id || `${s.day}-${s.start_min}-${s.end_min}`,
+      title: s.title,
+      description: s.description,
+      location: s.location,
+      color: s.color || 'purple',
+      gridColumn: `${startCol} / span ${spanCols}`,
+      gridRow: row
+    };
+  });
 
   // Pre-calculate grid positions
   const hourColumns = Hours.map((_, index) => index + 2);
@@ -24,7 +83,7 @@ export default function TimeTable(user) {
         <div
           class={
             `grid 
-            grid-cols-[repeat(${Hours.length+1},16px)] 
+            grid-cols-[repeat(${Hours.length+1},${time_width}px)] 
             grid-rows-[repeat(${Days.length+1},12px)] 
             min-w-max`
           }
@@ -90,9 +149,30 @@ export default function TimeTable(user) {
           {gridCells.map((cell, index) => (
             <div
               key={index}
-              className="border-r border-b border-t border-gray-200 dark:border-gray-200/5"
+              className="border-l border-b border-t border-gray-200 dark:border-gray-200/5"
               style={{ gridColumn: cell.col, gridRow: cell.row}}
             ></div>
+          ))}
+
+          {/* Render fetched time slots */}
+          {mappedSlots.map((slot) => (
+            <div
+              key={slot.id}
+              className="m-[2px] rounded-[4px] flex flex-col border border-purple-700/10 bg-purple-200 p-1 dark:border-fuchsia-500 dark:bg-fuchsia-600 whitespace-normal break-words overflow-hidden"
+              style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
+            >
+              <span className="text-xl font-medium text-purple-600 dark:text-fuchsia-100">
+                {slot.title}
+              </span>
+              {slot.description && (
+                <span className="text-xs font-medium text-purple-600 dark:text-fuchsia-100">
+                  {slot.description}
+                </span>
+              )}
+              {slot.location && (
+                <span className="text-xs text-gray-500 dark:text-gray-300">{slot.location}</span>
+              )}
+            </div>
           ))}
         </div>
       </div>

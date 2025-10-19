@@ -417,7 +417,32 @@ export default function test() {
                 </div>
             </div>
             <div>
-                {/* // */}
+                <label for="select" class="block text-sm/6 font-medium text-gray-900">Assigned to</label>
+                <el-select id="select" name="selected" value="4" class="mt-2 block">
+                <button type="button" class="grid w-full cursor-default grid-cols-1 ...">
+                    <el-selectedcontent></el-selectedcontent>
+                    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" class="col-start-1 row-start-1 ...">
+                    {/* <!-- ... --> */}
+                    </svg>
+                </button>
+                <el-options anchor="bottom start" popover class="max-h-60 w-(--button-width) [--anchor-gap:--spacing(1)] ...">
+                    <el-option value="1" class="group/option relative block focus:bg-indigo-600 ...">
+                    <div class="flex items-center">
+                        <span aria-hidden="true" class="inline-block size-2 shrink-0 ..."></span>
+                        <span class="ml-3 block group-aria-selected/option:font-semibold ...">
+                        Wade Cooper
+                        <span class="sr-only"> is online</span>
+                        </span>
+                    </div>
+                    <span class="group-not-aria-selected/option:hidden group-focus/option:text-white in-[el-selectedcontent]:hidden ...">
+                        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5">
+                            {/* <!-- ... --> */}
+                        </svg>
+                    </span>
+                    </el-option>
+                    {/* <!-- ... --> */}
+                </el-options>
+                </el-select>
             </div>
         </div>
         </div>

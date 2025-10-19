@@ -29,15 +29,15 @@ const io = new Socket_Server.Server(chat_server, {
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false'; 
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
 
 // config (env)
-const ACCESS_TTL  = process.env.ACCESS_TTL  || '1d';
+const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
 const REFRESH_TTL = process.env.REFRESH_TTL || '90d';
-const JWT_ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || 'dev-access-secret';
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 
 // Helpers
@@ -73,15 +73,15 @@ function auth(req, res, next) {
 
 // optionalAuth middleware, ignore bad/missing token; treat as anonymous
 function optionalAuth(req, res, next) {
-  try {
-    const token = req.cookies?.access_token;
-    if (!token) return next();
-    const { sub } = jwt.verify(token, JWT_ACCESS_SECRET);
-    req.userId = sub;
-    next();
-  } catch {
-    next();
-  }
+    try {
+        const token = req.cookies?.access_token;
+        if (!token) return next();
+        const { sub } = jwt.verify(token, JWT_ACCESS_SECRET);
+        req.userId = sub;
+        next();
+    } catch {
+        next();
+    }
 }
 
 // Health route
@@ -118,11 +118,11 @@ function setAuthCookies(res, accessToken, refreshToken) {
 }
 
 // Time table helpers
-const DAY_ENUM = ["mon","tue","wed","thu","fri","sat","sun"];
+const DAY_ENUM = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 // Overlap check helper: returns true if new [s,e) overlaps any existing range
 function overlaps(aStart, aEnd, bStart, bEnd) {
-  return Math.max(aStart, bStart) < Math.min(aEnd, bEnd);
+    return Math.max(aStart, bStart) < Math.min(aEnd, bEnd);
 }
 
 // ==================== AUTH  =====================
@@ -175,10 +175,10 @@ app.post('/api/v1/login/register', async (req, res) => {
 
         await newUser.save();
         return res.json({
-                status: "success",
-                message: "Registration Success",
-                user: { id: newUser._id, email: newUser.email}
-            });
+            status: "success",
+            message: "Registration Success",
+            user: { id: newUser._id, email: newUser.email }
+        });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ status: "failed", message: "Unable to Register, please try again later" });
@@ -190,7 +190,7 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
     try {
         const { old_password, new_password } = req.body;
         if (!old_password || !new_password) {
-        return res.status(400).json({ status: "failed", message: "Missing fields" });
+            return res.status(400).json({ status: "failed", message: "Missing fields" });
         }
         const user = await User.findById(req.userId).select('+password_hash');
         if (!user) return res.status(404).json({ status: "failed", message: "User not found" });
@@ -276,16 +276,16 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
             .populate('icon_file')
             .populate('banner_file')
             .populate({
-            path: 'friends',
-            select: '_id username icon_file',
-            populate: { path: 'icon_file' }
+                path: 'friends',
+                select: '_id username icon_file',
+                populate: { path: 'icon_file' }
             })
         if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
         const userObject = user.toObject ? user.toObject() : user;
-        
+
         // Explicitly remove password_hash and any other sensitive fields
         const { password_hash, __v, ...safeUserData } = userObject;
-        return res.status(200).json({status: 'success', user: safeUserData});
+        return res.status(200).json({ status: 'success', user: safeUserData });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ status: 'failed', message: 'Server error' });
@@ -294,32 +294,63 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
 
 app.patch('/api/v1/auth/me', auth, async (req, res) => {
     try {
-        // 	username: data.user.username || "",
-        // 	faculty: data.user.faculty || "",
-        // 	major: data.user.major || "",
-        // 	pronouns: data.user.pronouns || "",
-        // 	birthday: data.user.birthday || "",
-        // 	phone: data.user.phone || "",
-        // 	email: data.user.email || "",
-        // 	bio: data.user.bio || "",
         const fields = ['username', 'faculty', 'major', 'pronouns', 'birthday', 'phone', 'email', 'bio'];
+
+        // 1) reject unexpected fields
+        const unknown = Object.keys(req.body).filter(k => !fields.includes(k));
+        if (unknown.length > 0) {
+            return res.status(400).json({ message: 'invalid fields', invalid_fields: unknown });
+        }
+
+        // 2) collect updates
         const updates = {};
         fields.forEach(field => {
-            if (req.body[field] !== undefined) {
-                updates[field] = req.body[field];
-            }
+            if (req.body[field] !== undefined) updates[field] = req.body[field];
         });
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ message: 'no valid fields to update' });
-        }        
-        console.log("Updating user:", req.userId, updates);
-        const result = await User.updateOne({ _id: req.userId }, updates);
-        console.log("Update result:", result);
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ message: 'user not found' });
         }
-        res.json({ status: 'success', message: 'user updated' });
+
+        // 3) coerce/validate some values
+        if ('birthday' in updates) {
+            if (updates.birthday === '' || updates.birthday === null) {
+                updates.birthday = null;
+            } else {
+                const d = new Date(updates.birthday);
+                if (isNaN(d.getTime())) return res.status(400).json({ message: 'invalid birthday' });
+                updates.birthday = d;
+            }
+        }
+        // Normalize empty strings to null for optional text fields (so schema defaults/nulls behave)
+        ['faculty', 'major', 'pronouns', 'phone', 'bio'].forEach(f => {
+            if (f in updates && updates[f] === '') updates[f] = null;
+        });
+
+        // 4) apply update with validation and get back the updated doc
+        const updatedUser = await User.findByIdAndUpdate(
+            req.userId,
+            updates,
+            { new: true, runValidators: true, context: 'query' }
+        )
+        .populate('icon_file')
+        .populate('banner_file')
+        .lean();
+
+        if (!updatedUser) return res.status(404).json({ message: 'user not found' });
+
+        const { password_hash, __v, ...safeUser } = updatedUser;
+        res.json({ status: 'success', user: safeUser });
     } catch (e) {
+        // Mongoose validation errors
+        if (e.name === 'ValidationError') {
+            const errors = Object.keys(e.errors).map(k => ({ field: k, message: e.errors[k].message }));
+            return res.status(400).json({ message: 'validation failed', errors });
+        }
+        // duplicate key (unique) error
+        if (e.code === 11000) {
+            const field = Object.keys(e.keyPattern || e.keyValue || {})[0];
+            return res.status(409).json({ message: 'duplicate value', field });
+        }
         console.error(e);
         res.status(500).json({ message: 'failed to update user' });
     }
@@ -356,9 +387,9 @@ app.get('/api/v1/users/:id', async (req, res) => {
         if (!oid(id)) return res.status(400).json({ message: 'invalid user id' });
 
         const user = await User.findById(id)
-        .populate('icon_file')
-        .populate('banner_file')
-        .lean();
+            .populate('icon_file')
+            .populate('banner_file')
+            .lean();
 
         if (!user) return res.status(404).json({ message: 'user not found' });
         res.json({ status: 'success', user });
@@ -372,39 +403,39 @@ app.get('/api/v1/users/:id', async (req, res) => {
 // GET /api/v1/users?q=alice&page=1&limit=20&sort=-created_at
 app.get('/api/v1/users', async (req, res) => {
     try {
-        const q      = (req.query.q || '').trim();
-        const page   = Math.max(parseInt(req.query.page || '1', 10), 1);
-        const limit  = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
-        const sort   = (req.query.sort || '-created_at'); // e.g. 'username' or '-created_at'
+        const q = (req.query.q || '').trim();
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
+        const sort = (req.query.sort || '-created_at'); // e.g. 'username' or '-created_at'
 
         const filter = {};
         if (q) {
-        // case-insensitive search on username OR email
-        const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        filter.$or = [{ username: rx }, { email: rx }];
+            // case-insensitive search on username OR email
+            const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            filter.$or = [{ username: rx }, { email: rx }];
         }
 
         const cursor = User.find(filter)
-        .select('+created_at +updated_at') // password_hash is already select:false
-        .populate('icon_file')
-        .populate('banner_file')
-        .sort(sort)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
+            .select('+created_at +updated_at') // password_hash is already select:false
+            .populate('icon_file')
+            .populate('banner_file')
+            .sort(sort)
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
 
         const [items, total] = await Promise.all([
-        cursor,
-        User.countDocuments(filter)
+            cursor,
+            User.countDocuments(filter)
         ]);
 
         res.json({
-        status: 'success',
-        page,
-        limit,
-        total,
-        has_more: page * limit < total,
-        users: items
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            users: items
         });
     } catch (e) {
         console.error(e);
@@ -425,7 +456,7 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
         // Optional: if you store user role in token, decode earlier and set req.role.
         // For now, allow only self-delete.
         if (req.userId !== id) {
-        return res.status(403).json({ message: 'forbidden: can only delete your own account' });
+            return res.status(403).json({ message: 'forbidden: can only delete your own account' });
         }
 
         await User.deleteOne({ _id: id });
@@ -433,8 +464,8 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
         // Clear cookies if the user deleted themself
         if (req.userId === id) {
-        res.clearCookie('access_token',  { path: '/api/v1' });
-        res.clearCookie('refresh_token', { path: '/api/v1' });
+            res.clearCookie('access_token', { path: '/api/v1' });
+            res.clearCookie('refresh_token', { path: '/api/v1' });
         }
 
         res.json({ status: 'success', deleted_id: id });
@@ -447,176 +478,176 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 // ===================== Time Table ====================
 // Create a time slot for the current user
 app.post('/api/v1/timetable', auth, async (req, res) => {
-  try {
-    // 1) coerce numbers up front
-    const title = req.body.title;
-    const description = norm(req.body.description);
-    const dayRaw = req.body.day;
-    const start = asInt(req.body.start_min, -1);
-    const end   = asInt(req.body.end_min,   -1);
-    const location = norm(req.body.location);
-    const color = norm(req.body.color);
+    try {
+        // 1) coerce numbers up front
+        const title = req.body.title;
+        const description = norm(req.body.description);
+        const dayRaw = req.body.day;
+        const start = asInt(req.body.start_min, -1);
+        const end = asInt(req.body.end_min, -1);
+        const location = norm(req.body.location);
+        const color = norm(req.body.color);
 
-    // 2) normalize/validate
-    const day = (typeof dayRaw === 'string') ? dayRaw.toLowerCase() : dayRaw;
-    if (!title || !day || start === -1 || end === -1) {
-      return res.status(400).json({ status: 'failed', message: 'title, day, start_min, end_min are required' });
+        // 2) normalize/validate
+        const day = (typeof dayRaw === 'string') ? dayRaw.toLowerCase() : dayRaw;
+        if (!title || !day || start === -1 || end === -1) {
+            return res.status(400).json({ status: 'failed', message: 'title, day, start_min, end_min are required' });
+        }
+        if (!DAY_ENUM.includes(day)) {
+            return res.status(400).json({ status: 'failed', message: 'invalid day' });
+        }
+        if (start < 0 || start > 1439 || end < 1 || end > 1440 || start >= end) {
+            return res.status(400).json({ status: 'failed', message: 'invalid time range' });
+        }
+
+        // 3) Mongo-side overlap check (faster than pulling all)
+        const clash = await TimeSlot.findOne({
+            owner: req.userId,
+            day,
+            start_min: { $lt: end },
+            end_min: { $gt: start },
+        }).lean();
+
+        if (clash) {
+            return res.status(409).json({
+                status: 'failed',
+                message: `overlaps with "${clash.title}" (${clash.start_min}-${clash.end_min})`
+            });
+        }
+
+        // 4) Create
+        const slot = await TimeSlot.create({
+            owner: req.userId,
+            title,
+            description,
+            day,
+            start_min: start,
+            end_min: end,
+            location,
+            color,
+        });
+
+        return res.status(201).json({ status: 'success', slot });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ status: 'failed', message: 'failed to create slot' });
     }
-    if (!DAY_ENUM.includes(day)) {
-      return res.status(400).json({ status: 'failed', message: 'invalid day' });
-    }
-    if (start < 0 || start > 1439 || end < 1 || end > 1440 || start >= end) {
-      return res.status(400).json({ status: 'failed', message: 'invalid time range' });
-    }
-
-    // 3) Mongo-side overlap check (faster than pulling all)
-    const clash = await TimeSlot.findOne({
-      owner: req.userId,
-      day,
-      start_min: { $lt: end },
-      end_min:   { $gt: start },
-    }).lean();
-
-    if (clash) {
-      return res.status(409).json({
-        status: 'failed',
-        message: `overlaps with "${clash.title}" (${clash.start_min}-${clash.end_min})`
-      });
-    }
-
-    // 4) Create
-    const slot = await TimeSlot.create({
-      owner: req.userId,
-      title,
-      description,
-      day,
-      start_min: start,
-      end_min: end,
-      location,
-      color,
-    });
-
-    return res.status(201).json({ status: 'success', slot });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ status: 'failed', message: 'failed to create slot' });
-  }
 });
 
 // GET timetable
 app.get('/api/v1/users/:userId/timetable', optionalAuth, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    let { day } = req.query;
+    try {
+        const { userId } = req.params;
+        let { day } = req.query;
 
-    if (!oid(userId)) return res.status(400).json({ status: 'failed', message: 'invalid user id' });
+        if (!oid(userId)) return res.status(400).json({ status: 'failed', message: 'invalid user id' });
 
-    const user = await User.findById(userId).lean();
-    if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
+        const user = await User.findById(userId).lean();
+        if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
 
-    const isOwner = req.userId?.toString() === userId.toString();
+        const isOwner = req.userId?.toString() === userId.toString();
 
-    if (!isOwner && user.timetable_visibility !== 'public') {
-      return res.status(403).json({ status: 'failed', message: 'this timetable is private' });
+        if (!isOwner && user.timetable_visibility !== 'public') {
+            return res.status(403).json({ status: 'failed', message: 'this timetable is private' });
+        }
+
+        // normalize/validate day
+        if (typeof day === 'string') day = day.toLowerCase();
+        if (day && !DAY_ENUM.includes(day)) {
+            return res.status(400).json({ status: 'failed', message: 'invalid day' });
+        }
+
+        const filter = { owner: userId };
+        if (day) filter.day = day;
+
+        const PUBLIC_FIELDS = 'title day start_min end_min location color';
+        const projection = isOwner ? undefined : PUBLIC_FIELDS;
+
+        // temporary sort: by day order + start_min (see §2 for stable day-order)
+        const slots = await TimeSlot.find(filter)
+            .select(projection)
+            .sort({ start_min: 1 }) // we'll reorder by day below
+            .lean();
+
+        // reorder by semantic day order
+        const dayIndex = d => ({ mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 })[d];
+        slots.sort((a, b) => (dayIndex(a.day) - dayIndex(b.day)) || (a.start_min - b.start_min));
+
+        res.json({
+            status: 'success',
+            owner: { _id: user._id, username: user.username, visibility: user.timetable_visibility },
+            slots
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to fetch timetable' });
     }
-
-    // normalize/validate day
-    if (typeof day === 'string') day = day.toLowerCase();
-    if (day && !DAY_ENUM.includes(day)) {
-      return res.status(400).json({ status: 'failed', message: 'invalid day' });
-    }
-
-    const filter = { owner: userId };
-    if (day) filter.day = day;
-
-    const PUBLIC_FIELDS = 'title day start_min end_min location color';
-    const projection = isOwner ? undefined : PUBLIC_FIELDS;
-
-    // temporary sort: by day order + start_min (see §2 for stable day-order)
-    const slots = await TimeSlot.find(filter)
-      .select(projection)
-      .sort({ start_min: 1 }) // we'll reorder by day below
-      .lean();
-
-    // reorder by semantic day order
-    const dayIndex = d => ({mon:0,tue:1,wed:2,thu:3,fri:4,sat:5,sun:6})[d];
-    slots.sort((a,b) => (dayIndex(a.day) - dayIndex(b.day)) || (a.start_min - b.start_min));
-
-    res.json({
-      status: 'success',
-      owner: { _id: user._id, username: user.username, visibility: user.timetable_visibility },
-      slots
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ status: 'failed', message: 'failed to fetch timetable' });
-  }
 });
 
 // Update a slot I own
 app.patch('/api/v1/timetable/:id', auth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
 
-    const slot = await TimeSlot.findOne({ _id: id, owner: req.userId });
-    if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
+        const slot = await TimeSlot.findOne({ _id: id, owner: req.userId });
+        if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
 
-    // 1) apply updates (coerce and normalize)
-    if ('title'       in req.body) slot.title       = req.body.title;
-    if ('description' in req.body) slot.description = norm(req.body.description);
-    if ('location'    in req.body) slot.location    = norm(req.body.location);
-    if ('color'       in req.body) slot.color       = norm(req.body.color);
-    if ('day'         in req.body) slot.day         = (typeof req.body.day === 'string') ? req.body.day.toLowerCase() : req.body.day;
-    if ('start_min'   in req.body) slot.start_min   = asInt(req.body.start_min, slot.start_min);
-    if ('end_min'     in req.body) slot.end_min     = asInt(req.body.end_min,   slot.end_min);
+        // 1) apply updates (coerce and normalize)
+        if ('title' in req.body) slot.title = req.body.title;
+        if ('description' in req.body) slot.description = norm(req.body.description);
+        if ('location' in req.body) slot.location = norm(req.body.location);
+        if ('color' in req.body) slot.color = norm(req.body.color);
+        if ('day' in req.body) slot.day = (typeof req.body.day === 'string') ? req.body.day.toLowerCase() : req.body.day;
+        if ('start_min' in req.body) slot.start_min = asInt(req.body.start_min, slot.start_min);
+        if ('end_min' in req.body) slot.end_min = asInt(req.body.end_min, slot.end_min);
 
-    // 2) validate
-    if (!DAY_ENUM.includes(slot.day)) {
-      return res.status(400).json({ status: 'failed', message: 'invalid day' });
+        // 2) validate
+        if (!DAY_ENUM.includes(slot.day)) {
+            return res.status(400).json({ status: 'failed', message: 'invalid day' });
+        }
+        if (slot.start_min < 0 || slot.start_min > 1439 || slot.end_min < 1 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
+            return res.status(400).json({ status: 'failed', message: 'invalid time range' });
+        }
+
+        // 3) Mongo-side overlap check (exclude self)
+        const clash = await TimeSlot.findOne({
+            owner: req.userId,
+            day: slot.day,
+            _id: { $ne: slot._id },
+            start_min: { $lt: slot.end_min },
+            end_min: { $gt: slot.start_min },
+        }).lean();
+
+        if (clash) {
+            return res.status(409).json({
+                status: 'failed',
+                message: `overlaps with "${clash.title}" (${clash.start_min}–${clash.end_min})`
+            });
+        }
+
+        // 4) save
+        await slot.save();
+        res.json({ status: 'success', slot });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to update slot' });
     }
-    if (slot.start_min < 0 || slot.start_min > 1439 || slot.end_min < 1 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
-      return res.status(400).json({ status: 'failed', message: 'invalid time range' });
-    }
-
-    // 3) Mongo-side overlap check (exclude self)
-    const clash = await TimeSlot.findOne({
-      owner: req.userId,
-      day: slot.day,
-      _id: { $ne: slot._id },
-      start_min: { $lt: slot.end_min },
-      end_min:   { $gt: slot.start_min },
-    }).lean();
-
-    if (clash) {
-      return res.status(409).json({
-        status: 'failed',
-        message: `overlaps with "${clash.title}" (${clash.start_min}–${clash.end_min})`
-      });
-    }
-
-    // 4) save
-    await slot.save();
-    res.json({ status: 'success', slot });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ status: 'failed', message: 'failed to update slot' });
-  }
 });
 
 // Delete a slot I own
 app.delete('/api/v1/timetable/:id', auth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
-    const slot = await TimeSlot.findOneAndDelete({ _id: id, owner: req.userId });
-    if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
+    try {
+        const { id } = req.params;
+        if (!oid(id)) return res.status(400).json({ status: 'failed', message: 'invalid id' });
+        const slot = await TimeSlot.findOneAndDelete({ _id: id, owner: req.userId });
+        if (!slot) return res.status(404).json({ status: 'failed', message: 'slot not found' });
 
-    res.json({ status: 'success', deleted_id: id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ status: 'failed', message: 'failed to delete slot' });
-  }
+        res.json({ status: 'success', deleted_id: id });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to delete slot' });
+    }
 });
 
 
@@ -626,18 +657,18 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
         const currentUserId = req.userId;
-        
+
         // Pagination
         const page = Math.max(parseInt(req.query.page || '1', 10), 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
-        
+
         // Sort direction
         const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
         // Find all member IDs for both users
         const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
         const otherUserMembers = await Member.find({ user: otherUserId }).select('_id');
-        
+
         const currentUserMemberIds = currentUserMembers.map(m => m._id);
         const otherUserMemberIds = otherUserMembers.map(m => m._id);
 
@@ -646,56 +677,56 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
             context_type: 'User',
             $or: [
                 // Messages from current user to other user
-                { 
+                {
                     context: otherUserId,
                     sender: { $in: currentUserMemberIds }
                 },
                 // Messages from other user to current user
-                { 
+                {
                     context: currentUserId,
                     sender: { $in: otherUserMemberIds }
                 }
             ]
         })
-        .populate({
-            path: 'sender',
-            populate: {
-                path: 'user',
+            .populate({
+                path: 'sender',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name icon_file',
+                    populate: {
+                        path: 'icon_file'
+                    }
+                }
+            })
+            .populate({
+                path: 'recipients',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name'
+                }
+            })
+            .populate('reply_to')
+            .populate({
+                path: 'context',
                 select: 'username display_name icon_file',
                 populate: {
                     path: 'icon_file'
                 }
-            }
-        })
-        .populate({
-            path: 'recipients',
-            populate: {
-                path: 'user',
-                select: 'username display_name'
-            }
-        })
-        .populate('reply_to')
-        .populate({
-            path: 'context',
-            select: 'username display_name icon_file',
-            populate: {
-                path: 'icon_file'
-            }
-        })
-        .sort({ created_at: sortDir })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
+            })
+            .sort({ created_at: sortDir })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
 
         // Get total count for pagination
         const total = await Message.countDocuments({
             context_type: 'User',
             $or: [
-                { 
+                {
                     context: otherUserId,
                     sender: { $in: currentUserMemberIds }
                 },
-                { 
+                {
                     context: currentUserId,
                     sender: { $in: otherUserMemberIds }
                 }
@@ -804,49 +835,49 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 
 // --- SOCKET LOGIC ---
 io.on("connection", (socket) => {
-console.log("✅ New WebSocket connection:", socket.id);
+    console.log("✅ New WebSocket connection:", socket.id);
 
-// Join room per user ID (from query or handshake)
-const userId = socket.handshake.query.userId;
-if (userId) socket.join(userId);
+    // Join room per user ID (from query or handshake)
+    const userId = socket.handshake.query.userId;
+    if (userId) socket.join(userId);
 
-// Listen for "send_message" event from client
-socket.on("send_message", async (msgData) => {
-    try {
-    const { fromUserId, toUserId, content, message_type = "text" } = msgData;
+    // Listen for "send_message" event from client
+    socket.on("send_message", async (msgData) => {
+        try {
+            const { fromUserId, toUserId, content, message_type = "text" } = msgData;
 
-    // 💾 Save message in DB using your existing logic
-    const currentUserMembers = await Member.find({ user: fromUserId });
-    const otherUserMembers = await Member.find({ user: toUserId });
-    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+            // 💾 Save message in DB using your existing logic
+            const currentUserMembers = await Member.find({ user: fromUserId });
+            const otherUserMembers = await Member.find({ user: toUserId });
+            const otherUserMemberIds = otherUserMembers.map((m) => m._id);
 
-    const message = await Message.create({
-        sender: currentUserMembers[0]._id,
-        recipients: otherUserMemberIds,
-        context: toUserId,
-        context_type: "User",
-        content,
-        message_type,
-    });
+            const message = await Message.create({
+                sender: currentUserMembers[0]._id,
+                recipients: otherUserMemberIds,
+                context: toUserId,
+                context_type: "User",
+                content,
+                message_type,
+            });
 
-    const populatedMessage = await Message.findById(message._id)
-        .populate({
-        path: "sender",
-        populate: {
-            path: "user",
-            select: "username display_name icon_file",
-        },
-        })
-        .populate("recipients")
-        .lean();
+            const populatedMessage = await Message.findById(message._id)
+                .populate({
+                    path: "sender",
+                    populate: {
+                        path: "user",
+                        select: "username display_name icon_file",
+                    },
+                })
+                .populate("recipients")
+                .lean();
 
-        // Emit the message to both sender and recipient
-        io.to(fromUserId).emit("receive_message", populatedMessage);
-        io.to(toUserId).emit("receive_message", populatedMessage);
+            // Emit the message to both sender and recipient
+            io.to(fromUserId).emit("receive_message", populatedMessage);
+            io.to(toUserId).emit("receive_message", populatedMessage);
 
-        console.log("📨 Message delivered via WS:", content);
+            console.log("📨 Message delivered via WS:", content);
         } catch (err) {
-        console.error("Socket message error:", err);
+            console.error("Socket message error:", err);
         }
     });
 
