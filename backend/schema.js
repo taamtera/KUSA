@@ -122,9 +122,6 @@ const messageSchema = new Schema(
         content:      { type: String, trim: true },
         reply_to:     { type: ObjectId, ref: 'Message' },
         forward_of:   { type: ObjectId, ref: 'Message' },
-
-        reply_preview: { type: String, default: null },
-        forward_preview: { type: String, default: null },
         message_type: { type: String, default: 'text' },
 
         active:       { type: Boolean, default: true },

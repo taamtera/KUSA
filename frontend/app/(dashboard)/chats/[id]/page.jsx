@@ -241,6 +241,24 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Reply */}
+      <div>
+        <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
+          {/* <Button variant="outline" size="icon" className="shrink-0">
+            <Paperclip className="h-4 w-4 text-gray-600" />
+          </Button> */}
+          <div className="text-3xl px-3">
+            ↰
+          </div>
+          <div className="flex justify-center text-gray-500">
+            from: {user?.username}
+          </div>
+          <p>
+            dplprfepokkoprgekopkpopkopokpokoopkkopkopkopopkopkpokpok
+          </p>
+        </div>
+      </div>
+
       {/* Input */}
       <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
         <Button variant="outline" size="icon" className="shrink-0">
