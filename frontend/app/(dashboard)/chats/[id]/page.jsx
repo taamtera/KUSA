@@ -244,9 +244,6 @@ export default function Chat() {
       {/* Reply */}
       <div>
         <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
-          {/* <Button variant="outline" size="icon" className="shrink-0">
-            <Paperclip className="h-4 w-4 text-gray-600" />
-          </Button> */}
           <div className="text-3xl px-3">
             ↰
           </div>
@@ -254,7 +251,7 @@ export default function Chat() {
             from: {user?.username}
           </div>
           <p>
-            dplprfepokkoprgekopkpopkopokpokoopkkopkopkopopkopkpokpok
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Odio ipsam inventore in aut modi debitis sed quos, quia architecto. Mollitia quasi quaerat at maiores expedita libero dolor impedit est officiis.
           </p>
         </div>
       </div>
