@@ -45,8 +45,6 @@ export default function ProfilePage() {
           
         </div>
       </div>
-      {/* ฝากแก้ 
-        1. ณ ตอนนี้ป */}
       <div className="flex">
         {/* Profile Info Section */}
         <InfoCard user={user} />
