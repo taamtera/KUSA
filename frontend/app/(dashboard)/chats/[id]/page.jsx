@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Send, Paperclip, Users } from "lucide-react";
+import { Send, Paperclip, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -40,11 +41,10 @@ export default function Chat() {
     });
 
     socket.on("receive_message", (msg) => {
-      // only update if the message belongs to this chat
       const isRelevant =
         msg.sender?.user?._id === otherUserId || msg.context === otherUserId;
       if (isRelevant) {
-        messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
+        console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
     });
@@ -58,7 +58,7 @@ export default function Chat() {
     };
   }, [user?._id]);
 
-  // Fetch messages from API
+  // Fetch messages
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -107,7 +107,7 @@ export default function Chat() {
     fetchOtherUser();
   }, [otherUserId, otherUser]);
 
-  // Group messages (no hooks here)
+  // Group messages by sender
   const groupMessages = (messages) => {
     const groups = [];
     let currentGroup = null;
@@ -130,6 +130,16 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // --- Reply Handlers ---
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // --- Send Message ---
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
@@ -142,19 +152,21 @@ export default function Chat() {
       temp: true,
     };
 
-    // setMessages((prev) => [...prev, tempMessage]);
+    // Send message via socket
     const messageToSend = {
       fromUserId: user._id,
       toUserId: otherUserId,
       content: newMessage,
       message_type: "text",
+      reply_to: replyingTo?._id || null, // 👈 include reply reference if replying
     };
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
+    setReplyingTo(null); // 👈 clear reply after sending
   };
 
-  // Render
+  // --- Render ---
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-gray-100 items-center justify-center">
@@ -228,6 +240,7 @@ export default function Chat() {
                   sender={group.sender}
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={handleReply} // ✅ pass reply handler
                 />
               );
 
@@ -241,20 +254,28 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Reply */}
-      <div>
+      {/* Reply Preview */}
+      {replyingTo && (
         <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
-          <div className="text-3xl px-3">
-            ↰
+          <div className="text-3xl px-3">↰</div>
+          <div className="flex-1">
+            <div className="text-sm text-gray-500 font-medium">
+              Replying to {replyingTo.sender?.user?.username || "user"}
+            </div>
+            <div className="text-sm text-gray-600 truncate">
+              {replyingTo.content}
+            </div>
           </div>
-          <div className="flex justify-center text-gray-500">
-            from: {user?.username}
-          </div>
-          <p>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Odio ipsam inventore in aut modi debitis sed quos, quia architecto. Mollitia quasi quaerat at maiores expedita libero dolor impedit est officiis.
-          </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={handleCancelReply}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-      </div>
+      )}
 
       {/* Input */}
       <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">

@@ -9,9 +9,10 @@ const initialContextMenu = {
   y: 0,
 }
 
-export default function MessageBubble({ message, fromCurrentUser }) {
+export default function MessageBubble({ message, fromCurrentUser, onReply }) {
   const isPending = message.pending;
   const [contextMenu, setContextMenu] = useState(initialContextMenu);
+  
   const handleContextMenu = (e) => {
     e.preventDefault();
     
@@ -21,23 +22,30 @@ export default function MessageBubble({ message, fromCurrentUser }) {
       x: pageX,
       y: pageY,
     });
-    const menu = document.createElement("div");
-    menu.style.position = "absolute";
-    menu.style.top = `${pageY}px`;
-    menu.style.left = `${pageX}px`;
-    menu.style.backgroundColor = "#fff";
-    menu.style.border = "1px solid #ccc";
-    menu.style.padding = "8px";
-    menu.style.zIndex = 1000;
   };
 
   const contextMenuClose = () => {
     setContextMenu(initialContextMenu);
   }
+  // console.log("MessageBubble props:", { onReply, message });
+  const handleReplyClick = () => {
+    // console.log("Reply clicked, onReply function:", onReply);
+    if (onReply) {
+      onReply(message);
+    }
+    contextMenuClose();
+  }
 
   return (
     <div>
-      {contextMenu.visible && <ContextMenu x={contextMenu.x} y={contextMenu.y} closeMenu={contextMenuClose} />}
+      {contextMenu.visible && (
+        <ContextMenu 
+          x={contextMenu.x} 
+          y={contextMenu.y} 
+          closeMenu={contextMenuClose}
+          onReplyClick={handleReplyClick}
+        />
+      )}
       <div
         onContextMenu={handleContextMenu}
         className={`relative inline-block px-4 py-2 rounded-2xl break-words bg-gray-300 text-gray-900 ${isPending ? "opacity-60 animate-pulse" : ""}`}
@@ -50,6 +58,5 @@ export default function MessageBubble({ message, fromCurrentUser }) {
         <p>{message.content}</p>
       </div>
     </div>
-      
-    );
+  );
 }
