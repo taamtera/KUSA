@@ -9,8 +9,8 @@ const initialContextMenu = {
   y: 0,
 }
 
-export default function MessageBubble({ message, fromCurrentUser, onReply }) {
-  const isPending = message.pending;
+export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread }) {
+  const isPending = message.temp || message.pending;
   const [contextMenu, setContextMenu] = useState(initialContextMenu);
   
   const handleContextMenu = (e) => {
@@ -36,6 +36,10 @@ export default function MessageBubble({ message, fromCurrentUser, onReply }) {
     contextMenuClose();
   }
 
+  const handleOpenThread = () => {
+    if (onOpenThread && message.reply_to?._id) onOpenThread(message.reply_to);
+  };
+
   return (
     <div>
       {contextMenu.visible && (
@@ -46,6 +50,27 @@ export default function MessageBubble({ message, fromCurrentUser, onReply }) {
           onReplyClick={handleReplyClick}
         />
       )}
+
+      {/* Reply preview (quoted parent) */}
+      {message.reply_to && (
+        <button
+          onClick={handleOpenThread}
+          className="block w-full text-right mb-1 max-w-[min(80vw,28rem)]"
+          title="View thread"
+        >
+          <div className="rounded-xl border border-gray-300/70 bg-white/60 px-3 py-2">
+            <div className="text-xs font-medium text-gray-700">
+              {message.reply_to?.sender?.user?.display_name
+                || message.reply_to?.sender?.user?.username
+                || "Unknown"}
+            </div>
+            <div className="text-xs text-gray-600 truncate">
+              {message.reply_to?.content || "—"}
+            </div>
+          </div>
+        </button>
+      )}
+
       <div
         onContextMenu={handleContextMenu}
         className={`relative inline-block px-4 py-2 rounded-2xl break-words bg-gray-300 text-gray-900 ${isPending ? "opacity-60 animate-pulse" : ""}`}
@@ -58,5 +83,6 @@ export default function MessageBubble({ message, fromCurrentUser, onReply }) {
         <p>{message.content}</p>
       </div>
     </div>
+    
   );
 }
