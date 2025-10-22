@@ -410,8 +410,8 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
         // Clear cookies if the user deleted themself
         if (req.userId === id) {
-        res.clearCookie('access_token',  { path: '/api/v1' });
-        res.clearCookie('refresh_token', { path: '/api/v1' });
+        res.clearCookie('access_token',  { path: '/' });
+        res.clearCookie('refresh_token', { path: '/' });
         }
 
         res.json({ status: 'success', deleted_id: id });
