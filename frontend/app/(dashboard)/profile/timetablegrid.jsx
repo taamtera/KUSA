@@ -1,7 +1,8 @@
 "use client";
-import React from "react";
+import React, { useId } from "react";
 import { useState, useEffect } from "react";
 import { useUser } from "../../../context/UserContext";
+import useTimetable from "@/components/TableContent";
 
 export default function TimeTableGrid( {propUserId} ) {
   const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -13,41 +14,43 @@ export default function TimeTableGrid( {propUserId} ) {
   const minutesPerColumn = 60; // change to 15 for finer resolution
   const colsPerDay = (24 * 60) / minutesPerColumn; // e.g. 48 for 30-min steps
 
-  // new: slots state
-  const [slots, setSlots] = useState([]);
+  // const [slots, setSlots] = useState([]);
   const { user } = useUser();
   const userId = propUserId || user?._id;
+  const { slots, loading, error, reload } = useTimetable(userId);
+  // console.log("slots from useTimetable:", slots);
 
-  if (!userId) {
-    return <div>Loading...</div>;
-  }
+  // if (!userId) {
+  //   return <div>Loading...</div>;
+  // }
+  if (!userId || loading) return <div>Loading timetable...</div>;
 
   // helper map to convert backend day ('mon') -> row index where Sun=0
   const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 
-  // Fetch slots from backend and set state
-  useEffect(() => {
-    if (!userId) return;
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch(`http://localhost:3001/api/v1/users/${userId}/timetable`, {
-          credentials: 'include' // include cookies for auth if needed
-        });
-        if (!res.ok) {
-          console.warn('Failed to load timetable', await res.text());
-          return;
-        }
-        const data = await res.json();
-        if (mounted && Array.isArray(data.slots)) {
-          setSlots(data.slots);
-        }
-      } catch (err) {
-        console.error('Error fetching timetable', err);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [userId]);
+  // // Fetch slots from backend and set state
+  // useEffect(() => {
+  //   if (!userId) return;
+  //   let mounted = true;
+  //   (async () => {
+  //     try {
+  //       const res = await fetch(`http://localhost:3001/api/v1/users/${userId}/timetable`, {
+  //         credentials: 'include' // include cookies for auth if needed
+  //       });
+  //       if (!res.ok) {
+  //         console.warn('Failed to load timetable', await res.text());
+  //         return;
+  //       }
+  //       const data = await res.json();
+  //       if (mounted && Array.isArray(data.slots)) {
+  //         setSlots(data.slots);
+  //       }
+  //     } catch (err) {
+  //       console.error('Error fetching timetable', err);
+  //     }
+  //   })();
+  //   return () => { mounted = false; };
+  // }, [userId]);
 
   // Convert slots into grid placement props
   const mappedSlots = slots.map((s) => {
@@ -78,10 +81,10 @@ export default function TimeTableGrid( {propUserId} ) {
   );
 
   return (
-    <div class="relative mt-16 overflow-auto rounded-lg outline-gray-400 bg-white outline dark:bg-gray-950/50 w-[calc(100vw-800px)] ">
-      <div class="dark:bg-gray-800">
+    <div className="relative mt-16 overflow-auto rounded-lg outline-gray-400 bg-white outline dark:bg-gray-950/50 w-[calc(100vw-800px)] ">
+      <div className="dark:bg-gray-800">
         <div
-          class={
+          className={
             `grid 
             grid-cols-[repeat(${Hours.length+1},${time_width}px)] 
             grid-rows-[repeat(${Days.length+1},12px)] 
@@ -158,14 +161,14 @@ export default function TimeTableGrid( {propUserId} ) {
           {mappedSlots.map((slot) => (
             <div
               key={slot.id}
-              className="m-[2px] rounded-[4px] flex flex-col border border-purple-700/10 bg-purple-200 p-1 dark:border-fuchsia-500 dark:bg-fuchsia-600 whitespace-normal break-words overflow-hidden"
+              className="m-[2px] rounded-[4px] flex flex-col border border-gray-700/10 bg-gray-200 p-1 dark:border-fuchsia-500 dark:bg-fuchsia-600 whitespace-normal break-words overflow-hidden"
               style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
             >
-              <span className="text-xl font-medium text-purple-600 dark:text-fuchsia-100">
+              <span className="text-xl font-medium text-gray-600 dark:text-fuchsia-100">
                 {slot.title}
               </span>
               {slot.description && (
-                <span className="text-xs font-medium text-purple-600 dark:text-fuchsia-100">
+                <span className="text-xs font-medium text-gray-600 dark:text-fuchsia-100">
                   {slot.description}
                 </span>
               )}

@@ -5,8 +5,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button"
 import TimeTableGrid from "./timetablegrid"
 import { Input } from "@/components/ui/input"
+import useTimetable from "@/components/TableContent"
+import { Sparkle } from "lucide-react"
 
-export default function ProfilePage(user) {
+export default function ProfilePage({user}) {
     const [open, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [openDrop, setOpenDrop] = useState(false);
@@ -18,9 +20,41 @@ export default function ProfilePage(user) {
     const [end_min, setEnd_min] = useState("");
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("");
+    const [selectSlot, setSelectSlot] = useState(null);
     
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
+
+    const {slots, loading: slotsLoading, error, reload} = useTimetable(user?._id);
+    console.log("slots from useTimetable:", slots);
+    // console.log("user id in timetable page:", user?._id);
+
+    const time_width = 150;
+    const minutesPerColumn = 60; // change to 15 for finer resolution
+    const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+    
+    //Convert slots into grid placement props
+    const mappedSlots = slots.map((s) => {
+        const startMin = Number(s.start_min);
+        const endMin = Number(s.end_min);
+        const startCol = Math.floor(startMin / minutesPerColumn) + 2; // grid columns start at 2
+        const spanCols = Math.max(1, Math.ceil((endMin - startMin) / minutesPerColumn));
+        const row = (DAY_TO_INDEX[s.day] ?? 0) + 2; // grid rows start at 2
+        return {
+            id: s._id || `${s.day}-${s.start_min}-${s.end_min}`,
+            title: s.title,
+            description: s.description,
+            location: s.location,
+            color: s.color || 'purple',
+            gridColumn: `${startCol} / span ${spanCols}`,
+            gridRow: row,
+            startMin: s.start_min/60-1,
+            endMin: s.end_min/60-1,
+            day: s.day
+        };
+    });
+    
+    // if (!user?._id) return <div>`{user?._id}`</div>;
 
     const handleSubmitAdd = async (e) => {
         e.preventDefault();
@@ -39,8 +73,8 @@ export default function ProfilePage(user) {
                         title, 
                         description, 
                         day, 
-                        start_min: Number(start_min), 
-                        end_min: Number(end_min), 
+                        start_min: (Number(start_min)+1)*60, 
+                        end_min: (Number(end_min)+1)*60, 
                         location, 
                         color }),
                     credentials: "include"
@@ -72,7 +106,7 @@ export default function ProfilePage(user) {
     };
 
     return (
-        <div class="">
+        <div className="">
             <Button className="absolute py-3 mt-5 px-4 right-10 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">share</Button>
             <Button className="absolute py-3 mt-5 px-4 right-30 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">save</Button>
             {/* <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button> */}
@@ -90,10 +124,11 @@ export default function ProfilePage(user) {
                             <div className="grid place-items-center">
                                 <div className="relative w-full max-w-sm">
                                 <Button
-                                    className="rounded-[4px] border-2 border-gray-500 justify-between shadow-md bg-transparent w-full"
+                                    className="rounded-[4px] border-2 border-gray-500 justify-between text-black hover:text-white shadow-md bg-transparent w-full"
                                     onClick={() => setOpenDrop(!openDrop)} // toggle dropdown
+                                    type="button"
                                 >
-                                    Select
+                                    {selectSlot ? selectSlot.title : "Select"}
                                     <svg
                                     viewBox="0 0 16 16"
                                     fill="currentColor"
@@ -107,27 +142,30 @@ export default function ProfilePage(user) {
                                     />
                                     </svg>
                                 </Button>
-
                                 {openDrop && (
-                                    <ul className="absolute text-gray-700 pt-1 shadow-md w-full rounded-[4px] bg-white z-10">
-                                    <li>
+                                <ul className="absolute text-gray-700 pt-1 shadow-md w-full rounded-[4px] bg-gray-200 z-10">
+                                    {mappedSlots.map((slot) => (
+                                    <li key={slot.id}>
                                         <button
                                         onClick={() => {
+                                            setSelectSlot(slot);
                                             setOpenDrop(false);
-                                            console.log("Clicked test-1");
+                                            console.log("Clicked", slot.title);
                                         }}
-                                        className="hover:bg-gray-300 bg-gray-200 block w-full text-left p-2 rounded-[4px]"
+                                        className="hover:bg-gray-300 bg-gray-200 w-full text-left p-2 rounded-[4px] justify-between items-center flex"
                                         >
-                                        test-1
+                                        <p className="text-left">{slot.title}</p>
+                                        <p className="text-right text-gray-400 text-sm">{slot.day} {slot.startMin} - {slot.endMin}</p>
                                         </button>
                                     </li>
-                                    </ul>
+                                    ))}
+                                </ul>
                                 )}
                                 </div>
                             </div>
                             </div>
                         <div className="flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenAdd(false)}>
+                            <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenEdit(false)}>
                                 Cancel
                             </Button>
                             {/* <Button type="submit" className="cursor-pointer">
@@ -185,6 +223,12 @@ export default function ProfilePage(user) {
                                 value={end_min}
                                 onChange={(e) => setEnd_min(e.target.value)}
                                 />
+                            </div>
+                        </div>
+                        <div>
+                            <div>
+                                <label for="hs-color-input">Color</label> <p className="text-gray-200"> can't use now</p>
+                                <input type="color" class="p-1 h-10 w-14 block bg-white border border-gray-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700" id="hs-color-input" value="#2563eb" title="Choose your color"></input>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
