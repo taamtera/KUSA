@@ -20,37 +20,10 @@ export default function TimeTableGrid( {propUserId} ) {
   const { slots, loading, error, reload } = useTimetable(userId);
   // console.log("slots from useTimetable:", slots);
 
-  // if (!userId) {
-  //   return <div>Loading...</div>;
-  // }
   if (!userId || loading) return <div>Loading timetable...</div>;
 
   // helper map to convert backend day ('mon') -> row index where Sun=0
   const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-
-  // // Fetch slots from backend and set state
-  // useEffect(() => {
-  //   if (!userId) return;
-  //   let mounted = true;
-  //   (async () => {
-  //     try {
-  //       const res = await fetch(`http://localhost:3001/api/v1/users/${userId}/timetable`, {
-  //         credentials: 'include' // include cookies for auth if needed
-  //       });
-  //       if (!res.ok) {
-  //         console.warn('Failed to load timetable', await res.text());
-  //         return;
-  //       }
-  //       const data = await res.json();
-  //       if (mounted && Array.isArray(data.slots)) {
-  //         setSlots(data.slots);
-  //       }
-  //     } catch (err) {
-  //       console.error('Error fetching timetable', err);
-  //     }
-  //   })();
-  //   return () => { mounted = false; };
-  // }, [userId]);
 
   // Convert slots into grid placement props
   const mappedSlots = slots.map((s) => {
