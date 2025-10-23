@@ -476,7 +476,16 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 select: 'username display_name'
             }
         })
-        .populate('reply_to')
+        .populate({
+            path: 'reply_to',
+            populate: [
+                {
+                    path: 'sender',
+                    populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } 
+                },
+                { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+            ]
+        })
         .populate({
             path: 'context',
             select: 'username display_name icon_file',

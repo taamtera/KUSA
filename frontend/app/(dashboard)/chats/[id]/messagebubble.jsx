@@ -41,7 +41,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
   };
 
   return (
-    <div>
+    <div className="">
       {contextMenu.visible && (
         <ContextMenu 
           x={contextMenu.x} 
@@ -50,39 +50,50 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
           onReplyClick={handleReplyClick}
         />
       )}
-
-      {/* Reply preview (quoted parent) */}
-      {message.reply_to && (
-        <button
-          onClick={handleOpenThread}
-          className="block w-full text-right mb-1 max-w-[min(80vw,28rem)]"
-          title="View thread"
-        >
-          <div className="rounded-xl border border-gray-300/70 bg-white/60 px-3 py-2">
-            <div className="text-xs font-medium text-gray-700">
-              {message.reply_to?.sender?.user?.display_name
-                || message.reply_to?.sender?.user?.username
-                || "Unknown"}
-            </div>
-            <div className="text-xs text-gray-600 truncate">
-              {message.reply_to?.content || "—"}
-            </div>
-          </div>
-        </button>
-      )}
-
-      <div
-        onContextMenu={handleContextMenu}
-        className={`relative inline-block px-4 py-2 rounded-2xl break-words bg-gray-300 text-gray-900 ${isPending ? "opacity-60 animate-pulse" : ""}`}
-        style={{
-          maxWidth: "min(80vw, 28rem)",
-          wordBreak: "break-word",
-          whiteSpace: "pre-wrap",
-        }}
+      
+      <div 
+        className={`flex flex-col ${
+        fromCurrentUser ? "justify-end" : "justify-start"
+        } items-start`}
       >
-        <p>{message.content}</p>
+
+        {/* Reply preview (quoted parent) */}
+        {message.reply_to && (
+          <button
+            onClick={handleOpenThread}
+            className={`inline-block w-fit text-right mb-1 max-w-[min(80vw,28rem)]
+                        ${fromCurrentUser ? "self-end" : ""}`}
+            title="View thread"
+          >
+            <div className="rounded-xl border border-gray-300/70 bg-white/60 px-3 py-2">
+              <div className="text-xm font-medium text-gray-700 text-left">
+                {message.reply_to?.sender?.user?.display_name
+                  || message.reply_to?.sender?.user?.username
+                  || "Unknown"}
+              </div>
+              <div className="text-xs text-gray-600 truncate">
+                {message.reply_to?.content || "—"}
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* Message */}
+        <div
+          onContextMenu={handleContextMenu}
+          className={`inline-block w-fit px-4 py-2 rounded-2xl break-words bg-gray-300 text-gray-900 
+                      ${isPending ? "opacity-60 animate-pulse" : ""}
+                      ${fromCurrentUser ? "self-end" : ""}`}
+          style={{
+            maxWidth: "min(80vw, 28rem)",
+            wordBreak: "break-word",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          <p>{message.content}</p>
+        </div>
       </div>
+      
     </div>
-    
   );
 }

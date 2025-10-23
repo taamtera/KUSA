@@ -32,6 +32,10 @@ export default function Chat() {
 
   // OPEN THREAD (reply list)
   const openThread = async (parentMsg) => {
+    if (!parentMsg?._id) {
+      console.warn('OpenThread called without a valid _id', parentMsg);
+      return;
+    }
     try {
       setThreadLoading(true);
       setThreadOpen(true);
@@ -60,6 +64,8 @@ export default function Chat() {
     setThreadReplies([]);
     setThreadParent(null);
   };
+
+  console.log(threadParent?._id);
 
   // WebSocket setup
   useEffect(() => {
@@ -296,11 +302,11 @@ export default function Chat() {
       {replyingTo && (
         <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
           <div className="text-3xl px-3">↰</div>
-          <div className="flex-1">
+          <div className="flex-1 w-[16px]">
             <div className="text-sm text-gray-500 font-medium">
               Replying to {replyingTo.sender?.user?.username || "user"}
             </div>
-            <div className="text-sm text-gray-600 truncate">
+            <div className="text-sm text-gray-600 truncate w-auto">
               {replyingTo.content}
             </div>
           </div>
@@ -348,7 +354,7 @@ export default function Chat() {
           <div className="w-[min(92vw,520px)] max-h-[70vh] bg-white rounded-2xl shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div className="text-sm font-semibold">
-                Thread • Reply to {threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
+                Thread • Reply to {threadParent?.sender?.nickname || threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
               </div>
               <button onClick={closeThread} className="p-1 rounded hover:bg-gray-100">
                 <X className="h-4 w-4" />
@@ -359,7 +365,7 @@ export default function Chat() {
             {threadParent && (
               <div className="px-4 pt-3 pb-2 bg-gray-50">
                 <div className="text-xs text-gray-600 mb-1">
-                  {threadParent.sender?.user?.display_name || threadParent.sender?.user?.username || "user"}
+                  {threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
                 </div>
                 <div className="text-sm text-gray-900 whitespace-pre-wrap">
                   {threadParent.content}
