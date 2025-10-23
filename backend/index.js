@@ -632,7 +632,7 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-});
+}); 
 
 // POST /api/v1/chats/:userId/messages
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
