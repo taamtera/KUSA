@@ -41,7 +41,7 @@ export function ServersTab({ user }) {
 
   const handleRoomClick = (roomID) => {
     // Navigate to the chat page with the selected room
-    window.location.href = `/chats/${roomID}`;
+    window.location.href = `/chats/rooms/${roomID}`;
   };
 
   return (

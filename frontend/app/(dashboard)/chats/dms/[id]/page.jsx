@@ -68,7 +68,7 @@ export default function Chat() {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3001/api/v1/chats/${otherUserId}/messages?page=1&limit=50`,
+          `http://localhost:3001/api/v1/chats/dms/${otherUserId}/messages?page=1&limit=50`,
           { credentials: "include" }
         );
         const data = await response.json();

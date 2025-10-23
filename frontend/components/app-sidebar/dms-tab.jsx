@@ -14,7 +14,7 @@ import { getAvatarUrl, getAvatarFallback } from "@/components/utils";
 export function DMsTab({ user }) {
 	const handleFriendClick = (friendId) => {
     // Navigate to the DM page with the selected friend
-    window.location.href = `/chats/${friendId}`;
+    window.location.href = `/chats/dms/${friendId}`;
 	};
 
 	return (

@@ -423,7 +423,7 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
 // ====================== Messages =====================
 // Get paginated and sorted messages in a DM with another user
-app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
+app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
         const currentUserId = req.userId;
@@ -519,18 +519,33 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // Get paginated and sorted messages in a room
-app.get('/api/v1/rooms/:roomId/messages', auth, async (req, res) => {
+app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
     try {
         const roomId = req.params.roomId;
+        const currentUserId = req.userId;
 
         // Pagination
         const page = Math.max(parseInt(req.query.page || '1', 10), 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
 
         // Sort direction
-        const sortDir = req.query.sort === 'desc' ? -1 : 1; // same behavior as user DM endpoint
+        const sortDir = req.query.sort === 'asc' ? 1 : -1; // Default: newest first
 
-        // Find messages sent to the room
+        // Find all member IDs for the current user (to verify membership)
+        const userMembers = await Member.find({ user: currentUserId }).select('_id server');
+
+        // Check that user is a member of the server this room belongs to
+        const room = await Room.findById(roomId).populate('server');
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const userMember = userMembers.find(m => m.server.equals(room.server._id));
+        if (!userMember) {
+            return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
+        }
+
+        // Fetch messages in this room
         const messages = await Message.find({
             context_type: 'Room',
             context: roomId
@@ -540,9 +555,7 @@ app.get('/api/v1/rooms/:roomId/messages', auth, async (req, res) => {
             populate: {
                 path: 'user',
                 select: 'username display_name icon_file',
-                populate: {
-                    path: 'icon_file'
-                }
+                populate: { path: 'icon_file' }
             }
         })
         .populate({
@@ -555,14 +568,19 @@ app.get('/api/v1/rooms/:roomId/messages', auth, async (req, res) => {
         .populate('reply_to')
         .populate({
             path: 'context',
-            select: 'title room_type server'
+            select: 'title server',
+            populate: {
+                path: 'server',
+                select: 'server_name icon_file',
+                populate: { path: 'icon_file' }
+            }
         })
         .sort({ created_at: sortDir })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean();
 
-        // Get total count for pagination
+        // Count total messages in this room
         const total = await Message.countDocuments({
             context_type: 'Room',
             context: roomId
@@ -577,7 +595,7 @@ app.get('/api/v1/rooms/:roomId/messages', auth, async (req, res) => {
             messages
         });
     } catch (error) {
-        console.error('Error fetching room messages:', error);
+        console.error('Error fetching room chat:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch room messages' });
     }
 });
