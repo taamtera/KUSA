@@ -33,6 +33,7 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
+const path = require('path');
 
 // config (env)
 const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
@@ -464,8 +465,8 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
         // Clear cookies if the user deleted themself
         if (req.userId === id) {
-            res.clearCookie('access_token', { path: '/api/v1' });
-            res.clearCookie('refresh_token', { path: '/api/v1' });
+        res.clearCookie('access_token',  { path: '/' });
+        res.clearCookie('refresh_token', { path: '/' });
         }
 
         res.json({ status: 'success', deleted_id: id });
@@ -652,8 +653,8 @@ app.delete('/api/v1/timetable/:id', auth, async (req, res) => {
 
 
 // ====================== Messages =====================
-// GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20
-app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
+// Get paginated and sorted messages in a DM with another user
+app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
         const currentUserId = req.userId;
@@ -688,35 +689,44 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 }
             ]
         })
-            .populate({
-                path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: {
-                        path: 'icon_file'
-                    }
-                }
-            })
-            .populate({
-                path: 'recipients',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name'
-                }
-            })
-            .populate('reply_to')
-            .populate({
-                path: 'context',
+        .populate({
+            path: 'sender',
+            populate: {
+                path: 'user',
                 select: 'username display_name icon_file',
                 populate: {
                     path: 'icon_file'
                 }
-            })
-            .sort({ created_at: sortDir })
-            .skip((page - 1) * limit)
-            .limit(limit)
-            .lean();
+            }
+        })
+        .populate({
+            path: 'recipients',
+            populate: {
+                path: 'user',
+                select: 'username display_name'
+            }
+        })
+        .populate({
+            path: 'reply_to',
+            populate: [
+                {
+                    path: 'sender',
+                    populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } 
+                },
+                { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+            ]
+        })
+        .populate({
+            path: 'context',
+            select: 'username display_name icon_file',
+            populate: {
+                path: 'icon_file'
+            }
+        })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
 
         // Get total count for pagination
         const total = await Message.countDocuments({
@@ -748,6 +758,94 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// Get paginated and sorted messages in a room
+app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const currentUserId = req.userId;
+
+        // Pagination
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+
+        // Sort direction
+        const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
+
+        // Find all member IDs for the current user (to verify membership)
+        const userMembers = await Member.find({ user: currentUserId }).select('_id server');
+
+        // Check that user is a member of the server this room belongs to
+        const room = await Room.findById(roomId).populate('server');
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const userMember = userMembers.find(m => m.server.equals(room.server._id));
+        if (!userMember) {
+            return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
+        }
+
+        // Fetch messages in this room
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: roomId
+        })
+        .populate({
+            path: 'sender',
+            populate: {
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            }
+        })
+        .populate({
+            path: 'recipients',
+            populate: {
+                path: 'user',
+                select: 'username display_name'
+            }
+        })
+        .populate('reply_to')
+        .populate({
+            path: 'context',
+            select: 'title server',
+            populate: {
+                path: 'server',
+                select: 'server_name icon_file',
+                populate: { path: 'icon_file' }
+            }
+        })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        // Add server data
+        const server = await Server.findById(room.server._id)
+        const roomName = room.title;
+
+        // Count total messages in this room
+        const total = await Message.countDocuments({
+            context_type: 'Room',
+            context: roomId
+        });
+
+        res.json({
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            server,
+            roomName,
+            messages
+        });
+    } catch (error) {
+        console.error('Error fetching room chat:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch room messages' });
+    }
+});
+
 // ====================== Servers =====================
 
 // List servers (that the user is a member of)
@@ -755,7 +853,7 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     try {
 
         // Find member records for the user
-        const memberRecords = await Member.find({ user: userId }).select('_id server');
+        const memberRecords = await Member.find({ user: req.userId }).select('_id server');
 
         const memberServerIds = memberRecords.map(m => m.server);
 
@@ -767,7 +865,6 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         // find rooms for each server
         for (let server of servers) {
             const rooms = await Room.find({ server: server._id })
-                .populate('icon_file')
                 .lean();
             server.rooms = rooms;
         }
@@ -781,14 +878,19 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-});
+}); 
 
 // POST /api/v1/chats/:userId/messages
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
         const currentUserId = req.userId;
-        const { content, message_type = 'text' } = req.body;
+        const { content, message_type = 'text', reply_to = null } = req.body;
+
+        if (!content || content.trim() === '') {
+            return res.status(400).json({ status: 'failed', message: 'Message content cannot be empty' });
+        }
+        const senderMemberId = currentUserMembers[0]._id; // Use first member record
 
         // Get current user's member IDs
         const currentUserMembers = await Member.find({ user: currentUserId });
@@ -800,14 +902,36 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         const otherUserMembers = await Member.find({ user: otherUserId });
         const otherUserMemberIds = otherUserMembers.map(m => m._id);
 
+        // If replying, validate the parent message belongs to this chat
+        let parent = null;
+        if (reply_to) {
+            parent = await Message.findById(reply_to).lean();
+            if (!parent) {
+                return res.status(404).json({ status: 'failed', message: 'Parent message not found' });
+            }
+            // Must be DM thread
+            if (parent.context_type !== 'User') {
+                return res.status(400).json({ status: 'failed', message: 'Cannot reply to non-DM message in this route' });
+            }
+            // Parent must be between these two users
+            const parentBetweenSamePair = (
+                (String(parent.context) === String(otherUserId)) ||
+                (String(parent.context) === String(currentUserId))
+            );
+            if (!parentBetweenSamePair) {
+                return res.status(403).json({ status: 'failed', message: 'Parent message not in this chat' });
+            }
+        }
+
         // Create the message
         const message = await Message.create({
-            sender: currentUserMembers[0]._id, // Use first member record
+            sender: senderMemberId,
             recipients: otherUserMemberIds,
             context: otherUserId,
             context_type: 'User',
-            content,
-            message_type
+            content: content.trim(),
+            message_type,
+            reply_to: reply_to || undefined,
         });
 
         // Populate and return the created message
@@ -816,10 +940,27 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 path: 'sender',
                 populate: {
                     path: 'user',
-                    select: 'username display_name icon_file'
+                    select: 'username display_name icon_file',
+                    populate: { path: 'icon_file' }
                 }
             })
-            .populate('recipients')
+            .populate({
+                path: 'recipients',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name'
+                }
+            })
+            .populate({
+                path: 'reply_to',
+                populate: [
+                    {
+                        path: 'sender',
+                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } 
+                    },
+                    { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+                ]
+            })
             .lean();
 
         res.json({
@@ -833,6 +974,54 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
+app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
+    try {
+        const parentId = req.params.id;
+        const page  = Math.max(parseInt(req.query.page  || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
+        const sortDir = req.query.sort === 'asc' ? 1 : -1;
+
+        // optional: ensure requester participates in the parent DM
+        const parent = await Message.findById(parentId).lean();
+        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
+        if (parent.context_type !== 'User') {
+        return res.status(400).json({ status: 'failed', message: 'only supports DM replies' });
+        }
+        // Very light permission: the requester must be either the DM peer (context == me or otherUser)
+        const me = req.userId;
+        if (String(parent.context) !== String(me) && String(parent.context) !== String(await Message.findById(parentId).distinct('recipients.user'))) {
+        // If you need stricter checks, expand this to confirm the pair is {me, otherUser}
+        }
+
+        const replies = await Message.find({ reply_to: parentId })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate({
+            path: 'sender',
+            populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+        })
+        .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
+        .lean();
+
+        const total = await Message.countDocuments({ reply_to: parentId });
+
+        res.json({
+        status: 'success',
+        page,
+        limit,
+        total,
+        has_more: page * limit < total,
+        replies
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ status: 'failed', message: 'failed to fetch replies' });
+    }
+});
+
+
 // --- SOCKET LOGIC ---
 io.on("connection", (socket) => {
     console.log("✅ New WebSocket connection:", socket.id);
@@ -841,39 +1030,81 @@ io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
     if (userId) socket.join(userId);
 
-    // Listen for "send_message" event from client
-    socket.on("send_message", async (msgData) => {
-        try {
-            const { fromUserId, toUserId, content, message_type = "text" } = msgData;
+// Listen for "send_message" event from client
+socket.on("send_message", async (msgData) => {
+    try {
+    const { from_id, to_id, context_type, content, message_type = "text", reply_to = null } = msgData;
+    if (!content || content.trim() === "") {
+        console.warn("Socket message error: empty content");
+        return;
+    }
 
-            // 💾 Save message in DB using your existing logic
-            const currentUserMembers = await Member.find({ user: fromUserId });
-            const otherUserMembers = await Member.find({ user: toUserId });
-            const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+    // 💾 Gets users and id to make sure the user exist
+    const currentUserMembers = await Member.find({ user: from_id });
+    const otherUserMemberIds = [];
+    if (context_type === "User") {
+        const otherUserMembers = await Member.find({ user: to_id });
+        otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
+    } else if (context_type === "Room") {
+        const room = await Room.findById(to_id).lean();
+        const memberRecords = await Member.find({ server: room?.server }).select('_id user');
+        memberRecords.forEach(member => {
+            if (member.user.toString() !== currentUserMembers[0].user.toString()) {
+            otherUserMemberIds.push(member._id);
+            }
+        });
+    }
+    if (!currentUserMembers.length || !otherUserMemberIds.length) {
+        console.warn("Socket message error: member records not found");
+        return;
+    }
 
-            const message = await Message.create({
-                sender: currentUserMembers[0]._id,
-                recipients: otherUserMemberIds,
-                context: toUserId,
-                context_type: "User",
-                content,
-                message_type,
-            });
+    console.log('new message');
 
-            const populatedMessage = await Message.findById(message._id)
-                .populate({
-                    path: "sender",
-                    populate: {
-                        path: "user",
-                        select: "username display_name icon_file",
-                    },
-                })
-                .populate("recipients")
-                .lean();
+    // validate reply_to is part of the same DM FIX LATER
+    // if (reply_to) {
+    //     const parent = await Message.findById(reply_to).lean();
+    //     if (!parent || parent.context_type !== 'User') return;
+    //     // PLEASE FIX
+    //     const samePair = (
+    //     String(parent.context) === String(to_id) ||
+    //     String(parent.context) === String(from_id)
+    //     );
+    //     if (!samePair) return;
+    // }
 
-            // Emit the message to both sender and recipient
-            io.to(fromUserId).emit("receive_message", populatedMessage);
-            io.to(toUserId).emit("receive_message", populatedMessage);
+    // create message in DB 
+    const message = await Message.create({
+        sender: currentUserMembers[0]._id,
+        recipients: otherUserMemberIds,
+        context: to_id,
+        context_type: context_type,
+        content: content.trim(),
+        message_type,
+        reply_to: reply_to || undefined,
+    });
+
+    const populatedMessage = await Message.findById(message._id)
+        .populate({
+            path: "sender",
+            populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } }
+        })
+        .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })
+        .populate({
+            path: "reply_to",
+            populate: [
+                { path: "sender", populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } } },
+                { path: "recipients", populate: { path: "user", select: "username display_name" } }
+            ]
+        })
+        .lean();
+
+        // Emit the message to both sender and recipient
+        io.to(from_id).emit("receive_message", populatedMessage);
+        //emmit to all recipient member ids
+        for (const recipientId of otherUserMemberIds) {
+            io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+        }
 
             console.log("📨 Message delivered via WS:", content);
         } catch (err) {
@@ -881,7 +1112,7 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("disconnect", () => {
+socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });

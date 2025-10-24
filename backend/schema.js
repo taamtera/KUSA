@@ -74,7 +74,7 @@ const memberSchema = new Schema(
         user:    { type: ObjectId, ref: 'User', required: true },
         server:  { type: ObjectId, ref: 'Server', required: true },
         nickname:{ type: String, trim: true, default: null },
-        role:    { type: String, default: 'member' }
+        role:    { type: String, default: 'member' } // 'owner', 'moderator', 'member'
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
 );
@@ -129,16 +129,23 @@ const messageSchema = new Schema(
     { timestamps: { createdAt: 'created_at', updatedAt: 'edited_at' } }
 );
 
-messageSchema.index({ room: 1, created_at: -1 });
+// Sort by time
+messageSchema.index({ created_at: -1 });
+// Fast timeline lookups (room or DM)
+messageSchema.index({ context_type: 1, context: 1, created_at: -1 });
+// DM lookups by recipient/sender
 messageSchema.index({ recipients: 1, created_at: -1 });
 messageSchema.index({ sender: 1, created_at: -1 });
+// Reply threading
+messageSchema.index({ reply_to: 1, created_at: -1 });
 
-// Simple rule: either room OR recipients (but not both / not neither)
+// Focus on DM for now:
+// If context_type === 'User' -> must have at least one recipient.
+// For Room, do not enforce recipients yet.
 messageSchema.pre('validate', function (next) {
-    const hasRoom = !!this.room;
-    const hasRecipients = Array.isArray(this.recipients) && this.recipients.length > 0;
-    if (hasRoom === hasRecipients) {
-        return next(new Error('Message must have either room (for channel) OR recipients (for DM/group DM), but not both.'));
+    if (this.context_type === 'User') {
+        const hasRecipients = Array.isArray(this.recipients) && this.recipients.length > 0;
+        if (!hasRecipients) return next(new Error('Direct messages must include at least one recipient.'));
     }
     next();
 });

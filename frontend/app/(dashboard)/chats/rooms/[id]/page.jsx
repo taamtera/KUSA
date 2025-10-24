@@ -7,18 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components/utils";
-import MessageGroup from "./messagegroup";
+import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
-import SearchChatDialog from "./searchchatdialog";
+import SearchChatDialog from "@/components/message/searchchatdialog";
 import { Search } from "lucide-react"
 
 
 export default function Chat() {
   const params = useParams();
-  const otherUserId = params.id;
+  const roomId = params.id;
   const { user } = useUser();
 
+  const [server, setServer] = useState(null);
+  const [roomName, setRoomName] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function Chat() {
     socket.on("receive_message", (msg) => {
       // only update if the message belongs to this chat
       const isRelevant =
-        msg.sender?.user?._id === otherUserId || msg.context === otherUserId;
+        msg.sender?.user?._id === roomId || msg.context === roomId;
       if (isRelevant) {
         messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
@@ -68,7 +70,7 @@ export default function Chat() {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3001/api/v1/chats/${otherUserId}/messages?page=1&limit=50`,
+          `http://localhost:3001/api/v1/chats/rooms/${roomId}/messages?page=1&limit=50`,
           { credentials: "include" }
         );
         const data = await response.json();
@@ -76,11 +78,19 @@ export default function Chat() {
         if (data.status === "success") {
           setMessages(data.messages);
 
+          if (data.server) {
+            setServer(data.server);
+          }
+
+          if (data.roomName) {
+            setRoomName(data.roomName);
+          }
+
           if (data.messages.length > 0) {
             const firstMessage = data.messages[0];
             if (firstMessage.context_type === "User") {
               setOtherUser(firstMessage.context);
-            } else if (firstMessage.sender?.user?._id !== otherUserId) {
+            } else if (firstMessage.sender?.user?._id !== roomId) {
               setOtherUser(firstMessage.sender?.user);
             }
           }
@@ -92,15 +102,15 @@ export default function Chat() {
       }
     };
 
-    if (otherUserId) fetchMessages();
-  }, [otherUserId]);
+    if (roomId) fetchMessages();
+  }, [roomId]);
 
   // Fetch other user info if missing
   useEffect(() => {
     const fetchOtherUser = async () => {
-      if (!otherUser && otherUserId) {
+      if (!otherUser && roomId) {
         try {
-          const response = await fetch(`http://localhost:3001/api/v1/users/${otherUserId}`);
+          const response = await fetch(`http://localhost:3001/api/v1/users/${roomId}`);
           const data = await response.json();
           if (data.status === "success") setOtherUser(data.user);
         } catch (error) {
@@ -109,7 +119,7 @@ export default function Chat() {
       }
     };
     fetchOtherUser();
-  }, [otherUserId, otherUser]);
+  }, [roomId, otherUser]);
 
   // Group messages (no hooks here)
   const groupMessages = (messages) => {
@@ -137,22 +147,25 @@ export default function Chat() {
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
-    const tempMessage = {
-      _id: `temp-${Date.now()}`,
-      content: newMessage,
-      sender: { user },
-      created_at: new Date(),
-      message_type: "text",
-      temp: true,
-    };
+    // const tempMessage = {
+    //   _id: `temp-${Date.now()}`,
+    //   content: newMessage,
+    //   sender: { user },
+    //   created_at: new Date(),
+    //   message_type: "text",
+    //   temp: true,
+    // };
 
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
-      fromUserId: user._id,
-      toUserId: otherUserId,
+      from_id: user._id,
+      to_id: roomId,
+      context_type: "Room",
       content: newMessage,
       message_type: "text",
     };
+
+    console.log("📤 Sending message:", messageToSend);
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
@@ -173,14 +186,14 @@ export default function Chat() {
       <div className="bg-white p-4 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={getAvatarUrl(otherUser?.icon_file)} />
-            <AvatarFallback>{getAvatarFallback(otherUser?.username)}</AvatarFallback>
+            <AvatarImage src={getAvatarUrl(server?.icon_file)} />
+            <AvatarFallback>{getAvatarFallback(server?.server_name)}</AvatarFallback>
           </Avatar>
           <div>
             <h2 className="font-semibold text-black">
-              {otherUser?.display_name || otherUser?.username || "User"}
+              {server?.server_name || "Server"}
             </h2>
-            <p className="text-sm text-gray-500">Direct message</p>
+            <p className="text-sm text-gray-500"> {roomName} </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -230,7 +243,7 @@ export default function Chat() {
                 );
               }
 
-              const fromCurrentUser = group.senderId !== otherUserId;
+              const fromCurrentUser = group.senderId == user._id;
               elements.push(
                 <MessageGroup
                   key={`group-${gIndex}`}
