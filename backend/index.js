@@ -539,7 +539,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
 
         // Sort direction
-        const sortDir = req.query.sort === 'asc' ? 1 : -1; // Default: newest first
+        const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
         // Find all member IDs for the current user (to verify membership)
         const userMembers = await Member.find({ user: currentUserId }).select('_id server');
@@ -803,41 +803,52 @@ if (userId) socket.join(userId);
 // Listen for "send_message" event from client
 socket.on("send_message", async (msgData) => {
     try {
-    const { fromUserId, toUserId, content, message_type = "text", reply_to = null } = msgData;
+    const { from_id, to_id, context_type, content, message_type = "text", reply_to = null } = msgData;
     if (!content || content.trim() === "") {
         console.warn("Socket message error: empty content");
         return;
     }
 
-    const contextId = null;
-    // const otherUserMemberIds = [];
-
     // 💾 Gets users and id to make sure the user exist
-    const currentUserMembers = await Member.find({ user: fromUserId });
-    const otherUserMembers = await Member.find({ user: toUserId });
-    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+    const currentUserMembers = await Member.find({ user: from_id });
+    const otherUserMemberIds = [];
+    if (context_type === "User") {
+        const otherUserMembers = await Member.find({ user: to_id });
+        otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
+    } else if (context_type === "Room") {
+        const room = await Room.findById(to_id).lean();
+        const memberRecords = await Member.find({ server: room?.server }).select('_id user');
+        memberRecords.forEach(member => {
+            if (member.user.toString() !== currentUserMembers[0].user.toString()) {
+            otherUserMemberIds.push(member._id);
+            }
+        });
+    }
     if (!currentUserMembers.length || !otherUserMemberIds.length) {
         console.warn("Socket message error: member records not found");
         return;
     }
 
-    // validate reply_to is part of the same DM (optional but recommended)
-    if (reply_to) {
-        const parent = await Message.findById(reply_to).lean();
-        if (!parent || parent.context_type !== 'User') return;
-        const samePair = (
-        String(parent.context) === String(toUserId) ||
-        String(parent.context) === String(fromUserId)
-        );
-        if (!samePair) return;
-    }
+    console.log('new message');
+
+    // validate reply_to is part of the same DM FIX LATER
+    // if (reply_to) {
+    //     const parent = await Message.findById(reply_to).lean();
+    //     if (!parent || parent.context_type !== 'User') return;
+    //     // PLEASE FIX
+    //     const samePair = (
+    //     String(parent.context) === String(to_id) ||
+    //     String(parent.context) === String(from_id)
+    //     );
+    //     if (!samePair) return;
+    // }
 
     // create message in DB 
     const message = await Message.create({
         sender: currentUserMembers[0]._id,
         recipients: otherUserMemberIds,
-        context: toUserId,
-        context_type: "User",
+        context: to_id,
+        context_type: context_type,
         content: content.trim(),
         message_type,
         reply_to: reply_to || undefined,
@@ -859,7 +870,7 @@ socket.on("send_message", async (msgData) => {
         .lean();
 
         // Emit the message to both sender and recipient
-        io.to(fromUserId).emit("receive_message", populatedMessage);
+        io.to(from_id).emit("receive_message", populatedMessage);
         //emmit to all recipient member ids
         for (const recipientId of otherUserMemberIds) {
             io.to(recipientId.toString()).emit("receive_message", populatedMessage);

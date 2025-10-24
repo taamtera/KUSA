@@ -9,7 +9,6 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
     ? "You"
     : sender?.display_name || sender?.username || "User";
   const senderAvatar = fromCurrentUser ? null : getAvatarUrl(sender?.icon_file);
-  console.log("MessageGroup props:", { sender, messages, fromCurrentUser });
 
   // const handleBubbleReply = (message) => {
   //   onReply(message);
