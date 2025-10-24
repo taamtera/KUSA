@@ -4,11 +4,16 @@ import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 
-export default function MessageGroup({ sender, messages, fromCurrentUser }) {
+export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread }) {
   const senderName = fromCurrentUser
     ? "You"
     : sender?.display_name || sender?.username || "User";
   const senderAvatar = fromCurrentUser ? null : getAvatarUrl(sender?.icon_file);
+  console.log("MessageGroup props:", { sender, messages, fromCurrentUser });
+
+  // const handleBubbleReply = (message) => {
+  //   onReply(message);
+  // };
 
   return (
     <div
@@ -37,6 +42,8 @@ export default function MessageGroup({ sender, messages, fromCurrentUser }) {
                   key={message._id}
                   message={message}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={onReply}
+                  onOpenThread={onOpenThread}
                 />
               ))}
             </div>
@@ -51,9 +58,9 @@ export default function MessageGroup({ sender, messages, fromCurrentUser }) {
       {/* Right side (current user) */}
       {fromCurrentUser && (
         <div className="flex flex-col items-end">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {/* <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
             You
-          </span>
+          </span> */}
 
           <div className="flex flex-col items-end space-y-1">
             {messages.map((message) => (
@@ -61,6 +68,8 @@ export default function MessageGroup({ sender, messages, fromCurrentUser }) {
                 key={message._id}
                 message={message}
                 fromCurrentUser={fromCurrentUser}
+                onReply={onReply}
+                onOpenThread={onOpenThread}
               />
             ))}
           </div>

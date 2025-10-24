@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Send, Paperclip, Users } from "lucide-react";
+import { Send, Paperclip, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,8 +24,52 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Thread state
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [threadParent, setThreadParent] = useState(null);
+  const [threadReplies, setThreadReplies] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+
+  // OPEN THREAD (reply list)
+  const openThread = async (parentMsg) => {
+    if (!parentMsg?._id) {
+      console.warn('OpenThread called without a valid _id', parentMsg);
+      return;
+    }
+    try {
+      setThreadLoading(true);
+      setThreadOpen(true);
+      setThreadParent(parentMsg);
+
+      const res = await fetch(
+        `http://localhost:3001/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      if (data.status === "success") {
+        setThreadReplies(data.replies || []);
+      } else {
+        setThreadReplies([]);
+      }
+    } catch (e) {
+      console.error("Thread fetch failed:", e);
+      setThreadReplies([]);
+    } finally {
+      setThreadLoading(false);
+    }
+  };
+
+  const closeThread = () => {
+    setThreadOpen(false);
+    setThreadReplies([]);
+    setThreadParent(null);
+  };
+
+  console.log(threadParent?._id);
 
   // WebSocket setup
   useEffect(() => {
@@ -44,11 +88,10 @@ export default function Chat() {
     });
 
     socket.on("receive_message", (msg) => {
-      // only update if the message belongs to this chat
       const isRelevant =
         msg.sender?.user?._id === otherUserId || msg.context === otherUserId;
       if (isRelevant) {
-        messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
+        console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
     });
@@ -62,7 +105,7 @@ export default function Chat() {
     };
   }, [user?._id]);
 
-  // Fetch messages from API
+  // Fetch messages
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -111,7 +154,7 @@ export default function Chat() {
     fetchOtherUser();
   }, [otherUserId, otherUser]);
 
-  // Group messages (no hooks here)
+  // Group messages by sender
   const groupMessages = (messages) => {
     const groups = [];
     let currentGroup = null;
@@ -134,6 +177,16 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // --- Reply Handlers ---
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // --- Send Message ---
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
@@ -146,20 +199,22 @@ export default function Chat() {
       temp: true,
     };
 
-    // setMessages((prev) => [...prev, tempMessage]);
+    // Send message via socket
     const messageToSend = {
       fromUserId: user._id,
       toUserId: otherUserId,
       context_type: "User",
       content: newMessage,
       message_type: "text",
+      reply_to: replyingTo?._id || null, // 👈 include reply reference if replying
     };
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
+    setReplyingTo(null); // 👈 clear reply after sending
   };
 
-  // Render
+  // --- Render ---
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-gray-100 items-center justify-center">
@@ -238,6 +293,8 @@ export default function Chat() {
                   sender={group.sender}
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={handleReply} // ✅ pass reply handler
+                  onOpenThread={openThread}
                 />
               );
 
@@ -250,6 +307,29 @@ export default function Chat() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Reply Preview */}
+      {replyingTo && (
+        <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
+          <div className="text-3xl px-3">↰</div>
+          <div className="flex-1 w-[16px]">
+            <div className="text-sm text-gray-500 font-medium">
+              Replying to {replyingTo.sender?.user?.username || "user"}
+            </div>
+            <div className="text-sm text-gray-600 truncate w-auto">
+              {replyingTo.content}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={handleCancelReply}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
@@ -278,13 +358,53 @@ export default function Chat() {
         </Button>
       </div>
 
-      <SearchChatDialog
-        open={isSearchOpen}
-        onOpenChange={setIsSearchOpen}
-        messages={messages}
-        user={user}
-        otherUser={otherUser}
-      />
+      {/* Thread Modal */}
+      {threadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-[min(92vw,520px)] max-h-[70vh] bg-white rounded-2xl shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="text-sm font-semibold">
+                Thread • Reply to {threadParent?.sender?.nickname || threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
+              </div>
+              <button onClick={closeThread} className="p-1 rounded hover:bg-gray-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* parent message */}
+            {threadParent && (
+              <div className="px-4 pt-3 pb-2 bg-gray-50">
+                <div className="text-xs text-gray-600 mb-1">
+                  {threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
+                </div>
+                <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {threadParent.content}
+                </div>
+              </div>
+            )}
+
+            <div className="px-4 py-3 border-t overflow-y-auto space-y-2">
+              {threadLoading ? (
+                <div className="text-sm text-gray-500">Loading replies…</div>
+              ) : threadReplies.length === 0 ? (
+                <div className="text-sm text-gray-500">No replies yet.</div>
+              ) : (
+                threadReplies.map((msg) => (
+                  <div key={msg._id}>
+                    <div className="text-xs text-gray-600">
+                      {msg.sender?.user?.display_name || msg.sender?.user?.username || "user"}
+                    </div>
+                    <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

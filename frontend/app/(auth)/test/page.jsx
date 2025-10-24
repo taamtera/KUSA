@@ -1,5 +1,9 @@
 "use client";
 
+import * as React from "react";
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
+
 export default function test() {
     const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     // const Hours = ["5 AM", "6 AM", "7 AM", "8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM", "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM"];
@@ -38,6 +42,7 @@ export default function test() {
             row: h_index + 2  // Starts from row 2
         }))
     );
+    // const testequation = `$$\\displaystyle\\int_0^1 x^2\\mathrm{d}x$$`;
 
     return (
         <div className="w-full">
@@ -416,9 +421,12 @@ export default function test() {
                     ))}
                 </div>
             </div>
-            <div>
-                {/* // */}
-            </div>
+        </div>
+        <div className="text-center" style={{fontSize: 40}} >
+                <Latex>{`$$\\frac{1}{2} + \\sqrt{x} \\displaystyle\\int$$`}</Latex>
+        </div>
+        <div className="text-center" style={{fontSize: 40}} >
+                <Latex>{`$$\\frac{1}{2} + \\sqrt{x} \\displaystyle\\int$$`}</Latex>
         </div>
         </div>
     );
