@@ -150,6 +150,7 @@ export default function Chat() {
     const messageToSend = {
       fromUserId: user._id,
       toUserId: otherUserId,
+      context_type: "User",
       content: newMessage,
       message_type: "text",
     };

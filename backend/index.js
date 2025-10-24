@@ -701,18 +701,45 @@ if (userId) socket.join(userId);
 // Listen for "send_message" event from client
 socket.on("send_message", async (msgData) => {
     try {
-    const { fromUserId, toUserId, content, message_type = "text" } = msgData;
+    const { fromUserId, toUserId, toRoomId, contextType, content, message_type = "text" } = msgData;
 
-    // 💾 Save message in DB using your existing logic
+    const contextId = null;
+    const otherUserMemberIds = [];
+
+    // 💾 Gets users and id to make sure the user exist
     const currentUserMembers = await Member.find({ user: fromUserId });
-    const otherUserMembers = await Member.find({ user: toUserId });
-    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+    if (contextType === "User" && toUserId) {
+        const otherUserMembers = await Member.find({ user: toUserId });
+        otherUserMemberIds = otherUserMembers.map((m) => m._id);
+        contextId = toUserId;
+    } else if (contextType === "Room" && toRoomId) {
+        const room = await Room.findById(toRoomId).populate('server');
+        if (!room) throw new Error("Room not found");
+        // otherUserMemberIds should be all members of the server this room belongs to
+        // FIX HERE
+        const serverMembers = await Member.find({ server: room.server._id });
+        otherUserMemberIds = serverMembers.map((m) => m._id);
+        // print this out see if it populates properly
+        contextId = toRoomId;
+    }
+    // example server based object
+    //const m2 = await Message.create({
+    //     sender: bobHub._id,
+    //     recipients: [aliceHub._id, bobHub._id, caraHub._id],
+    //     context: roomGeneral._id,
+    //     context_type: 'Room',
+    //     reply_to: m1._id,
+    //     content: 'Thanks @alice! I just uploaded the onboarding guide.',
+    //     message_type: 'text',
+    // });
+    
 
+    // create message in DB 
     const message = await Message.create({
         sender: currentUserMembers[0]._id,
         recipients: otherUserMemberIds,
-        context: toUserId,
-        context_type: "User",
+        context: contextId,
+        context_type: contextType,
         content,
         message_type,
     });
@@ -730,7 +757,10 @@ socket.on("send_message", async (msgData) => {
 
         // Emit the message to both sender and recipient
         io.to(fromUserId).emit("receive_message", populatedMessage);
-        io.to(toUserId).emit("receive_message", populatedMessage);
+        //emmit to all recipient member ids
+        for (const recipientId of otherUserMemberIds) {
+            io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+        }
 
         console.log("📨 Message delivered via WS:", content);
         } catch (err) {

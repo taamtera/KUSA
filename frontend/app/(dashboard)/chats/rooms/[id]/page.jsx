@@ -159,10 +159,13 @@ export default function Chat() {
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
       fromUserId: user._id,
-      toUserId: roomId,
+      toRoomId: roomId,
+      contextType: "Room",
       content: newMessage,
       message_type: "text",
     };
+
+    console.log("📤 Sending message:", messageToSend);
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
