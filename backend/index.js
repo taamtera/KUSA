@@ -580,6 +580,10 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         .limit(limit)
         .lean();
 
+        // Add server data
+        const server = await Server.findById(room.server._id)
+        const roomName = room.title;
+
         // Count total messages in this room
         const total = await Message.countDocuments({
             context_type: 'Room',
@@ -592,6 +596,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             limit,
             total,
             has_more: page * limit < total,
+            server,
+            roomName,
             messages
         });
     } catch (error) {

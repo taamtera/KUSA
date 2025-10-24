@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components/utils";
-import MessageGroup from "./messagegroup";
+import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
-import SearchChatDialog from "./searchchatdialog";
+import SearchChatDialog from "@/components/message/searchchatdialog";
 import { Search } from "lucide-react"
 
 
@@ -19,6 +19,8 @@ export default function Chat() {
   const roomId = params.id;
   const { user } = useUser();
 
+  const [server, setServer] = useState(null);
+  const [roomName, setRoomName] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,14 @@ export default function Chat() {
 
         if (data.status === "success") {
           setMessages(data.messages);
+
+          if (data.server) {
+            setServer(data.server);
+          }
+
+          if (data.roomName) {
+            setRoomName(data.roomName);
+          }
 
           if (data.messages.length > 0) {
             const firstMessage = data.messages[0];
@@ -173,14 +183,14 @@ export default function Chat() {
       <div className="bg-white p-4 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={getAvatarUrl(otherUser?.icon_file)} />
-            <AvatarFallback>{getAvatarFallback(otherUser?.username)}</AvatarFallback>
+            <AvatarImage src={getAvatarUrl(server?.icon_file)} />
+            <AvatarFallback>{getAvatarFallback(server?.server_name)}</AvatarFallback>
           </Avatar>
           <div>
             <h2 className="font-semibold text-black">
-              {otherUser?.display_name || otherUser?.username || "User"}
+              {server?.server_name || "Server"}
             </h2>
-            <p className="text-sm text-gray-500">Direct message</p>
+            <p className="text-sm text-gray-500"> {roomName} </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -230,7 +240,7 @@ export default function Chat() {
                 );
               }
 
-              const fromCurrentUser = group.senderId !== roomId;
+              const fromCurrentUser = group.senderId == user._id;
               elements.push(
                 <MessageGroup
                   key={`group-${gIndex}`}

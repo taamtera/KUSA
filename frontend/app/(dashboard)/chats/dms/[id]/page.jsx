@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components/utils";
-import MessageGroup from "./messagegroup";
+import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
-import SearchChatDialog from "./searchchatdialog";
+import SearchChatDialog from "@/components/message/searchchatdialog";
 import { Search } from "lucide-react"
 
 
