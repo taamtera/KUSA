@@ -422,8 +422,8 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 });
 
 // ====================== Messages =====================
-// GET /api/v1/chats/68de76d6f1ffd6673b748b5e/messages?page=1&limit=20
-app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
+// Get paginated and sorted messages in a DM with another user
+app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
         const currentUserId = req.userId;
@@ -518,6 +518,94 @@ app.get('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     }
 });
 
+// Get paginated and sorted messages in a room
+app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const currentUserId = req.userId;
+
+        // Pagination
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+
+        // Sort direction
+        const sortDir = req.query.sort === 'asc' ? 1 : -1; // Default: newest first
+
+        // Find all member IDs for the current user (to verify membership)
+        const userMembers = await Member.find({ user: currentUserId }).select('_id server');
+
+        // Check that user is a member of the server this room belongs to
+        const room = await Room.findById(roomId).populate('server');
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const userMember = userMembers.find(m => m.server.equals(room.server._id));
+        if (!userMember) {
+            return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
+        }
+
+        // Fetch messages in this room
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: roomId
+        })
+        .populate({
+            path: 'sender',
+            populate: {
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            }
+        })
+        .populate({
+            path: 'recipients',
+            populate: {
+                path: 'user',
+                select: 'username display_name'
+            }
+        })
+        .populate('reply_to')
+        .populate({
+            path: 'context',
+            select: 'title server',
+            populate: {
+                path: 'server',
+                select: 'server_name icon_file',
+                populate: { path: 'icon_file' }
+            }
+        })
+        .sort({ created_at: sortDir })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+        // Add server data
+        const server = await Server.findById(room.server._id)
+        const roomName = room.title;
+
+        // Count total messages in this room
+        const total = await Message.countDocuments({
+            context_type: 'Room',
+            context: roomId
+        });
+
+        res.json({
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            server,
+            roomName,
+            messages
+        });
+    } catch (error) {
+        console.error('Error fetching room chat:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch room messages' });
+    }
+});
+
 // ====================== Servers =====================
 
 // List servers (that the user is a member of)
@@ -525,7 +613,7 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     try {
 
         // Find member records for the user
-        const memberRecords = await Member.find({ user: userId }).select('_id server');
+        const memberRecords = await Member.find({ user: req.userId }).select('_id server');
 
         const memberServerIds = memberRecords.map(m => m.server);
 
@@ -537,7 +625,6 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         // find rooms for each server
         for (let server of servers) {
             const rooms = await Room.find({ server: server._id })
-                .populate('icon_file')
                 .lean();
             server.rooms = rooms;
         }
@@ -551,7 +638,7 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-});
+}); 
 
 // POST /api/v1/chats/:userId/messages
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
@@ -614,18 +701,45 @@ if (userId) socket.join(userId);
 // Listen for "send_message" event from client
 socket.on("send_message", async (msgData) => {
     try {
-    const { fromUserId, toUserId, content, message_type = "text" } = msgData;
+    const { fromUserId, toUserId, toRoomId, contextType, content, message_type = "text" } = msgData;
 
-    // 💾 Save message in DB using your existing logic
+    const contextId = null;
+    const otherUserMemberIds = [];
+
+    // 💾 Gets users and id to make sure the user exist
     const currentUserMembers = await Member.find({ user: fromUserId });
-    const otherUserMembers = await Member.find({ user: toUserId });
-    const otherUserMemberIds = otherUserMembers.map((m) => m._id);
+    if (contextType === "User" && toUserId) {
+        const otherUserMembers = await Member.find({ user: toUserId });
+        otherUserMemberIds = otherUserMembers.map((m) => m._id);
+        contextId = toUserId;
+    } else if (contextType === "Room" && toRoomId) {
+        const room = await Room.findById(toRoomId).populate('server');
+        if (!room) throw new Error("Room not found");
+        // otherUserMemberIds should be all members of the server this room belongs to
+        // FIX HERE
+        const serverMembers = await Member.find({ server: room.server._id });
+        otherUserMemberIds = serverMembers.map((m) => m._id);
+        // print this out see if it populates properly
+        contextId = toRoomId;
+    }
+    // example server based object
+    //const m2 = await Message.create({
+    //     sender: bobHub._id,
+    //     recipients: [aliceHub._id, bobHub._id, caraHub._id],
+    //     context: roomGeneral._id,
+    //     context_type: 'Room',
+    //     reply_to: m1._id,
+    //     content: 'Thanks @alice! I just uploaded the onboarding guide.',
+    //     message_type: 'text',
+    // });
+    
 
+    // create message in DB 
     const message = await Message.create({
         sender: currentUserMembers[0]._id,
         recipients: otherUserMemberIds,
-        context: toUserId,
-        context_type: "User",
+        context: contextId,
+        context_type: contextType,
         content,
         message_type,
     });
@@ -643,7 +757,10 @@ socket.on("send_message", async (msgData) => {
 
         // Emit the message to both sender and recipient
         io.to(fromUserId).emit("receive_message", populatedMessage);
-        io.to(toUserId).emit("receive_message", populatedMessage);
+        //emmit to all recipient member ids
+        for (const recipientId of otherUserMemberIds) {
+            io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+        }
 
         console.log("📨 Message delivered via WS:", content);
         } catch (err) {
@@ -651,7 +768,7 @@ socket.on("send_message", async (msgData) => {
         }
     });
 
-    socket.on("disconnect", () => {
+socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });

@@ -28,7 +28,7 @@ export function AppSidebar() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="private" className="w-full">
+        <Tabs className="w-full" defaultValue="private" >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="private" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
               Private

@@ -69,7 +69,7 @@ const memberSchema = new Schema(
         user:    { type: ObjectId, ref: 'User', required: true },
         server:  { type: ObjectId, ref: 'Server', required: true },
         nickname:{ type: String, trim: true, default: null },
-        role:    { type: String, default: 'member' }
+        role:    { type: String, default: 'member' } // 'owner', 'moderator', 'member'
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
 );

@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatDividerTime } from "@/components/utils";
-import MessageGroup from "./messagegroup";
+import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
-import SearchChatDialog from "./searchchatdialog";
+import SearchChatDialog from "@/components/message/searchchatdialog";
 import { Search } from "lucide-react"
 
 
@@ -68,7 +68,7 @@ export default function Chat() {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3001/api/v1/chats/${otherUserId}/messages?page=1&limit=50`,
+          `http://localhost:3001/api/v1/chats/dms/${otherUserId}/messages?page=1&limit=50`,
           { credentials: "include" }
         );
         const data = await response.json();
@@ -150,6 +150,7 @@ export default function Chat() {
     const messageToSend = {
       fromUserId: user._id,
       toUserId: otherUserId,
+      context_type: "User",
       content: newMessage,
       message_type: "text",
     };
