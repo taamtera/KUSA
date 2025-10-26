@@ -48,7 +48,7 @@ function Home() {
       </div>
       <Card
         className="flex basis-full z-50"
-        // background seethrough
+        // background see through
         style={{ background: "rgba(255, 255, 255, 0.2)" }}
       >
         {/* Login Button */}

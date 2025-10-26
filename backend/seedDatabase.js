@@ -71,7 +71,7 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
         // Messages tied to (rooms or members)
         const seedMessages = await Message.find({
             $or: [
-            { room: { $in: seedRoomIds } },
+            { context_type: 'Room', context: { $in: seedRoomIds } },
             { sender: { $in: seedMemberIds } },
             { recipients: { $in: seedMemberIds } },
             ]

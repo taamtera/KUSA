@@ -12,6 +12,7 @@ export default async function Layout({ children }) {
     headers: {
       Cookie: cookieHeader,
     },
+    credentials: "include",
     cache: "no-store",
   });
 

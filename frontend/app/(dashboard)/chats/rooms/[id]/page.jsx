@@ -147,19 +147,20 @@ export default function Chat() {
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
-    const tempMessage = {
-      _id: `temp-${Date.now()}`,
-      content: newMessage,
-      sender: { user },
-      created_at: new Date(),
-      message_type: "text",
-      temp: true,
-    };
+    // const tempMessage = {
+    //   _id: `temp-${Date.now()}`,
+    //   content: newMessage,
+    //   sender: { user },
+    //   created_at: new Date(),
+    //   message_type: "text",
+    //   temp: true,
+    // };
 
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
-      fromUserId: user._id,
-      toRoomId: roomId,
+
+      from_id: user._id,
+      to_id: roomId,
       context_type: "Room",
       content: newMessage,
       message_type: "text",

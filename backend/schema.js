@@ -45,7 +45,12 @@ const userSchema = new Schema(
 
         // Relations
         friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-        time_table:    [{ type: mongoose.Schema.Types.ObjectId, ref: "TimeSlot" }],
+
+        timetable_visibility: {
+                          type: String,
+                          enum: ['private', 'public'],
+                          default: 'private'
+                        }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -124,16 +129,23 @@ const messageSchema = new Schema(
     { timestamps: { createdAt: 'created_at', updatedAt: 'edited_at' } }
 );
 
-messageSchema.index({ room: 1, created_at: -1 });
+// Sort by time
+messageSchema.index({ created_at: -1 });
+// Fast timeline lookups (room or DM)
+messageSchema.index({ context_type: 1, context: 1, created_at: -1 });
+// DM lookups by recipient/sender
 messageSchema.index({ recipients: 1, created_at: -1 });
 messageSchema.index({ sender: 1, created_at: -1 });
+// Reply threading
+messageSchema.index({ reply_to: 1, created_at: -1 });
 
-// Simple rule: either room OR recipients (but not both / not neither)
+// Focus on DM for now:
+// If context_type === 'User' -> must have at least one recipient.
+// For Room, do not enforce recipients yet.
 messageSchema.pre('validate', function (next) {
-    const hasRoom = !!this.room;
-    const hasRecipients = Array.isArray(this.recipients) && this.recipients.length > 0;
-    if (hasRoom === hasRecipients) {
-        return next(new Error('Message must have either room (for channel) OR recipients (for DM/group DM), but not both.'));
+    if (this.context_type === 'User') {
+        const hasRecipients = Array.isArray(this.recipients) && this.recipients.length > 0;
+        if (!hasRecipients) return next(new Error('Direct messages must include at least one recipient.'));
     }
     next();
 });
@@ -185,7 +197,8 @@ const timeSlotSchema = new Schema(
         start_min:    { type: Number, required: true, min: 0, max: 1439 },
         end_min:      { type: Number, required: true, min: 1, max: 1440 },
         location:     { type: String, default: null, trim: true },
-        color:        { type: String, default: null}
+        color:        { type: String, default: null},
+        owner:        { type: ObjectId, ref: 'User', required: true }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 )
@@ -196,7 +209,8 @@ timeSlotSchema.path("end_min").validate(function (v) {
 }, "end time must be after start time");
 
 // Sort-friendly index per user/day
-timeSlotSchema.index({ day: 1, start_min: 1 });
+timeSlotSchema.index({ owner: 1, day: 1, start_min: 1, end_min: 1 });
+timeSlotSchema.index({ owner: 1 });
 
 /* -----------------------------
  * MODELS (re-use if already compiled)
