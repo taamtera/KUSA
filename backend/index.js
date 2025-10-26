@@ -701,18 +701,18 @@ if (userId) socket.join(userId);
 // Listen for "send_message" event from client
 socket.on("send_message", async (msgData) => {
     try {
-    const { fromUserId, toUserId, toRoomId, contextType, content, message_type = "text" } = msgData;
+    const { fromUserId, toUserId, toRoomId, context_type, content, message_type = "text" } = msgData;
 
     const contextId = null;
     const otherUserMemberIds = [];
 
     // 💾 Gets users and id to make sure the user exist
     const currentUserMembers = await Member.find({ user: fromUserId });
-    if (contextType === "User" && toUserId) {
+    if (context_type === "User" && toUserId) {
         const otherUserMembers = await Member.find({ user: toUserId });
         otherUserMemberIds = otherUserMembers.map((m) => m._id);
         contextId = toUserId;
-    } else if (contextType === "Room" && toRoomId) {
+    } else if (context_type === "Room" && toRoomId) {
         const room = await Room.findById(toRoomId).populate('server');
         if (!room) throw new Error("Room not found");
         // otherUserMemberIds should be all members of the server this room belongs to

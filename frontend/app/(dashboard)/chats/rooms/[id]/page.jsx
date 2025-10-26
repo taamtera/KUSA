@@ -160,7 +160,7 @@ export default function Chat() {
     const messageToSend = {
       fromUserId: user._id,
       toRoomId: roomId,
-      contextType: "Room",
+      context_type: "Room",
       content: newMessage,
       message_type: "text",
     };
