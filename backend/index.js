@@ -785,6 +785,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
         }
 
+
         // Fetch messages in this room
         const messages = await Message.find({
             context_type: 'Room',
@@ -824,6 +825,15 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         const server = await Server.findById(room.server._id)
         const roomName = room.title;
 
+        // add members of the room's server
+        const members = await Member.find({ server: room.server._id })
+            .populate({
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            })
+            .lean();
+
         // Count total messages in this room
         const total = await Message.countDocuments({
             context_type: 'Room',
@@ -838,7 +848,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             has_more: page * limit < total,
             server,
             roomName,
-            messages
+            messages,
+            members
         });
     } catch (error) {
         console.error('Error fetching room chat:', error);
@@ -975,6 +986,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
+// Get replies to a specific message (only for DMs)
 app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     try {
         const parentId = req.params.id;
@@ -1021,6 +1033,21 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
+// // Return list of members of a specific server
+// app.get('/api/v1/servers/:serverId/members', auth, async (req, res) => {
+//     try {
+//         const { serverId } = req.params;
+//         if (!oid(serverId)) return res.status(400).json({ status: 'failed', message: 'invalid server id' });
+
+//         const members = await Member.find({ server: serverId })
+//             .populate('user', 'username display_name icon_file')
+//             .lean();
+//         res.json({ status: 'success', members });
+//     } catch (e) {
+//         console.error(e);
+//         res.status(500).json({ status: 'failed', message: 'failed to fetch members' });
+//     }
+// });
 
 // --- SOCKET LOGIC ---
 io.on("connection", (socket) => {
