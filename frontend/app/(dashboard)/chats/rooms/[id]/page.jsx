@@ -12,6 +12,8 @@ import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
 import { Search } from "lucide-react"
+import MessageReply from "@/components/message/messagereply";
+import MessageThread from "@/components/message/messagethread";
 
 
 export default function Chat() {
@@ -28,6 +30,52 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Thread state
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [threadParent, setThreadParent] = useState(null);
+  const [threadReplies, setThreadReplies] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+
+  // OPEN THREAD (reply list)
+  const openThread = async (parentMsg) => {
+    if (!parentMsg?._id) {
+      console.warn('OpenThread called without a valid _id', parentMsg);
+      return;
+    }
+    try {
+      setThreadLoading(true);
+      setThreadOpen(true);
+      setThreadParent(parentMsg);
+
+      const res = await fetch(
+        `http://localhost:3001/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      if (data.status === "success") {
+        setThreadReplies(data.replies || []);
+      } else {
+        setThreadReplies([]);
+      }
+    } catch (e) {
+      console.error("Thread fetch failed:", e);
+      setThreadReplies([]);
+    } finally {
+      setThreadLoading(false);
+    }
+  };
+
+  const closeThread = () => {
+    setThreadOpen(false);
+    setThreadReplies([]);
+    setThreadParent(null);
+  };
+
+  useEffect(() => {
+    console.log(threadParent?._id);
+  }, [threadParent]);
 
   // WebSocket setup
   useEffect(() => {
@@ -164,12 +212,23 @@ export default function Chat() {
       content: newMessage,
       message_type: "text",
     };
+  socketRef.current?.emit("send_message", messageToSend);
+  setNewMessage("");
+  setReplyingTo(null);
 
-    console.log("📤 Sending message:", messageToSend);
-
-    socketRef.current?.emit("send_message", messageToSend);
-    setNewMessage("");
   };
+  
+  const handleReply = (message) => {
+  setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // console.log("📤 Sending message:", messageToSend);
+
+  
 
   // Render
   if (loading) {
@@ -250,6 +309,7 @@ export default function Chat() {
                   sender={group.sender}
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={handleReply}
                 />
               );
 
@@ -262,6 +322,25 @@ export default function Chat() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Reply Preview */}
+      {replyingTo && (
+        <MessageReply
+          replyingTo={replyingTo}
+          onCancel={handleCancelReply}>
+        </MessageReply>
+      )}
+
+      {/* Thread Modal */}
+      {threadOpen && (
+        <MessageThread
+          threadParent={threadParent}
+          threadLoading={threadLoading}
+          threadReplies={threadReplies}
+          closeThread={closeThread}
+        >
+        </MessageThread>
+      )}
 
       {/* Input */}
       <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
