@@ -154,15 +154,6 @@ export default function Chat() {
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
-    // const tempMessage = {
-    //   _id: `temp-${Date.now()}`,
-    //   content: newMessage,
-    //   sender: { user },
-    //   created_at: new Date(),
-    //   message_type: "text",
-    //   temp: true,
-    // };
-
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
 
@@ -309,9 +300,9 @@ export default function Chat() {
       <ServerOptions
         open={isOptionsOpen}
         onOpenChange={setIsOptionsOpen}
-        // serverId={server?._id}
         otherUser={otherUser}
-        
+        server={server}
+        user = {user}
       />
     </div>
   );
