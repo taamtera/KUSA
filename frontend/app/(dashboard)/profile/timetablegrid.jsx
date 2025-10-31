@@ -3,6 +3,7 @@ import React, { useId } from "react";
 import { useState, useEffect } from "react";
 import { useUser } from "../../../context/UserContext";
 import useTimetable from "@/components/TableContent";
+import { ChartNoAxesColumnIcon } from "lucide-react";
 
 export default function TimeTableGrid( {propUserId} ) {
   const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -18,7 +19,7 @@ export default function TimeTableGrid( {propUserId} ) {
   const { user } = useUser();
   const userId = propUserId || user?._id;
   const { slots, loading, error, reload } = useTimetable(userId);
-  // console.log("slots from useTimetable:", slots);
+  console.log("slots from useTimetable:", slots);
 
   if (!userId || loading) return <div>Loading timetable...</div>;
 
@@ -42,6 +43,7 @@ export default function TimeTableGrid( {propUserId} ) {
       gridRow: row
     };
   });
+  // console.log()
 
   // Pre-calculate grid positions
   const hourColumns = Hours.map((_, index) => index + 2);
@@ -134,14 +136,14 @@ export default function TimeTableGrid( {propUserId} ) {
           {mappedSlots.map((slot) => (
             <div
               key={slot.id}
-              className="m-[2px] rounded-[4px] flex flex-col border border-gray-700/10 bg-gray-200 p-1 dark:border-fuchsia-500 dark:bg-fuchsia-600 whitespace-normal break-words overflow-hidden"
-              style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
+              className={`m-[2px] rounded-[4px] flex flex-col border border-gray-700/10 p-1 whitespace-normal wrap-break-word overflow-hidden`}
+              style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow, backgroundColor: slot.color }}
             >
-              <span className="text-xl font-medium text-gray-600 dark:text-fuchsia-100">
+              <span className="p-2 text-xl font-medium text-white dark:text-fuchsia-100">
                 {slot.title}
               </span>
               {slot.description && (
-                <span className="text-xs font-medium text-gray-600 dark:text-fuchsia-100">
+                <span className="px-2 text-sm font-medium text-white dark:text-fuchsia-100">
                   {slot.description}
                 </span>
               )}

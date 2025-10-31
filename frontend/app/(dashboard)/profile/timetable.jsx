@@ -7,6 +7,7 @@ import TimeTableGrid from "./timetablegrid"
 import { Input } from "@/components/ui/input"
 import useTimetable from "@/components/TableContent"
 import { Sparkle } from "lucide-react"
+import { useRef } from "react"
 
 export default function ProfilePage({user}) {
     const [open, setOpenAdd] = useState(false);
@@ -21,12 +22,12 @@ export default function ProfilePage({user}) {
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("");
     const [selectSlot, setSelectSlot] = useState(null);
-    
+    const colorTimerRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
 
     const {slots, loading: slotsLoading, error, reload} = useTimetable(user?._id);
-    console.log("slots from useTimetable:", slots);
+    // console.log("slots from useTimetable:", slots);
     // console.log("user id in timetable page:", user?._id);
 
     const time_width = 150;
@@ -53,6 +54,17 @@ export default function ProfilePage({user}) {
             day: s.day
         };
     });
+
+    const handleColorChange = (e) => {
+    const newColor = e.target.value;
+    // Clear any previous pending updates
+    clearTimeout(colorTimerRef.current);
+    
+    // Wait 100ms before setting state
+    colorTimerRef.current = setTimeout(() => {
+        setColor(newColor);
+    }, 100);
+};
     
     // if (!user?._id) return <div>`{user?._id}`</div>;
 
@@ -227,8 +239,14 @@ export default function ProfilePage({user}) {
                         </div>
                         <div>
                             <div>
-                                <label for="hs-color-input">Color</label> <p className="text-gray-200"> can't use now</p>
-                                <input type="color" class="p-1 h-10 w-14 block bg-white border border-gray-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700" id="hs-color-input" value="#2563eb" title="Choose your color"></input>
+                                <label for="hs-color-input">Color</label> <p className="text-gray-200"></p>
+                                <input type="color" 
+                                class="p-1 h-14 w-full block bg-white border border-gray-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700" 
+                                id="hs-color-input" 
+                                value = {color} 
+                                title="Choose your color"
+                                onChange={handleColorChange}
+                                ></input>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
