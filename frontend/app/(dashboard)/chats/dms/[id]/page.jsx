@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Send, Paperclip, Users, X } from "lucide-react";
+import { Send, Paperclip, Users, X, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
+import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 
 
@@ -20,6 +21,7 @@ export default function Chat() {
   const { user } = useUser();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
@@ -245,8 +247,8 @@ export default function Chat() {
           <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon">
-            <Users className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={() => setIsOptionsOpen(true)}>
+            <Ellipsis className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -406,6 +408,20 @@ export default function Chat() {
           </div>
         </div>
       )}
+
+      <SearchChatDialog
+        open={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+        messages={messages}
+        user={user}
+        otherUser={otherUser}
+      />
+
+      <DMsOptions
+        open={isOptionsOpen}
+        onOpenChange={setIsOptionsOpen}
+        otherUserId={otherUserId}
+      />
 
     </div>
   );
