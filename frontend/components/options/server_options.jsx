@@ -11,13 +11,35 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Ellipsis } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { InviteLink } from "./invite_link"
 import { Search } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState, useMemo, use } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function ServerOptions({ open, onOpenChange, otherUser, server, user }) {
 
     const [query, setQuery] = useState("")
+    const [allServers, setAllServers] = useState([])
+
+    // Fetch all servers on component mount
+    useEffect(() => {
+        const fetchServers = async () => {
+        try {
+            const res = await fetch("http://localhost:3001/api/v1/servers", {
+            credentials: "include",
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+            setAllServers(data.servers);
+            console.log("Fetched servers:", data.servers); // Testing purpose
+            }
+        } catch (error) {
+            console.error("Error fetching servers:", error);
+        }
+        };
+        if (user) fetchServers();
+    }, [user]);
+
 
     // Only search when executedQuery changes
     const results = useMemo(() => {
@@ -29,6 +51,14 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
         )
     }, [query, otherUser])
 
+    const currentMember = useMemo(() => {
+        return otherUser?.find(m => m.user?._id === user?._id);
+    }, [otherUser, user]);
+
+    const isOwner = currentMember?.role === 'owner';
+    const isAdmin = currentMember?.role === 'admin';
+    const isOwnerOrAdmin = isOwner || isAdmin;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md">
@@ -39,9 +69,12 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                 {/* Tabs */}
                 <Tabs className="w-full" defaultValue="options" >
 
-                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsList className="grid w-full grid-cols-3 mb-4">
                         <TabsTrigger value="options" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
                             Options
+                        </TabsTrigger>
+                        <TabsTrigger value="Rooms" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
+                            Rooms
                         </TabsTrigger>
                         <TabsTrigger value="members" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
                             Members
@@ -62,13 +95,13 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                                 </div>
                                 
                                 {/* Change Server Profile Button */}
-                                {otherUser.find(member => member.user._id === user._id && member.role === 'owner' || member.role === 'admin') && (
+                                {isOwnerOrAdmin && (
                                     <Button variant="outline" className="w-full">
                                         Change Server Profile
                                     </Button>
                                 )}
                                 {/* Change Server Name Button */}
-                                {otherUser.find(member => member.user._id === user._id && member.role === 'owner' || member.role === 'admin') && (
+                                {isOwnerOrAdmin && (
                                 <Button variant="outline" className="w-full">
                                     Change Server Name
                                 </Button>
@@ -78,7 +111,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                                     Invite Members
                                 </Button>
                                 {/* Delete Server Button */}
-                                {otherUser.find(member => member.user._id === user._id && member.role === 'owner') && (
+                                {isOwner && (
                                 <Button variant="destructive" className="w-full">
                                     Delete Server
                                 </Button>
@@ -91,6 +124,63 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                             </div>
                         </div>
                     </TabsContent> 
+                    <TabsContent value="Rooms" className="mt-4">
+                        <div className="space-y-4">
+                            {/* Add room button */}
+                            {isOwnerOrAdmin && (
+                                <Button variant="outline" className="w-full mb-4" onClick={() => console.log("Add Room")}>
+                                    Add Room
+                                </Button>
+                            )}
+                            {/* Rooms List */}
+                            {/* list all rooms of server where server is in allServers */}
+                            {allServers.find(s => s._id === server._id) ? (
+                                <div className="text-sm text-gray-500 space-y-2">
+                                    {allServers.find(s => s._id === server._id).rooms.map((room) => (
+                                        <div key={room._id} className="p-2 border-b border-gray-200 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-medium">{room.title}</p>
+                                                <p className="text-sm text-gray-500">Type: {room.room_type}</p>
+                                            </div>
+                                            {/* Room Options */}
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="text-gray-500 hover:text-gray-700 p-2">
+                                                        <Ellipsis className="h-5 w-5" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent className="w-40">
+                                                <DropdownMenuLabel>{room.title}</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => console.log("???:", room.title)}>
+                                                    ???
+                                                </DropdownMenuItem>
+
+                                                {/* Only owners/admins/moderators can edit or delete */}
+                                                {isOwnerOrAdmin && (
+                                                    <>
+                                                    <DropdownMenuItem onClick={() => console.log("Change room name:", room.title)}>
+                                                        Change Room Name
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuItem
+                                                        className="text-red-600"
+                                                        onClick={() => console.log("Delete room:", room.title)}
+                                                    >
+                                                        Delete Room
+                                                    </DropdownMenuItem>
+                                                    </>
+                                                )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">No rooms available.</p>
+                            )}
+                        </div>
+                    </TabsContent>
 
                     <TabsContent value="members" className="mt-4">
                         <div className="space-y-4">
@@ -155,7 +245,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                                                     Message
                                                 </DropdownMenuItem>
 
-                                                {otherUser.find(m => member.user._id !== m.user._id && m.user._id === user._id && (m.role === 'owner' || m.role === 'admin')) && (
+                                                {isOwnerOrAdmin && member.user._id !== user._id && (
                                                   <>
                                                     <DropdownMenuItem onClick={() => console.log("Set role:", member.user.username)}>
                                                         Set Role
