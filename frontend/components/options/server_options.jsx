@@ -20,6 +20,8 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
 
     const [query, setQuery] = useState("")
     const [allServers, setAllServers] = useState([])
+    const [unviteDialougeOpen, setInviteDialougeOpen] = useState(false);
+    const [inviteLink, setInviteLink] = useState("")
 
     // Fetch all servers on component mount
     useEffect(() => {
@@ -40,6 +42,28 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
         if (user) fetchServers();
     }, [user]);
 
+    // const handleInviteClick = async () => {
+    //     try {
+    //         const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
+    //             credentials: "include",
+    //         });
+    //         const data = await res.json();
+    //         if (data.status === "success") {
+    //             setInviteLink(data.inviteLink);
+    //             setInviteDialougeOpen(true);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error generating invite link:", error);
+    //     }
+    // };
+
+    const handleInviteClick = async () => {
+        // Fake delay (optional, just to mimic loading)
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        setInviteLink("https://example.com/invite/dummy-123");
+        setInviteDialougeOpen(true);
+    };
 
     // Only search when executedQuery changes
     const results = useMemo(() => {
@@ -107,7 +131,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                                 </Button>
                                 )}
                                 {/* Invite Button */}
-                                <Button variant="outline" className="w-full">
+                                <Button variant="outline" className="w-full" onClick={handleInviteClick}>
                                     Invite Members
                                 </Button>
                                 {/* Delete Server Button */}
@@ -285,6 +309,11 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
 
                 </Tabs>
             </DialogContent>
+            <InviteLink
+                isOpen={unviteDialougeOpen}
+                onClose={() => setInviteDialougeOpen(false)}
+                inviteLink={inviteLink}
+            />
         </Dialog>
         )
 }
