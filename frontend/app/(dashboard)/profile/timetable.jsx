@@ -26,6 +26,14 @@ export default function ProfilePage({ user }) {
     const colorTimerRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
+    // edit section
+    const [spanEdit, setSpanEdit] = useState(false);
+    const [editTitle, setEditTitle] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editDay, setEditDay] = useState("");
+    const [editStartMin, setEditStartMin] = useState("");
+    const [editEndMin, setEditEndMin] = useState("");
+    const [editColor, setEditColor] = useState("");
 
     const { slots, loading: slotsLoading, error, reload } = useTimetable(user?._id);
     // console.log("slots from useTimetable:", slots);
@@ -76,7 +84,43 @@ export default function ProfilePage({ user }) {
         }, 100);
     };
 
-    // if (!user?._id) return <div>`{user?._id}`</div>;
+    const handleSubmitEdit = async (e) => {
+        e.preventDefault();
+        console.log("selected slot", selectSlot.id);
+        if (!selectSlot) return;
+
+        setLoading(true);
+        try {
+            const response = await fetch(`http://localhost:3001/api/v1/timetable/${selectSlot.id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title: editTitle,
+                    description: editDescription,
+                    day: editDay,
+                    start_min: (Number(editStartMin) + 1) * 60,
+                    end_min: (Number(editEndMin) + 1) * 60,
+                    color: editColor,
+                }),
+                credentials: "include",
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = "/profile";
+            } else {
+                alert(data.message || "Failed to update timetable slot");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Something went wrong!");
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const handleSubmitAdd = async (e) => {
         e.preventDefault();
@@ -135,20 +179,26 @@ export default function ProfilePage({ user }) {
             {/* <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button> */}
             <Dialog open={openEdit} onOpenChange={setOpenEdit}>
                 <DialogTrigger asChild>
-                    <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button>
+                    <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">
+                        edit
+                    </Button>
                 </DialogTrigger>
+
                 <DialogContent className="max-w-sm bg-white text-black">
                     <DialogHeader>
                         <DialogTitle>Edit Timetable</DialogTitle>
                     </DialogHeader>
-                    <form className="w-full max-w-sm space-y-4">
+
+                    {/* ✅ Single form only (no nested <form>) */}
+                    <form className="w-full max-w-sm space-y-4" onSubmit={handleSubmitEdit}>
+                        {/* Slot selector */}
                         <div>
                             <label>Select Time Slot</label>
                             <div className="grid place-items-center">
                                 <div className="relative w-full max-w-sm">
                                     <Button
                                         className="rounded-[4px] border-2 border-gray-500 justify-between text-black hover:text-white shadow-md bg-transparent w-full"
-                                        onClick={() => setopenEditDrop(!openEditDrop)} // toggle dropdown
+                                        onClick={() => setopenEditDrop(!openEditDrop)}
                                         type="button"
                                     >
                                         {selectSlot ? selectSlot.title : "Select"}
@@ -165,19 +215,27 @@ export default function ProfilePage({ user }) {
                                             />
                                         </svg>
                                     </Button>
+
                                     {openEditDrop && (
                                         <ul className="absolute text-gray-700 pt-1 shadow-md w-full rounded-[4px] bg-gray-200 z-10">
                                             {mappedSlots.map((slot) => (
                                                 <li key={slot.id}>
                                                     <button
+                                                        type="button"
                                                         onClick={() => {
                                                             setSelectSlot(slot);
                                                             setopenEditDrop(false);
-                                                            // console.log("Clicked", slot.title);
+                                                            setSpanEdit(true);
+                                                            setEditTitle(slot.title);
+                                                            setEditDescription(slot.description);
+                                                            setEditDay(slot.day);
+                                                            setEditStartMin(slot.startMin);
+                                                            setEditEndMin(slot.endMin);
+                                                            setEditColor(slot.color);
                                                         }}
                                                         className="hover:bg-gray-300 bg-gray-200 w-full text-left p-2 rounded-[4px] justify-between items-center flex"
                                                     >
-                                                        <p className="text-left">{slot.title}</p>
+                                                        <p className="text-left">{slot.title}</p> 
                                                         <p className="text-right text-gray-400 text-sm">{slot.day} {slot.startMin} - {slot.endMin}</p>
                                                     </button>
                                                 </li>
@@ -187,17 +245,80 @@ export default function ProfilePage({ user }) {
                                 </div>
                             </div>
                         </div>
+
+                        {spanEdit && (
+                            <>
+                                <div>
+                                    <label>Class name</label>
+                                    <Input
+                                        className="w-full border rounded p-2"
+                                        value={editTitle}
+                                        onChange={(e) => setEditTitle(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Description</label>
+                                    <Input
+                                        className="w-full border rounded p-2"
+                                        value={editDescription}
+                                        onChange={(e) => setEditDescription(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Day</label>
+                                    <select
+                                        className="w-full border rounded p-2"
+                                        value={editDay}
+                                        onChange={(e) => setEditDay(e.target.value)}
+                                    >
+                                        {DaysList.map((d) => (
+                                            <option key={d.value} value={d.value}>{d.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label>Start (hr)</label>
+                                        <Input
+                                            value={editStartMin}
+                                            onChange={(e) => setEditStartMin(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label>End (hr)</label>
+                                        <Input
+                                            value={editEndMin}
+                                            onChange={(e) => setEditEndMin(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label>Color</label>
+                                    <input
+                                        type="color"
+                                        className="p-1 h-14 w-full block bg-white border border-gray-200 rounded"
+                                        value={editColor}
+                                        onChange={(e) => setEditColor(e.target.value)}
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Action buttons */}
                         <div className="flex justify-end gap-2 pt-4">
                             <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenEdit(false)}>
                                 Cancel
                             </Button>
-                            {/* <Button type="submit" className="cursor-pointer">
-                                Save
-                            </Button> */}
+                            {spanEdit && (
+                                <Button type="submit" className="cursor-pointer">
+                                    Save
+                                </Button>
+                            )}
                         </div>
                     </form>
                 </DialogContent>
             </Dialog>
+
             {/* TimeTable Session */}
             <Dialog open={open} onOpenChange={setOpenAdd}>
                 <DialogTrigger asChild>
@@ -226,7 +347,7 @@ export default function ProfilePage({ user }) {
                         <div className="relative w-full max-w-sm">
                             <label>Day</label>
                             <Button
-                                className="rounded-[4px] border-2 border-gray-100 justify-between text-gray-800 hover:text-white shadow-md bg-transparent w-full"
+                                className="rounded-[4px] border-2 border-gray-100 justify-between text-gray-800 hover:text-gray-800 hover:bg-gray-200 shadow-md bg-transparent w-full"
                                 onClick={() => setopenAddDrop(!openAddDrop)} // toggle dropdown
                                 type="button"
                             >
@@ -266,7 +387,7 @@ export default function ProfilePage({ user }) {
                         </div>
                         <div className="flex gap-4">
                             <div className="flex-1">
-                                <label>Time</label>
+                                <label>Time (24 Hr format)</label>
                                 <Input className="w-full border rounded p-2"
                                     placeholder="From"
                                     value={start_min}
@@ -286,7 +407,7 @@ export default function ProfilePage({ user }) {
                             <div>
                                 <label for="hs-color-input">Color</label> <p className="text-gray-200"></p>
                                 <input type="color"
-                                    class="p-1 h-14 w-full block bg-white border border-gray-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700"
+                                    class="p-1 h-14 w-full block bg-white border border-gray-200 cursor-pointer rounded disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700"
                                     id="hs-color-input"
                                     value={color}
                                     title="Choose your color"
