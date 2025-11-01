@@ -19,7 +19,7 @@ export default function TimeTableGrid( {propUserId} ) {
   const { user } = useUser();
   const userId = propUserId || user?._id;
   const { slots, loading, error, reload } = useTimetable(userId);
-  console.log("slots from useTimetable:", slots);
+  // console.log("slots from useTimetable:", slots);
 
   if (!userId || loading) return <div>Loading timetable...</div>;
 
