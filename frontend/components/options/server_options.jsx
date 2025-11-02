@@ -42,28 +42,45 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
         if (user) fetchServers();
     }, [user]);
 
-    // const handleInviteClick = async () => {
-    //     try {
-    //         const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
-    //             credentials: "include",
-    //         });
-    //         const data = await res.json();
-    //         if (data.status === "success") {
-    //             setInviteLink(data.inviteLink);
-    //             setInviteDialougeOpen(true);
-    //         }
-    //     } catch (error) {
-    //         console.error("Error generating invite link:", error);
-    //     }
-    // };
-
     const handleInviteClick = async () => {
-        // Fake delay (optional, just to mimic loading)
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        try {
+            const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
 
-        setInviteLink("https://example.com/invite/dummy-123");
-        setInviteDialougeOpen(true);
+            const text = await res.text();
+            // Try to parse JSON, but fall back to raw text for debugging
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error("Invite response is not JSON:", text);
+                throw new Error("Invalid response from server");
+            }
+
+            if (data.status === "success") {
+                // backend returns invite_link (snake_case)
+                setInviteLink(data.invite_link || data.inviteLink || "");
+                setInviteDialougeOpen(true);
+            } else {
+                console.error("Invite generation failed:", data);
+            }
+        } catch (error) {
+            console.error("Error generating invite link:", error);
+        }
     };
+
+    // const handleInviteClick = async () => {
+    //     // Fake delay (optional, just to mimic loading)
+    //     await new Promise((resolve) => setTimeout(resolve, 300));
+
+    //     setInviteLink("https://example.com/invite/dummy-123");
+    //     setInviteDialougeOpen(true);
+    // };
 
     // Only search when executedQuery changes
     const results = useMemo(() => {

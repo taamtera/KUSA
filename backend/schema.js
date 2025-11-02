@@ -62,7 +62,7 @@ const serverSchema = new Schema(
     {
         server_name: { type: String, required: true, trim: true },
         icon_file:   { type: ObjectId, ref: 'File', default: null },
-        banned_users: [{ type: ObjectId, ref: 'User' }]
+        banned_users: [{ type: ObjectId, ref: 'User' }],
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );

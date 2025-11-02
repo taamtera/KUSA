@@ -889,9 +889,31 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-}); 
+});
+
+// Generate server invite link (which is just href={`/join/${server._id}`})
+app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        // Check if the user is a member of the server
+        const isMember = await Member.findOne({ server: serverId, user: req.userId });
+        console.log(isMember);
+        if (!isMember) {
+            return res.status(403).json({ status: 'failed', message: 'You are not a member of this server' });
+        }
+        // For simplicity, the invite link is just the server ID.
+        const inviteLink = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/join/${serverId}`;
+        res.json({ status: 'success', invite_link: inviteLink });
+    } catch (error) {
+        console.error('Error generating invite link:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
+    }
+});
+
+// ====================== Direct Messages =====================
 
 // POST /api/v1/chats/:userId/messages
+// Send a direct message to another user
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
@@ -1033,23 +1055,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
-// // Return list of members of a specific server
-// app.get('/api/v1/servers/:serverId/members', auth, async (req, res) => {
-//     try {
-//         const { serverId } = req.params;
-//         if (!oid(serverId)) return res.status(400).json({ status: 'failed', message: 'invalid server id' });
+// ====================== Socket Logic ======================
 
-//         const members = await Member.find({ server: serverId })
-//             .populate('user', 'username display_name icon_file')
-//             .lean();
-//         res.json({ status: 'success', members });
-//     } catch (e) {
-//         console.error(e);
-//         res.status(500).json({ status: 'failed', message: 'failed to fetch members' });
-//     }
-// });
-
-// --- SOCKET LOGIC ---
 io.on("connection", (socket) => {
     console.log("✅ New WebSocket connection:", socket.id);
 
