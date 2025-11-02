@@ -8,7 +8,7 @@ export default function InfoCard({ user }) {
     { label: "Email", value: user?.email },
   ]
   return (
-    <div className="mt-16 h-auto px-8 w-3xl max-w-3xl">
+    <div className="mt-16 h-auto px-8 w-auto max-w-[720px]">
       {/* Name and Username */}
       <h1 className="text-2xl font-bold">{user?.username}</h1>
       <p className="text-gray-500">{user?.pronouns}</p>
