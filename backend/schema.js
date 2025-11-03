@@ -7,14 +7,14 @@ const ObjectId = Schema.Types.ObjectId;
  * ---------------------------*/
 const fileSchema = new Schema(
     {
-        storage_key:   { type: String, required: true, unique: true, trim: true },
+        storage_key: { type: String, required: true, unique: true, trim: true },
         original_name: { type: String, required: true, trim: true },
-        mime_type:     { type: String, required: true, trim: true },
-        byte_size:     { type: Number, required: true, min: 0 },
-        is_external: { 
-            type: Boolean, 
+        mime_type: { type: String, required: true, trim: true },
+        byte_size: { type: Number, required: true, min: 0 },
+        is_external: {
+            type: Boolean,
             default: false,
-            required: true 
+            required: true
         }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
@@ -25,32 +25,32 @@ const fileSchema = new Schema(
  * ---------------------------*/
 const userSchema = new Schema(
     {
-        username:      { type: String, required: true, unique: true, trim: true },
-        display_name:  { type: String, default: function () { return this.username } },
-        email:         { type: String, required: true, unique: true, trim: true, lowercase: true },
+        username: { type: String, required: true, unique: true, trim: true },
+        display_name: { type: String, default: function () { return this.username } },
+        email: { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
-        role:          { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+        role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
 
         // Profile images
-        icon_file:     { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
-        banner_file:   { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+        icon_file: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+        banner_file: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
 
         // Personal details
-        bio:           { type: String, trim: true, default: '' },
-        pronouns:      { type: String, trim: true, default: '' },
-        birthday:      { type: Date, default: null },
-        major:         { type: String, trim: true, default: '' },
-        faculty:       { type: String, trim: true, default: '' },
-        phone:  { type: String, trim: true, default: '' },
+        bio: { type: String, trim: true, default: '' },
+        pronouns: { type: String, trim: true, default: '' },
+        birthday: { type: Date, default: null },
+        major: { type: String, trim: true, default: '' },
+        faculty: { type: String, trim: true, default: '' },
+        phone: { type: String, trim: true, default: '' },
 
         // Relations
-        friends:       [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
         timetable_visibility: {
-                          type: String,
-                          enum: ['private', 'public'],
-                          default: 'private'
-                        }
+            type: String,
+            enum: ['private', 'public'],
+            default: 'private'
+        }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -61,7 +61,8 @@ const userSchema = new Schema(
 const serverSchema = new Schema(
     {
         server_name: { type: String, required: true, trim: true },
-        icon_file:   { type: ObjectId, ref: 'File', default: null },
+        icon_file: { type: ObjectId, ref: 'File', default: null },
+        banned_users: [{ type: ObjectId, ref: 'User' }],
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -71,10 +72,10 @@ const serverSchema = new Schema(
  * ---------------------------*/
 const memberSchema = new Schema(
     {
-        user:    { type: ObjectId, ref: 'User', required: true },
-        server:  { type: ObjectId, ref: 'Server', required: true },
-        nickname:{ type: String, trim: true, default: null },
-        role:    { type: String, default: 'member' } // 'owner', 'moderator', 'member'
+        user: { type: ObjectId, ref: 'User', required: true },
+        server: { type: ObjectId, ref: 'Server', required: true },
+        nickname: { type: String, trim: true, default: null },
+        role: { type: String, default: 'member' } // 'owner', 'moderator', 'member'
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
 );
@@ -89,8 +90,8 @@ const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
 
 const roomSchema = new Schema(
     {
-        title:     { type: String, required: true, trim: true },
-        server:    { type: ObjectId, ref: 'Server', required: true },
+        title: { type: String, required: true, trim: true },
+        server: { type: ObjectId, ref: 'Server', required: true },
         room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
@@ -107,23 +108,23 @@ roomSchema.index({ server: 1, title: 1 }, { unique: true });
  * ---------------------------*/
 const messageSchema = new Schema(
     {
-        sender:       { type: ObjectId, ref: 'Member', required: true },
-        recipients:   [{ type: ObjectId, ref: 'Member' }],
-        context:      { 
-            type: ObjectId, 
+        sender: { type: ObjectId, ref: 'Member', required: true },
+        recipients: [{ type: ObjectId, ref: 'Member' }],
+        context: {
+            type: ObjectId,
             required: true,
             refPath: 'context_type'
         },
-        context_type: { 
-            type: String, 
+        context_type: {
+            type: String,
             enum: ['Room', 'User'],
-            required: true 
+            required: true
         },
-        content:      { type: String, trim: true },
-        reply_to:     { type: ObjectId, ref: 'Message' },
+        content: { type: String, trim: true },
+        reply_to: { type: ObjectId, ref: 'Message' },
         message_type: { type: String, default: 'text' },
 
-        active:       { type: Boolean, default: true },
+        active: { type: Boolean, default: true },
         edited_count: { type: Number, default: 0, min: 0 }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'edited_at' } }
@@ -155,8 +156,8 @@ messageSchema.pre('validate', function (next) {
  * ---------------------------*/
 const attachmentSchema = new Schema(
     {
-        message:  { type: ObjectId, ref: 'Message', required: true },
-        file:     { type: ObjectId, ref: 'File', required: true },
+        message: { type: ObjectId, ref: 'Message', required: true },
+        file: { type: ObjectId, ref: 'File', required: true },
         position: { type: Number, default: 1, min: 1 }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
@@ -170,12 +171,12 @@ attachmentSchema.index({ message: 1, position: 1 }, { unique: true });
  * One doc = one member reacted with one emoji on one message
  * ---------------------------*/
 const reactionSchema = new Schema(
-  {
-    message: { type: ObjectId, ref: 'Message', required: true },
-    member:  { type: ObjectId, ref: 'Member',  required: true },
-    emoji:   { type: String, required: true, trim: true }, // e.g. "👍" or ":thumbsup:"
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+    {
+        message: { type: ObjectId, ref: 'Message', required: true },
+        member: { type: ObjectId, ref: 'Member', required: true },
+        emoji: { type: String, required: true, trim: true }, // e.g. "👍" or ":thumbsup:"
+    },
+    { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
 
 // Prevent duplicate reaction of the same emoji by the same member on the same message
@@ -187,25 +188,25 @@ reactionSchema.index({ message: 1, emoji: 1 });
 /* -----------------------------
  * Time Slot
  * ---------------------------*/
-const DAY_ENUM = ["mon","tue","wed","thu","fri","sat","sun"];
+const DAY_ENUM = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 const timeSlotSchema = new Schema(
     {
-        title:        { type: String, required: true, trim: true, maxlength: 120 },
-        description:  { type: String, default: null, trim: true },
-        day:          { type: String, enum: DAY_ENUM, required: true, index: true },
-        start_min:    { type: Number, required: true, min: 0, max: 1439 },
-        end_min:      { type: Number, required: true, min: 1, max: 1440 },
-        location:     { type: String, default: null, trim: true },
-        color:        { type: String, default: null},
-        owner:        { type: ObjectId, ref: 'User', required: true }
+        title: { type: String, required: true, trim: true, maxlength: 120 },
+        description: { type: String, default: null, trim: true },
+        day: { type: String, enum: DAY_ENUM, required: true, index: true },
+        start_min: { type: Number, required: true, min: 0, max: 1439 },
+        end_min: { type: Number, required: true, min: 1, max: 1440 },
+        location: { type: String, default: null, trim: true },
+        color: { type: String, default: null },
+        owner: { type: ObjectId, ref: 'User', required: true }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 )
 
 // Validate start < end
 timeSlotSchema.path("end_min").validate(function (v) {
-  return v > this.start_min;
+    return v > this.start_min;
 }, "end time must be after start time");
 
 // Sort-friendly index per user/day
@@ -215,14 +216,14 @@ timeSlotSchema.index({ owner: 1 });
 /* -----------------------------
  * MODELS (re-use if already compiled)
  * ---------------------------*/
-const File       = models.File       || model('File', fileSchema);
-const User       = models.User       || model('User', userSchema);
-const Server     = models.Server     || model('Server', serverSchema);
-const Member     = models.Member     || model('Member', memberSchema);
-const Room       = models.Room       || model('Room', roomSchema);
-const Message    = models.Message    || model('Message', messageSchema);
+const File = models.File || model('File', fileSchema);
+const User = models.User || model('User', userSchema);
+const Server = models.Server || model('Server', serverSchema);
+const Member = models.Member || model('Member', memberSchema);
+const Room = models.Room || model('Room', roomSchema);
+const Message = models.Message || model('Message', messageSchema);
 const Attachment = models.Attachment || model('Attachment', attachmentSchema);
-const Reaction   = models.Reaction   || model('Reaction', reactionSchema);
-const TimeSlot   = models.TimeSlot   || model('TimeSlot', timeSlotSchema);
+const Reaction = models.Reaction || model('Reaction', reactionSchema);
+const TimeSlot = models.TimeSlot || model('TimeSlot', timeSlotSchema);
 
 module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot };

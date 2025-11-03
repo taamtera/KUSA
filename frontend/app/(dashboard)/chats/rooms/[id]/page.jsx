@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Send, Paperclip, Users } from "lucide-react";
+import { Send, Paperclip, Users, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
+import ServerOptions from "@/components/options/server_options";
 import { Search } from "lucide-react"
 import MessageReply from "@/components/message/messagereply";
 import MessageThread from "@/components/message/messagethread";
@@ -24,6 +25,7 @@ export default function Chat() {
   const [server, setServer] = useState(null);
   const [roomName, setRoomName] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
@@ -98,7 +100,8 @@ export default function Chat() {
       const isRelevant =
         msg.sender?.user?._id === roomId || msg.context === roomId;
       if (isRelevant) {
-        messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
+        messages.find((m) => m._id === msg._id);
+        console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
     });
@@ -134,14 +137,18 @@ export default function Chat() {
             setRoomName(data.roomName);
           }
 
-          if (data.messages.length > 0) {
-            const firstMessage = data.messages[0];
-            if (firstMessage.context_type === "User") {
-              setOtherUser(firstMessage.context);
-            } else if (firstMessage.sender?.user?._id !== roomId) {
-              setOtherUser(firstMessage.sender?.user);
-            }
+          if (data.members) {
+            setOtherUser(data.members);
           }
+
+          // if (data.messages.length > 0) {
+          //   const firstMessage = data.messages[0];
+          //   if (firstMessage.context_type === "User") {
+          //     setOtherUser(firstMessage.context);
+          //   } else if (firstMessage.sender?.user?._id !== roomId) {
+          //     setOtherUser(firstMessage.sender?.user);
+          //   }
+          // }
         }
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -153,21 +160,21 @@ export default function Chat() {
     if (roomId) fetchMessages();
   }, [roomId]);
 
-  // Fetch other user info if missing
-  useEffect(() => {
-    const fetchOtherUser = async () => {
-      if (!otherUser && roomId) {
-        try {
-          const response = await fetch(`http://localhost:3001/api/v1/users/${roomId}`);
-          const data = await response.json();
-          if (data.status === "success") setOtherUser(data.user);
-        } catch (error) {
-          console.error("Failed to fetch user:", error);
-        }
-      }
-    };
-    fetchOtherUser();
-  }, [roomId, otherUser]);
+  // // Fetch other user info if missing
+  // useEffect(() => {
+  //   const fetchOtherUser = async () => {
+  //     if (!otherUser && roomId) {
+  //       try {
+  //         const response = await fetch(`/api/v1/servers/${server._id}/members`);
+  //         const data = await response.json();
+  //         if (data.status === "success") setOtherUser(data.user);
+  //       } catch (error) {
+  //         console.error("Failed to fetch user:", error);
+  //       }
+  //     }
+  //   };
+  //   fetchOtherUser();
+  // }, [roomId, otherUser]);
 
   // Group messages (no hooks here)
   const groupMessages = (messages) => {
@@ -195,17 +202,9 @@ export default function Chat() {
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
-    // const tempMessage = {
-    //   _id: `temp-${Date.now()}`,
-    //   content: newMessage,
-    //   sender: { user },
-    //   created_at: new Date(),
-    //   message_type: "text",
-    //   temp: true,
-    // };
-
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
+
       from_id: user._id,
       to_id: roomId,
       context_type: "Room",
@@ -259,8 +258,8 @@ export default function Chat() {
           <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon">
-            <Users className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={() => setIsOptionsOpen(true)}>
+            <Ellipsis className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -375,6 +374,14 @@ export default function Chat() {
         messages={messages}
         user={user}
         otherUser={otherUser}
+      />
+
+      <ServerOptions
+        open={isOptionsOpen}
+        onOpenChange={setIsOptionsOpen}
+        otherUser={otherUser}
+        server={server}
+        user = {user}
       />
     </div>
   );

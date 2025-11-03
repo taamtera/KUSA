@@ -785,6 +785,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
         }
 
+
         // Fetch messages in this room
         const messages = await Message.find({
             context_type: 'Room',
@@ -824,6 +825,15 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         const server = await Server.findById(room.server._id)
         const roomName = room.title;
 
+        // add members of the room's server
+        const members = await Member.find({ server: room.server._id })
+            .populate({
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            })
+            .lean();
+
         // Count total messages in this room
         const total = await Message.countDocuments({
             context_type: 'Room',
@@ -838,7 +848,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             has_more: page * limit < total,
             server,
             roomName,
-            messages
+            messages,
+            members
         });
     } catch (error) {
         console.error('Error fetching room chat:', error);
@@ -878,9 +889,31 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-}); 
+});
+
+// Generate server invite link (which is just href={`/join/${server._id}`})
+app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        // Check if the user is a member of the server
+        const isMember = await Member.findOne({ server: serverId, user: req.userId });
+        console.log(isMember);
+        if (!isMember) {
+            return res.status(403).json({ status: 'failed', message: 'You are not a member of this server' });
+        }
+        // For simplicity, the invite link is just the server ID.
+        const inviteLink = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/join/${serverId}`;
+        res.json({ status: 'success', invite_link: inviteLink });
+    } catch (error) {
+        console.error('Error generating invite link:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
+    }
+});
+
+// ====================== Direct Messages =====================
 
 // POST /api/v1/chats/:userId/messages
+// Send a direct message to another user
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
@@ -975,6 +1008,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
+// Get replies to a specific message (only for DMs)
 app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     try {
         const parentId = req.params.id;
@@ -1021,8 +1055,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
+// ====================== Socket Logic ======================
 
-// --- SOCKET LOGIC ---
 io.on("connection", (socket) => {
     console.log("✅ New WebSocket connection:", socket.id);
 
@@ -1033,6 +1067,7 @@ io.on("connection", (socket) => {
 // Listen for "send_message" event from client
 socket.on("send_message", async (msgData) => {
     try {
+
     const { from_id, to_id, context_type, content, message_type = "text", reply_to = null } = msgData;
     if (!content || content.trim() === "") {
         console.warn("Socket message error: empty content");
