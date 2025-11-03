@@ -29,7 +29,7 @@ const io = new Socket_Server.Server(chat_server, {
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
@@ -875,7 +875,9 @@ app.get('/api/v1/servers', auth, async (req, res) => {
 
         // find rooms for each server
         for (let server of servers) {
+            // Ensure rooms are returned in the defined "order" field
             const rooms = await Room.find({ server: server._id })
+                .sort({ order: 1 })
                 .lean();
             server.rooms = rooms;
         }
@@ -909,6 +911,7 @@ app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
         res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
     }
 });
+
 
 // ====================== Direct Messages =====================
 

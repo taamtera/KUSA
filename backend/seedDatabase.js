@@ -49,7 +49,6 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
         const seedUserIds = seedUsers.map(d => d._id);
         const seedServerIds = seedServers.map(d => d._id);
     
-        // Rooms and members depend on servers/users
         const seedRooms = await Room.find({
             $or: [
                 { server: { $in: seedServerIds } },
@@ -189,9 +188,9 @@ const [alice, bob, cara] = await User.create([
     
         // Rooms
         const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-            { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
-            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
-            { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
+            { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 1 },
+            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT', order: 0 },
+            { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT', order: 0 },
         ]);
     
         // Members
