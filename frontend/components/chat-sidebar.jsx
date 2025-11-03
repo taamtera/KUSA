@@ -9,7 +9,7 @@ export function ChatSidebar() {
     <Sidebar side="right" className="w-64 border-l">
       <SidebarContent className="p-4 space-y-4">
         {/* Menu items */}
-        <div className="space-y-3 border-b pb-4">
+        {/* <div className="space-y-3 border-b pb-4">
           <div className="flex items-center space-x-2">
             <Image className="h-4 w-4" />
             <span className="text-sm">Photos</span>
@@ -26,7 +26,7 @@ export function ChatSidebar() {
             <Paperclip className="h-4 w-4" />
             <span className="text-sm">Files</span>
           </div>
-        </div>
+        </div> */}
 
         {/* Notifications toggle */}
         <div className="flex items-center justify-between border-b pb-2">
