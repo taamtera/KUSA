@@ -45,7 +45,7 @@ export default function ProfilePage() {
           
         </div>
       </div>
-      <div className="flex flex-1 max-h-[80vh]">
+      <div className="max-h-[80vh] min-w-[640px] max-w-[80vp]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* TimeTable Session */}
