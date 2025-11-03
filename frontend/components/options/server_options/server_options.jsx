@@ -67,8 +67,11 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md h-[75vh] overflow-y-auto">
-                <Tabs className="w-full" defaultValue="options">
+            <DialogContent className="max-w-md overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold">Server Settings</DialogTitle>
+                </DialogHeader>
+                <Tabs className="w-full h-[75vh]" defaultValue="options">
                     <TabsList className="grid w-full grid-cols-3 mb-4">
                         <TabsTrigger value="options">Options</TabsTrigger>
                         <TabsTrigger value="rooms">Rooms</TabsTrigger>

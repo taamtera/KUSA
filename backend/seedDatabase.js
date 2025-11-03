@@ -189,7 +189,7 @@ const [alice, bob, cara] = await User.create([
         // Rooms
         const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
             { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 1 },
-            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT', order: 0 },
+            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 0 },
             { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT', order: 0 },
         ]);
     
@@ -198,8 +198,8 @@ const [alice, bob, cara] = await User.create([
             { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
             { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
             { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
-            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
-            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'moderator' },
+            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'moderator' },
+            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'member' },
         ]);
     
         // Messages & Attachments

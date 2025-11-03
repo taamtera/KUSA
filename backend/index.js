@@ -911,7 +911,110 @@ app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
         res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
     }
 });
+// ====================== Rooms =====================
 
+//add a room to a server
+app.post('/api/v1/rooms', auth, async (req, res) => {
+    try {
+        const { serverId, title } = req.body;
+
+        if (!serverId || !title) {
+            return res.status(400).json({ status: 'failed', message: 'Server ID and room title are required' });
+        }
+
+        const isPermission = await Member.findOne({ server: serverId, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        const last_room_order = await Room.countDocuments({ server: serverId });
+
+        // Create the room
+        const room = await Room.create({
+            server: serverId,
+            title: title,
+            order: last_room_order,
+            createdBy: req.userId
+        });
+
+        res.status(201).json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error creating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to create room' });
+    }
+});
+
+//edit room
+app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { title, order } = req.body;
+
+        // Find the room
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({ server: room.server, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        // Update the room
+        if (order !== undefined) {
+            const old_index = room.order;
+            const new_index = order;
+            await Room.updateMany(
+                { server: room.server, order: { $gt: old_index } },
+                { $inc: { order: -1 } }
+            );
+            await Room.updateMany(
+                { server: room.server, order: { $gte: new_index } },
+                { $inc: { order: 1 } }
+            );
+            room.order = new_index;
+        }
+        if (title !== undefined) room.title = title;
+        await room.save();
+
+        res.json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error updating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to update room' });
+    }
+});
+
+// delete room
+app.delete('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        // Find the room
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({ server: room.server, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to delete this room' });
+        }
+        // get room order an reorder other rooms that come after it
+        const deletedRoomOrder = room.order;
+        await Room.deleteOne({ _id: room._id });
+
+        await Room.updateMany(
+            { server: room.server, order: { $gt: deletedRoomOrder } },
+            { $inc: { order: -1 } }
+        );
+
+        res.json({ status: 'success', message: 'Room deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to delete room' });
+    }
+});
 
 // ====================== Direct Messages =====================
 
