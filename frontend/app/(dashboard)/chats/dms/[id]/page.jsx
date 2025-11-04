@@ -71,10 +71,6 @@ export default function Chat() {
     setThreadParent(null);
   };
 
-  useEffect(() => {
-    console.log(threadParent?._id);
-  }, [threadParent]);
-
   // WebSocket setup
   useEffect(() => {
     if (!user?._id) return;
@@ -316,7 +312,7 @@ export default function Chat() {
       {replyingTo && (
         <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
           <div className="text-3xl px-3">↰</div>
-          <div className="flex-1 w-[16px]">
+          <div className="flex-1 w-4">
             <div className="text-sm text-gray-500 font-medium">
               Replying to {replyingTo.sender?.user?.username || "user"}
             </div>

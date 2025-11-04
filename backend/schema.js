@@ -1,3 +1,4 @@
+const e = require('express');
 const mongoose = require('mongoose');
 const { Schema, models, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -75,7 +76,7 @@ const memberSchema = new Schema(
         user: { type: ObjectId, ref: 'User', required: true },
         server: { type: ObjectId, ref: 'Server', required: true },
         nickname: { type: String, trim: true, default: null },
-        role: { type: String, default: 'member' } // 'owner', 'moderator', 'member'
+        role: { type: String, enum: ['OWNER', 'MODERATOR', 'MEMBER'], default: 'MEMBER' },
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
 );
@@ -150,6 +151,17 @@ messageSchema.pre('validate', function (next) {
         if (!hasRecipients) return next(new Error('Direct messages must include at least one recipient.'));
     }
     next();
+});
+
+/* -----------------------------
+ * NOTIFICATION
+ * ---------------------------*/
+
+const notificationSchema = new Schema({
+    user: { type: ObjectId, ref: 'User', required: true },
+    type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+    location: { type: ObjectId, ref: 'Message' },
+    from: { type: ObjectId, ref: 'User', required: true },
 });
 
 /* -----------------------------

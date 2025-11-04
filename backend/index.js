@@ -879,7 +879,7 @@ app.post('/api/v1/servers/create', auth, async (req, res) => {
         const ownerMember = await Member.create({
             user: userId,
             server: newServer._id,
-            role: 'owner'
+            role: 'OWNER'
         });
 
         // ✅ 3. Create first/default room
@@ -994,7 +994,7 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             member = await Member.create({
                 user: userId,
                 server: serverId,
-                role: 'member'
+                role: 'MEMBER'
             });
         }
 
@@ -1028,7 +1028,7 @@ app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
             return res.status(404).json({ status: 'failed', message: 'Server not found' });
         }
 
-        const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'owner' });
+        const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'OWNER' });
         if (!ownerRecord) {
             return res.status(403).json({ status: 'failed', message: 'Only server owner can delete server' });
         }
@@ -1091,7 +1091,7 @@ app.post('/api/v1/rooms', auth, async (req, res) => {
         const isPermission = await Member.findOne({
             server: serverId,
             user: req.userId,
-            role: { $in: ['owner', 'moderator'] }
+            role: { $in: ['OWNER', 'MODERATOR'] }
         });
 
         if (!isPermission) {
@@ -1128,7 +1128,7 @@ app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
         const isPermission = await Member.findOne({
             server: room.server,
             user: req.userId,
-            role: { $in: ['owner', 'moderator'] }
+            role: { $in: ['OWNER', 'MODERATOR'] }
         });
 
         if (!isPermission) {
@@ -1173,7 +1173,7 @@ app.delete('/api/v1/rooms/:roomId', auth, async (req, res) => {
         const isPermission = await Member.findOne({
             server: room.server,
             user: req.userId,
-            role: { $in: ['owner', 'moderator'] }
+            role: { $in: ['OWNER', 'MODERATOR'] }
         });
 
         if (!isPermission) {
