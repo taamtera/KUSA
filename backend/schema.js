@@ -86,13 +86,14 @@ memberSchema.index({ user: 1, server: 1 }, { unique: true });
 /* -----------------------------
  * ROOMS
  * ---------------------------*/
-const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
+const ROOM_TYPES = ['TEXT', 'EVENT', 'VOICE'];
 
 const roomSchema = new Schema(
     {
         title: { type: String, required: true, trim: true },
         server: { type: ObjectId, ref: 'Server', required: true },
-        room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
+        room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' },
+        order: { type: Number, default: 0 }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
