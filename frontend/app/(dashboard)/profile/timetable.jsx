@@ -312,7 +312,7 @@ export default function ProfilePage({ user }) {
                     </Button>
                 </DialogTrigger>
 
-                <DialogContent className="max-w-sm bg-white text-black">
+                <DialogContent className="max-w-[60vw] w-[1080px] bg-white text-black">
                     <DialogHeader>
                         <DialogTitle>Edit Timetable</DialogTitle>
                     </DialogHeader>
