@@ -2,12 +2,23 @@
 import React from "react";
 import { useState, useEffect } from "react";
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import * as Tabs from "@radix-ui/react-tabs";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
 import { Pencil2Icon, TrashIcon, Cross2Icon, TextAlignLeftIcon } from "@radix-ui/react-icons";
 import { X, MapPin, AlignLeft, PencilIcon } from "lucide-react";
 
-export default function TimeTablePopoverDetail({ title, description, location, slotColor, day, hourStart, minStart, hourEnd, minEnd, }) {
+export default function TimeTablePopoverDetail({
+    title,
+    description,
+    location,
+    slotColor,
+    day,
+    hourStart,
+    minStart,
+    hourEnd,
+    minEnd,
+    onEdit,
+    onDelete,
+}) {
 
     const hasLocation = location != null;
     const hasDescription = description != null;
@@ -35,19 +46,25 @@ export default function TimeTablePopoverDetail({ title, description, location, s
 
     return (
         <div className="relative w-full">
+
+            {/* Button session */}
             <div className="flex justify-end items-center gap-4 pb-2">
                 <div className="flex gap-2">
-                    <PencilIcon className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"></PencilIcon>
-                    <TrashIcon className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"></TrashIcon>
+                    <PencilIcon
+                        onClick={onEdit}
+                        className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"
+                    />
+                    <TrashIcon
+                        onClick={onDelete}
+                        className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"
+                    />
                 </div>
                 <PopoverClose className="">
-                    <X
-                        className="p-2 cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[35px]"
-                    >
-                    </X>
+                    <X className="p-2 cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[35px]" />
                 </PopoverClose>
             </div>
 
+            {/* Information session */}
             <div className="flex flex-col mt-[3px] px-2 overflow-auto max-h-[40vh]">
                 <div className="flex gap-2">
                     <div className="w-[12px] rounded-[8px]"
@@ -94,25 +111,6 @@ export default function TimeTablePopoverDetail({ title, description, location, s
                     </div>
                 )}
             </div>
-
-
-            {/* <Tabs.Root className="">
-                <Tabs.List className="flex justify-end items-center gap-4">
-                    <Tabs.Trigger
-                        value="edit"
-                        className="pl-[4px] cursor-pointer hover:bg-gray-300/30 rounded-full size-[30px]"
-                    >
-                        <Pencil2Icon className="size-[20px] text-gray-500"></Pencil2Icon>
-                    </Tabs.Trigger>
-                    <Tabs.Trigger
-                        value="delete"
-                        className="pl-[5px] cursor-pointer hover:bg-gray-300/30 rounded-full size-[30px]"
-                    >
-                        <TrashIcon className="size-[20px] text-gray-500"></TrashIcon>
-                    </Tabs.Trigger>
-                </Tabs.List>
-                <Tabs.Content value="edit" >555</Tabs.Content>
-            </Tabs.Root> */}
         </div>
     );
 }

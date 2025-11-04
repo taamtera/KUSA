@@ -5,10 +5,9 @@ import { useUser } from "../../../context/UserContext";
 import useTimetable from "@/components/TableContent";
 import { ChartNoAxesColumnIcon } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
-import { Cross2Icon } from "@radix-ui/react-icons"
 import TimeTablePopoverDetail from "./timetable-popover-detail";
 
-export default function TimeTableGrid({ propUserId }) {
+export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) {
   const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const Hours = [
     "0:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
@@ -147,6 +146,7 @@ export default function TimeTableGrid({ propUserId }) {
 
           {/* Render fetched time slots */}
           {mappedSlots.map((slot) => (
+            // Timetable slot
             <Popover key={slot.id}>
               <PopoverTrigger
                 className={`slot-card text-left m-[2px] rounded-[8px] flex flex-col border border-gray-700/10 px-1 py-0.5 whitespace-normal wrap-break-word overflow-hidden`}
@@ -163,6 +163,8 @@ export default function TimeTableGrid({ propUserId }) {
                   <span className="px-2 text-[12px] text-white dark:text-fuchsia-100">{slot.location}</span>
                 )}
               </PopoverTrigger>
+
+              {/* Slot Popover Detail */}
               <PopoverContent
                 side="bottom"
                 align="center"
@@ -178,7 +180,9 @@ export default function TimeTableGrid({ propUserId }) {
                     minStart={slot.minStart}
                     hourEnd={slot.hourEnd}
                     minEnd={slot.minEnd}
-                  ></TimeTablePopoverDetail>
+                    onEdit={() => onEditSlot?.(slot)}
+                    onDelete={() => onDeleteSlot?.(slot)}
+                  />
                 </div>
               </PopoverContent>
             </Popover>
