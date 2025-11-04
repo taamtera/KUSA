@@ -892,6 +892,24 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     }
 });
 
+// Get server by Id
+app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const server = await Server.findById(serverId);
+
+        if (!server) {
+            return res.status(404).json({ message: "Server not found." });
+        }
+
+        return res.status(200).json({ server });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+
 // Generate server invite link (which is just href={`/join/${server._id}`})
 app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
     try {
@@ -923,30 +941,29 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
 
         // 1. Check if server exists
         const server = await Server.findById(serverId);
-        console.log(server)
         if (!server) {
             return res.status(404).json({ message: 'Server not found.' });
         }
 
         // 2. Check if user is already a member
         let member = await Member.findOne({ user: userId, server: serverId });
-        if (member) {
-            return res.status(200).json({
-                message: 'User is already a member of this server.',
-                member
+        console.log("Member:" , member)
+        if (!member) {
+            // Create membership
+            member = await Member.create({
+                user: userId,
+                server: serverId,
+                role: 'member'
             });
         }
 
-        // 3. Create new membership
-        member = await Member.create({
-            user: userId,
-            server: serverId,
-            role: 'member'
-        });
+        // ✅ 3. Find the first room with the lowest order
+        const firstRoom = await Room.findOne({ server: serverId }).sort({ order: 1 });
 
-        return res.status(201).json({
-            message: 'User joined the server successfully.',
-            member
+        return res.status(200).json({
+            message: "Success",
+            member,
+            firstRoomId: firstRoom ? firstRoom._id : null
         });
 
     } catch (error) {
