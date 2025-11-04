@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import useTimetable from "@/components/TableContent"
 import { Sparkle } from "lucide-react"
 import { useRef } from "react"
+import { Textarea } from "@/components/ui/textarea"
+import * as ToggleGroup from "@radix-ui/react-toggle-group"
 
 export default function ProfilePage({ user }) {
     const [open, setOpenAdd] = useState(false);
@@ -92,6 +94,20 @@ export default function ProfilePage({ user }) {
         colorTimerRef.current = setTimeout(() => {
             setEditColor(newColor);
         }, 100);
+    };
+
+    const handleEditSlot = (slot) => {
+        setSelectSlot(slot);
+        setSpanEdit(true);
+
+        setEditTitle(slot.title || "");
+        setEditDescription(slot.description || "");
+        setEditDay(slot.day);
+        setEditStartMin(slot.hourStart);  // using hourStart from grid
+        setEditEndMin(slot.hourEnd);
+        setEditColor(slot.color || "");
+
+        setOpenEdit(true); // 👈 open dialog
     };
 
     const handleSubmitEdit = async (e) => {
@@ -312,20 +328,20 @@ export default function ProfilePage({ user }) {
                     </Button>
                 </DialogTrigger>
 
-                <DialogContent className="max-w-sm bg-white text-black">
+                <DialogContent className="w-full bg-white text-black">
                     <DialogHeader>
                         <DialogTitle>Edit Timetable</DialogTitle>
                     </DialogHeader>
 
                     {/* ✅ Single form only (no nested <form>) */}
-                    <form className="w-full max-w-sm space-y-4" onSubmit={handleSubmitEdit}>
+                    <form className="w-full space-y-" onSubmit={handleSubmitEdit}>
                         {/* Slot selector */}
                         <div>
                             <label>Select Time Slot</label>
-                            <div className="grid place-items-center">
-                                <div className="relative w-full max-w-sm">
+                            <div className="grid place-items-start">
+                                <div className="relative w-full">
                                     <Button
-                                        className="rounded-[4px] border-2 border-gray-500 justify-between text-black hover:text-white shadow-md bg-transparent w-full"
+                                        className="rounded-[4px] border border-gray-200 justify-between text-black hover:text-white bg-transparent w-full"
                                         onClick={() => setopenEditDrop(!openEditDrop)}
                                         type="button"
                                     >
@@ -345,7 +361,9 @@ export default function ProfilePage({ user }) {
                                     </Button>
 
                                     {openEditDrop && (
-                                        <ul className="absolute text-gray-700 pt-1 shadow-md w-full rounded-[4px] bg-gray-200 z-10">
+                                        <ul 
+                                            className="absolute text-gray-700 pt-1 shadow-[0_0px_15px_-3px] shadow-gray-400 border border-gray-400 w-full rounded-[4px] bg-gray-100 z-10"
+                                        >
                                             {mappedSlots.map((slot) => (
                                                 <li key={slot.id}>
                                                     <button
@@ -361,10 +379,10 @@ export default function ProfilePage({ user }) {
                                                             setEditEndMin(slot.endMin);
                                                             setEditColor(slot.color);
                                                         }}
-                                                        className="hover:bg-gray-300 bg-gray-200 w-full text-left p-2 rounded-[4px] justify-between items-center flex"
+                                                        className="hover:bg-gray-200 bg-gray-100 w-full text-left p-2 rounded-[4px] justify-between items-center flex"
                                                     >
-                                                        <p className="text-left">{slot.title}</p> 
-                                                        <p className="text-right text-gray-400 text-sm">{slot.day} {slot.startMin} - {slot.endMin}</p>
+                                                        <p className="text-left text-[12px]">{slot.title}</p> 
+                                                        <p className="text-right text-[12px] text-gray-400 text-sm">{slot.day} {slot.startMin} - {slot.endMin}</p>
                                                     </button>
                                                 </li>
                                             ))}
@@ -378,29 +396,29 @@ export default function ProfilePage({ user }) {
                             <>
                                 <div>
                                     <label>Class name</label>
-                                    <Input
-                                        className="w-full border rounded p-2"
+                                    <Textarea
+                                        className="w-[calc(24rem-48px)] border rounded p-2"
                                         value={editTitle}
                                         onChange={(e) => setEditTitle(e.target.value)}
                                     />
                                 </div>
                                 <div>
                                     <label>Description</label>
-                                    <Input
-                                        className="w-full border rounded p-2"
+                                    <Textarea
+                                        className="w-[calc(24rem-48px)] shadow-none border rounded p-2"
                                         value={editDescription}
                                         onChange={(e) => setEditDescription(e.target.value)}
                                     />
                                 </div>
-                                <div>
+                                <div className="flex items-center">
                                     <label>Day</label>
                                     <select
-                                        className="w-full border rounded p-2"
+                                        className="w-[120px] border rounded p-2"
                                         value={editDay}
                                         onChange={(e) => setEditDay(e.target.value)}
                                     >
                                         {DaysList.map((d) => (
-                                            <option key={d.value} value={d.value}>{d.label}</option>
+                                            <option key={d.value} value={d.value}>{d.value.toUpperCase()}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -449,7 +467,10 @@ export default function ProfilePage({ user }) {
         </div>
 
             {/* TimeTable Session */}
-            <TimeTableGrid propUserId={user._id}/>
+            <TimeTableGrid
+                propUserId={user._id}
+                onEditSlot={handleEditSlot}
+            />
         </div>
     )
 }
