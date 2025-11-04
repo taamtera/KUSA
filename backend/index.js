@@ -131,7 +131,6 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 // Register
 app.post('/api/v1/login/register', async (req, res) => {
     try {
-        console.log(req.body);
         const { username, email, password, password_confirmation } = req.body;
 
 
@@ -909,6 +908,50 @@ app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
     } catch (error) {
         console.error('Error generating invite link:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
+    }
+});
+
+// Join server
+app.post('/api/v1/servers/join', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!userId || !serverId) {
+            return res.status(400).json({ message: 'Missing userId or serverId.' });
+        }
+
+        // 1. Check if server exists
+        const server = await Server.findById(serverId);
+        console.log(server)
+        if (!server) {
+            return res.status(404).json({ message: 'Server not found.' });
+        }
+
+        // 2. Check if user is already a member
+        let member = await Member.findOne({ user: userId, server: serverId });
+        if (member) {
+            return res.status(200).json({
+                message: 'User is already a member of this server.',
+                member
+            });
+        }
+
+        // 3. Create new membership
+        member = await Member.create({
+            user: userId,
+            server: serverId,
+            role: 'member'
+        });
+
+        return res.status(201).json({
+            message: 'User joined the server successfully.',
+            member
+        });
+
+    } catch (error) {
+        console.error('Error joining server:', error);
+        return res.status(500).json({ message: 'Internal server error.' });
     }
 });
 
