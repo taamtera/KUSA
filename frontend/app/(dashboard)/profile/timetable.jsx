@@ -67,8 +67,8 @@ export default function ProfilePage({ user }) {
             color: s.color || 'purple',
             gridColumn: `${startCol} / span ${spanCols}`,
             gridRow: row,
-            startMin: s.start_min / 60 - 1,
-            endMin: s.end_min / 60 - 1,
+            startMin: s.start_min / 60,
+            endMin: s.end_min / 60,
             day: s.day
         };
     });
@@ -110,8 +110,8 @@ export default function ProfilePage({ user }) {
                     title: editTitle,
                     description: editDescription,
                     day: editDay,
-                    start_min: (Number(editStartMin) + 1) * 60,
-                    end_min: (Number(editEndMin) + 1) * 60,
+                    start_min: (Number(editStartMin)) * 60,
+                    end_min: (Number(editEndMin)) * 60,
                     color: editColor,
                 }),
                 credentials: "include",
@@ -149,8 +149,8 @@ export default function ProfilePage({ user }) {
                         title,
                         description,
                         day,
-                        start_min: (Number(start_min) + 1) * 60,
-                        end_min: (Number(end_min) + 1) * 60,
+                        start_min: (Number(start_min)) * 60,
+                        end_min: (Number(end_min)) * 60,
                         location,
                         color
                     }),
