@@ -607,7 +607,7 @@ app.patch('/api/v1/timetable/:id', auth, async (req, res) => {
         if (!DAY_ENUM.includes(slot.day)) {
             return res.status(400).json({ status: 'failed', message: 'invalid day' });
         }
-        if (slot.start_min < 0 || slot.start_min > 1439 || slot.end_min < 1 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
+        if (slot.start_min < 0 || slot.start_min > 1440 || slot.end_min < 0 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
             return res.status(400).json({ status: 'failed', message: 'invalid time range' });
         }
 

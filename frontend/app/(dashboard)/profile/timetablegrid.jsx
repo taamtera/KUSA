@@ -4,11 +4,14 @@ import { useState, useEffect } from "react";
 import { useUser } from "../../../context/UserContext";
 import useTimetable from "@/components/TableContent";
 import { ChartNoAxesColumnIcon } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
+import { Cross2Icon } from "@radix-ui/react-icons"
+import TimeTablePopoverDetail from "./timetable-popover-detail";
 
-export default function TimeTableGrid( {propUserId} ) {
+export default function TimeTableGrid({ propUserId }) {
   const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const Hours = [
-    "0:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00","8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
+    "0:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
   ];
 
   const time_width = 100;
@@ -30,6 +33,10 @@ export default function TimeTableGrid( {propUserId} ) {
   const mappedSlots = slots.map((s) => {
     const startMin = Number(s.start_min);
     const endMin = Number(s.end_min);
+
+    const durationMin = endMin - startMin;
+    const durationHours = durationMin / minutesPerColumn; // can be fractional (1.5h, 0.5h, etc.)
+
     const startCol = Math.floor(startMin / minutesPerColumn) + 2; // grid columns start at 2
     const spanCols = Math.max(1, Math.ceil((endMin - startMin) / minutesPerColumn));
     const row = (DAY_TO_INDEX[s.day] ?? 0) + 2; // grid rows start at 2
@@ -40,7 +47,13 @@ export default function TimeTableGrid( {propUserId} ) {
       location: s.location,
       color: s.color || 'purple',
       gridColumn: `${startCol} / span ${spanCols}`,
-      gridRow: row
+      gridRow: row,
+      maxWidthPx: durationHours * time_width,
+      day: s.day,
+      hourStart: Math.floor(startMin / 60),
+      minStart: startMin % 60,
+      hourEnd: Math.floor(endMin / 60),
+      minEnd: endMin % 60,
     };
   });
   // console.log()
@@ -61,22 +74,22 @@ export default function TimeTableGrid( {propUserId} ) {
         <div
           className={
             `grid 
-            grid-cols-[repeat(${Hours.length+1},${time_width}px)] 
-            grid-rows-[repeat(${Days.length+1},12px)] 
+            grid-cols-[repeat(${Hours.length + 1},${time_width}px)] 
+            grid-rows-[repeat(${Days.length + 1},12px)] 
             min-w-max`
           }
         >
-          
+
           {/* 1-1 column */}
           <div
             className="sticky top-0 left-0 z-50 bg-white dark:bg-gray-800 border-b border-r border-gray-100 dark:border-gray-200/5"
-            style={{ gridColumn: 1, gridRow: 1}} // match hour header height
+            style={{ gridColumn: 1, gridRow: 1 }} // match hour header height
           />
 
           {/* 2-1 column */}
           <div
             className="sticky top-0 left-0 z-10 bg-white dark:bg-gray-800 border-b border-r border-gray-100 dark:border-gray-200/5"
-            style={{ gridColumn: 2, gridRow: 1}} // match hour header height
+            style={{ gridColumn: 2, gridRow: 1 }} // match hour header height
           />
 
           {/* Hour headers */}
@@ -86,7 +99,7 @@ export default function TimeTableGrid( {propUserId} ) {
               className={
                 `sticky 
                 border-b 
-                top-0 
+                top-0
                 z-10 
                 border-gray-100 
                 bg-white 
@@ -102,7 +115,7 @@ export default function TimeTableGrid( {propUserId} ) {
                 dark:to-gray-700 
                 dark:text-gray-200`
               }
-              style={{ gridColumn: hourColumns[index], gridRow: 1, width: `${time_width}px`, transform: `translateX(${time_width/2}px)` }}
+              style={{ gridColumn: hourColumns[index], gridRow: 1, width: `${time_width}px`, transform: `translateX(${time_width / 2}px)` }}
             >
               <div
                 style={{ width: `${time_width}px` }}
@@ -115,9 +128,9 @@ export default function TimeTableGrid( {propUserId} ) {
             <div
               key={h_index}
               className="sticky left-0 z-30 border-r border-gray-100 bg-white dark:border-gray-200/5 dark:bg-gray-800 flex items-center justify-center px-[25] h-[10vh] min-h-[62px]"
-              style={{ gridColumn: 1, gridRow: dayRows[h_index]+1 }}
+              style={{ gridColumn: 1, gridRow: dayRows[h_index] + 1 }}
             >
-              <div className="text-xl font-medium text-gray-400 uppercase text-center w-full">
+              <div className="text-xl font-medium text-gray-500 uppercase text-center w-full">
                 {day}
               </div>
             </div>
@@ -128,29 +141,47 @@ export default function TimeTableGrid( {propUserId} ) {
             <div
               key={index}
               className="border-l border-b border-t border-gray-200 dark:border-gray-200/5"
-              style={{ gridColumn: cell.col, gridRow: cell.row}}
+              style={{ gridColumn: cell.col, gridRow: cell.row }}
             ></div>
           ))}
 
           {/* Render fetched time slots */}
           {mappedSlots.map((slot) => (
-            <div
-              key={slot.id}
-              className={`m-[2px] rounded-[4px] flex flex-col border border-gray-700/10 p-1 whitespace-normal wrap-break-word overflow-hidden`}
-              style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow, backgroundColor: slot.color }}
-            >
-              <span className="px-2 text-xl font-medium text-white dark:text-fuchsia-100">
-                {slot.title}
-              </span>
-              {slot.description && (
-                <span className="px-2 text-sm font-medium text-white dark:text-fuchsia-100">
-                  {slot.description}
+            <Popover key={slot.id}>
+              <PopoverTrigger
+                className={`slot-card text-left m-[2px] rounded-[4px] flex flex-col border border-gray-700/10 p-1 whitespace-normal wrap-break-word overflow-hidden`}
+                style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow, backgroundColor: slot.color, maxWidth: `${slot.maxWidthPx}px` }}>
+                <span className="px-2 text-xl font-medium text-white dark:text-fuchsia-100 overflow-hidden truncate">
+                  {slot.title}
                 </span>
-              )}
-              {slot.location && (
-                <span className="text-xs text-gray-500 dark:text-gray-300">{slot.location}</span>
-              )}
-            </div>
+                {slot.description && (
+                  <span className="slot-card-title px-2 text-sm font-medium text-white dark:text-fuchsia-100">
+                    {slot.description}
+                  </span>
+                )}
+                {slot.location && (
+                  <span className="flex px-2 text-bottom text-xs font-medium text-white dark:text-fuchsia-100">{slot.location}</span>
+                )}
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="center"
+                className="relative z-50 w-[500px] max-h-[80vh] p-2 rounded-[8px] bg-white transparent shadow-[0_0px_15px_-3px] shadow-gray-400">
+                <div className="flex flex-col h-auto">
+                  <TimeTablePopoverDetail
+                    title={slot.title}
+                    description={slot.description}
+                    location={slot.location}
+                    slotColor={slot.color}
+                    day={slot.day}
+                    hourStart={slot.hourStart}
+                    minStart={slot.minStart}
+                    hourEnd={slot.hourEnd}
+                    minEnd={slot.minEnd}
+                  ></TimeTablePopoverDetail>
+                </div>
+              </PopoverContent>
+            </Popover>
           ))}
         </div>
       </div>

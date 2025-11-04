@@ -183,7 +183,7 @@ export default function ProfilePage({ user }) {
     };
 
     return (
-        <div className="relative px-8 h-auto w-full">
+        <div className="relative px-8 pb-4 h-auto w-full">
 
         <div className="flex flex-col mt-8 mb-4">
             <h2 className="text-xl font-semibold">
@@ -449,7 +449,7 @@ export default function ProfilePage({ user }) {
         </div>
 
             {/* TimeTable Session */}
-            <TimeTableGrid propUserId={user._id} />
+            <TimeTableGrid propUserId={user._id}/>
         </div>
     )
 }
