@@ -198,7 +198,7 @@ export default function ProfilePage({ user }) {
             {/* Add Button */}
             <Dialog open={open} onOpenChange={setOpenAdd}>
                 <DialogTrigger asChild>
-                    <Button className="absolute right-50 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">add</Button>
+                    <Button className="absolute right-70 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">add</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-sm bg-white text-black">
                     <DialogHeader>
@@ -307,7 +307,7 @@ export default function ProfilePage({ user }) {
             {/* <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button> */}
             <Dialog open={openEdit} onOpenChange={setOpenEdit}>
                 <DialogTrigger asChild>
-                    <Button className="absolute right-70 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
+                    <Button className="absolute right-50 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
                         edit
                     </Button>
                 </DialogTrigger>

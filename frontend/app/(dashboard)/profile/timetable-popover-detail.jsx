@@ -12,13 +12,9 @@ export default function TimeTablePopoverDetail({ title, description, location, s
     const hasLocation = location != null;
     const hasDescription = description != null;
 
-    // convert to 12-hour clock
-    const isStartAM = hourStart - 1 < 12;
-    const isEndAM = hourEnd - 1 < 12;
-
-    const hour_start = (hourStart - 1 === 0 ? 12 : hourStart - 1);
+    const hour_start = (hourStart).toString().padStart(2, '0');
     const min_start = minStart.toString().padStart(2, '0');
-    const hour_end = (hourEnd - 1 === 0 ? 12 : hourEnd - 1);
+    const hour_end = (hourEnd).toString().padStart(2, '0');
     const min_end = minEnd.toString().padStart(2, '0');
 
     const DAY_PREFIXES = {
@@ -67,7 +63,7 @@ export default function TimeTablePopoverDetail({ title, description, location, s
                 </div>
                 <hr className="my-[4px]"></hr>
                 <h2 className="text-xm font-medium text-gray-500 dark:text-fuchsia-100">
-                    {CapitalizedDay} {hour_start}:{min_start} {isStartAM ? "am" : "pm"} - {hour_end}:{min_end} {isEndAM ? "am" : "pm"}
+                    {CapitalizedDay} {hour_start}:{min_start} - {hour_end}:{min_end}
                 </h2>
                 {hasLocation && (
                     <div className="py-2 flex items-center gap-2">

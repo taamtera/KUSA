@@ -167,7 +167,7 @@ body {
 }
 
 /* If the slot is short (small height), clamp to 1 line */
-@container (max-height: 90px) {
+@container (max-height: 80px) {
   .slot-card-title {
     -webkit-line-clamp: 1;
     /* optional extra safety */
