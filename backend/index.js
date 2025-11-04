@@ -858,6 +858,50 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
 
 // ====================== Servers =====================
 
+// CREATE SERVER
+app.post('/api/v1/servers/create', auth, async (req, res) => {
+    try {
+        const { serverName } = req.body;
+        const userId = req.userId;
+
+        if (!serverName || !userId) {
+            return res.status(400).json({ message: 'Missing serverName or userId.' });
+        }
+
+        // ✅ 1. Create server
+        const newServer = await Server.create({
+            server_name: serverName,
+            icon_file: null,
+            banned_users: []
+        });
+
+        // ✅ 2. Add creator as owner
+        const ownerMember = await Member.create({
+            user: userId,
+            server: newServer._id,
+            role: 'owner'
+        });
+
+        // ✅ 3. Create first/default room
+        const generalRoom = await Room.create({
+            server: newServer._id,
+            title: "general",
+            order: 0
+        });
+
+        return res.status(201).json({
+            message: "Server created successfully!",
+            server: newServer,
+            owner: ownerMember,
+            firstRoomId: generalRoom._id
+        });
+
+    } catch (error) {
+        console.error("Error creating server:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
 // List servers (that the user is a member of)
 app.get('/api/v1/servers', auth, async (req, res) => {
     try {
@@ -972,6 +1016,85 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
     }
 });
 
+// DELETE SERVER
+app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const userId = req.userId;
+
+        if (!oid(serverId)) {
+            return res.status(400).json({ status: 'failed', message: 'Invalid server id' });
+        }
+
+        // Verify server exists
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ status: 'failed', message: 'Server not found' });
+        }
+
+        // Verify user is owner of the server
+        const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'owner' });
+        if (!ownerRecord) {
+            return res.status(403).json({ status: 'failed', message: 'Only server owner can delete server' });
+        }
+
+        // --- FIND ALL ROOMS ---
+        const rooms = await Room.find({ server: serverId }, '_id');
+        const roomIds = rooms.map(r => r._id);
+
+        // --- FIND ALL MESSAGES IN THOSE ROOMS ---
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: { $in: roomIds }
+        }, '_id');
+
+        const messageIds = messages.map(m => m._id);
+
+        // --- DELETE REACTIONS TO THOSE MESSAGES ---
+        await Reaction.deleteMany({ message: { $in: messageIds } });
+
+        // --- DELETE ATTACHMENTS + ATTACHMENT FILES ---
+        const attachments = await Attachment.find({ message: { $in: messageIds } });
+
+        for (const att of attachments) {
+            const fileDoc = await File.findById(att.file);
+            if (fileDoc) {
+                // OPTIONAL: remove from storage (if using local or S3)
+                // For now we only delete DB record
+                await File.deleteOne({ _id: fileDoc._id });
+            }
+        }
+
+        await Attachment.deleteMany({ message: { $in: messageIds } });
+
+        // --- DELETE MESSAGES ---
+        await Message.deleteMany({ _id: { $in: messageIds } });
+
+        // --- DELETE ROOMS ---
+        await Room.deleteMany({ server: serverId });
+
+        // --- DELETE MEMBERS ---
+        await Member.deleteMany({ server: serverId });
+
+        // --- OPTIONAL: DELETE SERVER ICON FILE ---
+        if (server.icon_file) {
+            await File.deleteOne({ _id: server.icon_file });
+        }
+
+        // --- DELETE SERVER ---
+        await Server.deleteOne({ _id: serverId });
+
+        return res.json({
+            status: 'success',
+            message: 'Server and all related data deleted',
+            deletedServerId: serverId
+        });
+
+    } catch (err) {
+        console.error("Error deleting server:", err);
+        return res.status(500).json({ status: 'failed', message: 'Internal server error' });
+    }
+});
 
 // ====================== Direct Messages =====================
 

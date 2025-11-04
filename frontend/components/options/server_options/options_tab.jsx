@@ -1,7 +1,26 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function OptionsTab({ server, isOwnerOrAdmin, isOwner, handleInviteClick }) {
+    const router = useRouter();
+
+    async function handleDeleteServer() {
+        if (!confirm("Are you sure? This will delete everything forever.")) return;
+        const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}`, {
+            method: "DELETE",
+            credentials: "include"
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert("Server deleted");
+            router.push("/chats");
+            window.location.reload();
+        } else {
+            alert(data.message);
+        }
+    }
+
     return (
         <div className="space-y-4">
 
@@ -30,7 +49,11 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner, handleInvi
             </Button>
 
             {isOwner && (
-                <Button variant="destructive" className="w-full">
+                <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={handleDeleteServer}
+                >
                     Delete Server
                 </Button>
             )}
