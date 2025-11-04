@@ -44,7 +44,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
       title: s.title,
       description: s.description,
       location: s.location,
-      color: s.color || 'purple',
+      color: s.color || '000000',
       gridColumn: `${startCol} / span ${spanCols}`,
       gridRow: row,
       maxWidthPx: durationHours * time_width,
@@ -168,7 +168,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
               <PopoverContent
                 side="bottom"
                 align="center"
-                className="relative z-50 w-[500px] max-h-[80vh] p-2 rounded-[8px] bg-white transparent shadow-[0_0px_15px_-3px] shadow-gray-400">
+                className="relative z-50 w-[500px] max-w-[50vw] min-w-[256px] max-h-[80vh] p-2 rounded-[8px] bg-white transparent shadow-[0_0px_15px_-3px] shadow-gray-400">
                 <div className="flex flex-col h-auto">
                   <TimeTablePopoverDetail
                     title={slot.title}
