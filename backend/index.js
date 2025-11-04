@@ -983,17 +983,14 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             return res.status(400).json({ message: 'Missing userId or serverId.' });
         }
 
-        // 1. Check if server exists
         const server = await Server.findById(serverId);
         if (!server) {
             return res.status(404).json({ message: 'Server not found.' });
         }
 
-        // 2. Check if user is already a member
+        // Check membership
         let member = await Member.findOne({ user: userId, server: serverId });
-        console.log("Member:" , member)
         if (!member) {
-            // Create membership
             member = await Member.create({
                 user: userId,
                 server: serverId,
@@ -1001,7 +998,7 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             });
         }
 
-        // ✅ 3. Find the first room with the lowest order
+        // Get first room
         const firstRoom = await Room.findOne({ server: serverId }).sort({ order: 1 });
 
         return res.status(200).json({
@@ -1026,23 +1023,19 @@ app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
             return res.status(400).json({ status: 'failed', message: 'Invalid server id' });
         }
 
-        // Verify server exists
         const server = await Server.findById(serverId);
         if (!server) {
             return res.status(404).json({ status: 'failed', message: 'Server not found' });
         }
 
-        // Verify user is owner of the server
         const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'owner' });
         if (!ownerRecord) {
             return res.status(403).json({ status: 'failed', message: 'Only server owner can delete server' });
         }
 
-        // --- FIND ALL ROOMS ---
         const rooms = await Room.find({ server: serverId }, '_id');
         const roomIds = rooms.map(r => r._id);
 
-        // --- FIND ALL MESSAGES IN THOSE ROOMS ---
         const messages = await Message.find({
             context_type: 'Room',
             context: { $in: roomIds }
@@ -1050,38 +1043,26 @@ app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
 
         const messageIds = messages.map(m => m._id);
 
-        // --- DELETE REACTIONS TO THOSE MESSAGES ---
         await Reaction.deleteMany({ message: { $in: messageIds } });
 
-        // --- DELETE ATTACHMENTS + ATTACHMENT FILES ---
         const attachments = await Attachment.find({ message: { $in: messageIds } });
 
         for (const att of attachments) {
             const fileDoc = await File.findById(att.file);
             if (fileDoc) {
-                // OPTIONAL: remove from storage (if using local or S3)
-                // For now we only delete DB record
                 await File.deleteOne({ _id: fileDoc._id });
             }
         }
 
         await Attachment.deleteMany({ message: { $in: messageIds } });
-
-        // --- DELETE MESSAGES ---
         await Message.deleteMany({ _id: { $in: messageIds } });
-
-        // --- DELETE ROOMS ---
         await Room.deleteMany({ server: serverId });
-
-        // --- DELETE MEMBERS ---
         await Member.deleteMany({ server: serverId });
 
-        // --- OPTIONAL: DELETE SERVER ICON FILE ---
         if (server.icon_file) {
             await File.deleteOne({ _id: server.icon_file });
         }
 
-        // --- DELETE SERVER ---
         await Server.deleteOne({ _id: serverId });
 
         return res.json({
@@ -1093,6 +1074,124 @@ app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
     } catch (err) {
         console.error("Error deleting server:", err);
         return res.status(500).json({ status: 'failed', message: 'Internal server error' });
+    }
+});
+
+// ====================== Rooms =====================
+
+// Add a room to a server
+app.post('/api/v1/rooms', auth, async (req, res) => {
+    try {
+        const { serverId, title } = req.body;
+
+        if (!serverId || !title) {
+            return res.status(400).json({ status: 'failed', message: 'Server ID and room title are required' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: serverId,
+            user: req.userId,
+            role: { $in: ['owner', 'moderator'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        const last_room_order = await Room.countDocuments({ server: serverId });
+
+        const room = await Room.create({
+            server: serverId,
+            title,
+            order: last_room_order,
+            createdBy: req.userId
+        });
+
+        res.status(201).json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error creating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to create room' });
+    }
+});
+
+// Edit room
+app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { title, order } = req.body;
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['owner', 'moderator'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        if (order !== undefined) {
+            const old_index = room.order;
+            const new_index = order;
+
+            await Room.updateMany(
+                { server: room.server, order: { $gt: old_index } },
+                { $inc: { order: -1 } }
+            );
+            await Room.updateMany(
+                { server: room.server, order: { $gte: new_index } },
+                { $inc: { order: 1 } }
+            );
+            room.order = new_index;
+        }
+
+        if (title !== undefined) room.title = title;
+        await room.save();
+
+        res.json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error updating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to update room' });
+    }
+});
+
+// Delete room
+app.delete('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['owner', 'moderator'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to delete this room' });
+        }
+
+        const deletedRoomOrder = room.order;
+        await Room.deleteOne({ _id: room._id });
+
+        await Room.updateMany(
+            { server: room.server, order: { $gt: deletedRoomOrder } },
+            { $inc: { order: -1 } }
+        );
+
+        res.json({ status: 'success', message: 'Room deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to delete room' });
     }
 });
 

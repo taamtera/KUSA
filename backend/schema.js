@@ -86,7 +86,7 @@ memberSchema.index({ user: 1, server: 1 }, { unique: true });
 /* -----------------------------
  * ROOMS
  * ---------------------------*/
-const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
+const ROOM_TYPES = ['TEXT', 'EVENT', 'VOICE'];
 
 const roomSchema = new Schema(
     {
