@@ -49,7 +49,6 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
         const seedUserIds = seedUsers.map(d => d._id);
         const seedServerIds = seedServers.map(d => d._id);
     
-        // Rooms and members depend on servers/users
         const seedRooms = await Room.find({
             $or: [
                 { server: { $in: seedServerIds } },
@@ -189,9 +188,9 @@ const [alice, bob, cara] = await User.create([
     
         // Rooms
         const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-            { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT' },
-            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'ANNOUNCEMENT' },
-            { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT' },
+            { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 1 },
+            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 0 },
+            { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT', order: 0 },
         ]);
     
         // Members
@@ -199,8 +198,8 @@ const [alice, bob, cara] = await User.create([
             { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
             { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
             { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
-            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'member' },
-            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'moderator' },
+            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'moderator' },
+            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'member' },
         ]);
     
         // Messages & Attachments

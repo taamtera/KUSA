@@ -86,13 +86,14 @@ memberSchema.index({ user: 1, server: 1 }, { unique: true });
 /* -----------------------------
  * ROOMS
  * ---------------------------*/
-const ROOM_TYPES = ['TEXT', 'ANNOUNCEMENT', 'VOICE'];
+const ROOM_TYPES = ['TEXT', 'EVENT', 'VOICE'];
 
 const roomSchema = new Schema(
     {
         title: { type: String, required: true, trim: true },
         server: { type: ObjectId, ref: 'Server', required: true },
-        room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' }
+        room_type: { type: String, enum: ROOM_TYPES, default: 'TEXT' },
+        order: { type: Number, default: 0 }
     },
     { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
@@ -195,8 +196,8 @@ const timeSlotSchema = new Schema(
         title: { type: String, required: true, trim: true, maxlength: 120 },
         description: { type: String, default: null, trim: true },
         day: { type: String, enum: DAY_ENUM, required: true, index: true },
-        start_min: { type: Number, required: true, min: 0, max: 1439 },
-        end_min: { type: Number, required: true, min: 1, max: 1440 },
+        start_min: { type: Number, required: true, min: 0, max: 1440 },
+        end_min: { type: Number, required: true, min: 0, max: 1440 },
         location: { type: String, default: null, trim: true },
         color: { type: String, default: null },
         owner: { type: ObjectId, ref: 'User', required: true }
