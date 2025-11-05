@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { UserProvider } from "@/context/UserContext";
+import { UserSidebar } from "@/components/user-sidebar"
 
 export default async function Layout({ children }) {
   const cookieStore = cookies(); // 🧩 Access incoming cookies
@@ -25,6 +26,7 @@ export default async function Layout({ children }) {
       <SidebarProvider defaultOpen collapsible="offcanvas" breakpoint="md">
         <AppSidebar />
         <main className="flex-1">{children}</main>
+        <UserSidebar />
       </SidebarProvider>
     </UserProvider>
   );

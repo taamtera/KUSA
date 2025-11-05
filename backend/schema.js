@@ -164,6 +164,7 @@ const notificationSchema = new Schema({
     from: { type: ObjectId, ref: 'User', required: true },
 });
 
+
 /* -----------------------------
  * ATTACHMENTS
  * ---------------------------*/
@@ -238,5 +239,6 @@ const Message = models.Message || model('Message', messageSchema);
 const Attachment = models.Attachment || model('Attachment', attachmentSchema);
 const Reaction = models.Reaction || model('Reaction', reactionSchema);
 const TimeSlot = models.TimeSlot || model('TimeSlot', timeSlotSchema);
+const Notification = models.Notification || model('Notification', notificationSchema);
 
-module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot };
+module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification };

@@ -8,12 +8,28 @@ import { useState } from "react";
 
 export function AddFriendDialog() {
   const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState(null);
   const [username, setUsername] = useState("");
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (username.trim()) {
-      // Add your search logic here
-      alert(`✅Friend request sent to ${username}`);
+      try {
+        const response = await fetch(`http://localhost:3001/api/v1/friend/add`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ toUsername: username }),
+        });
+        if (data.status === 'success') {
+          setMessage(`${data.message}`);
+        } else {
+          setMessage(`${data.message}`);
+        }
+      } catch (error) {
+        console.error('Error sending friend request:', error);
+      }
     }
   };
 
@@ -52,6 +68,10 @@ export function AddFriendDialog() {
             onChange={(e) => setUsername(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
+          {/* error message */}
+          <div className={`text-sm ${message?.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
+            {message && message}
+          </div>
           <Button 
             onClick={handleSearch}
             disabled={!username.trim()}

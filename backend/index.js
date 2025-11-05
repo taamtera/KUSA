@@ -32,7 +32,7 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
-const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
+const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
 const path = require('path');
 
 // config (env)
@@ -1340,6 +1340,102 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
+// ====================== Notifications ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
+
+app.get('/api/v1/notifications', auth, async (req, res) => {
+    try {
+        const notifications = await Notification.find({ user: req.userId })
+            .populate('from', 'username display_name icon_file')
+            .populate('location')
+            .sort({ created_at: -1 })
+            .lean();
+
+        res.json({ status: 'success', notifications });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch notifications' });
+    }
+});
+
+// ====================== Friends ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
+app.post('/api/v1/friend/add', auth, async (req, res) => {
+    try {
+        const { toUsername } = req.body;
+        const recipient = await User.findOne({ username: toUsername }).lean();
+        if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
+
+        const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
+
+        const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });
+
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to send friend request' });
+    }
+});
+
+app.post('/api/v1/friend/respond', auth, async (req, res) => {
+    try {
+        const { notificationId, accept } = req.body;
+        const notification = await Notification.findById(notificationId);
+        if (!notification) return res.status(404).json({ status: 'failed', message: 'Notification not found' });
+        
+        if (notification.type === 'FRIEND_REQUEST' && String(notification.user) === String(req.userId)) {
+            if (accept) {
+                await User.updateOne(
+                    { _id: req.userId },
+                    { $addToSet: { friends: notification.from } }
+                );
+                await Notification.deleteOne({ _id: notificationId });
+
+                return res.json({ status: 'success', message: 'Friend request accepted' });
+
+            } else {
+                // Decline: just delete the notification
+                await Notification.deleteOne({ _id: notificationId });
+                return res.json({ status: 'success', message: 'Friend request declined' });
+            }
+        } else {
+            return res.status(400).json({ status: 'failed', message: 'Invalid notification type or user' });
+        }
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to accept friend request' });
+    }
+});
+
+app.post('/api/v1/friend/remove', auth, async (req, res) => {
+    try {
+        const { friendId } = req.body;
+        const removed = await User.updateOne(
+            { _id: req.userId },
+            { $pull: { friends: friendId } }
+        );
+        if (removed.modifiedCount === 0) {
+            return res.status(404).json({ status: 'failed', message: 'Friend not found in your friend list' });
+        } else {
+            return res.json({ status: 'success', message: 'Friend removed' });
+        }
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to remove friend' });
+    }
+});
+
 // ====================== Socket Logic ======================
 
 io.on("connection", (socket) => {
@@ -1432,7 +1528,7 @@ socket.on("send_message", async (msgData) => {
         }
     });
 
-socket.on("disconnect", () => {
+    socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });
