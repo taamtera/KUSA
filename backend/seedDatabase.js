@@ -195,11 +195,11 @@ const [alice, bob, cara] = await User.create([
     
         // Members
         const [aliceHub, bobHub, caraHub, aliceDev, bobDev] = await Member.create([
-            { user: alice._id, server: hub._id, nickname: 'Alice', role: 'owner' },
-            { user: bob._id, server: hub._id, nickname: 'Bob', role: 'member' },
-            { user: cara._id, server: hub._id, nickname: 'Cara', role: 'member' },
-            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'moderator' },
-            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'member' },
+            { user: alice._id, server: hub._id, nickname: 'Alice', role: 'OWNER' },
+            { user: bob._id, server: hub._id, nickname: 'Bob', role: 'MEMBER' },
+            { user: cara._id, server: hub._id, nickname: 'Cara', role: 'MEMBER' },
+            { user: alice._id, server: dev._id, nickname: 'Alice', role: 'MODERATOR' },
+            { user: bob._id, server: dev._id, nickname: 'Bob', role: 'MEMBER' },
         ]);
     
         // Messages & Attachments
