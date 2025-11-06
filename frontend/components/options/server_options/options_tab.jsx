@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
-export default function OptionsTab({ server, isOwnerOrAdmin, isOwner, handleInviteClick }) {
+export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
     const router = useRouter();
 
     async function handleDeleteServer() {
@@ -18,6 +18,33 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner, handleInvi
             window.location.reload();
         } else {
             alert(data.message);
+        }
+    }
+
+    const handleInviteClick = async () => {
+        try {
+            const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+            })
+
+            const text = await res.text()
+            let data
+
+            try {
+                data = JSON.parse(text)
+            } catch (e) {
+                console.error("Invalid server response:", text)
+                throw new Error("Invalid JSON")
+            }
+
+            if (data.status === "success") {
+                setInviteLink(data.invite_link || data.inviteLink || "")
+                setInviteDialogOpen(true)
+            }
+        } catch (err) {
+            console.error("Invite error:", err)
         }
     }
 

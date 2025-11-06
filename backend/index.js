@@ -1473,7 +1473,7 @@ socket.on("send_message", async (msgData) => {
             }
         });
     }
-    if (!currentUserMembers.length || !otherUserMemberIds.length) {
+    if (!currentUserMembers.length && !otherUserMemberIds.length) {
         console.warn("Socket message error: member records not found");
         return;
     }
