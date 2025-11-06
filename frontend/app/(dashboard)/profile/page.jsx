@@ -23,7 +23,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className=" w-[calc(100vw-260px)]">
+    <div >
       {/* Banner Section */}
       <div className="relative w-full h-48 bg-gray-300">
         <Image

@@ -30,8 +30,8 @@ export function UserSidebar() {
     setNotifications((prev) => prev.filter((n) => n._id !== id))
 
   return (
-    <Sidebar side="right" className="w-72 border-l">
-      <SidebarContent className="p-4 space-y-4">
+    <Sidebar side="right" className="w-70 pl-6 border-none">
+      <SidebarContent className="p-4 space-y-4 border-l">
         {/* Header */}
         <div className="flex items-center justify-between border-b pb-2">
           <div className="flex items-center space-x-2">

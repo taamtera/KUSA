@@ -25,8 +25,8 @@ export default async function Layout({ children }) {
     <UserProvider initialUser={user}>
       <SidebarProvider defaultOpen collapsible="offcanvas" breakpoint="md">
         <AppSidebar />
-        <main className="flex-1">{children}</main>
-        <UserSidebar />
+        <main className="flex-1 mx-auto w-[calc(100vw-560px)]">{children}</main>
+        <UserSidebar className="pl6 border-none"/>
       </SidebarProvider>
     </UserProvider>
   );

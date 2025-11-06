@@ -225,7 +225,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white p-4 border-b flex items-center justify-between shrink-0">
+      <div className="bg-white p-2 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={getAvatarUrl(otherUser?.icon_file)} />
@@ -331,13 +331,13 @@ export default function Chat() {
       )}
 
       {/* Input */}
-      <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
+      <div className="py-3 px-2 border-t bg-white flex items-end gap-2 shrink-0">
         <Button variant="outline" size="icon" className="shrink-0">
           <Paperclip className="h-4 w-4 text-gray-600" />
         </Button>
         <Textarea
           placeholder="Type a message"
-          className="flex-1 resize-none min-h-5 max-h-32 text-black"
+          className="flex-1 resize-none min-h-5 max-h-10 text-black"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => {
