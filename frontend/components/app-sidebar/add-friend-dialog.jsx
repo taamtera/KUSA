@@ -78,7 +78,7 @@ export function AddFriendDialog() {
             disabled={!username.trim()}
             className="w-full"
           >
-            Search
+            Add Friend
           </Button>
         </div>
       </DialogContent>
