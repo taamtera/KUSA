@@ -1373,11 +1373,22 @@ app.get('/api/v1/notifications', auth, async (req, res) => {
 app.post('/api/v1/friend/add', auth, async (req, res) => {
     try {
         const { toUsername } = req.body;
+
+        // Prevent sending a request to yourself
+        if (recipient._id.toString() === req.userId.toString()) {
+        return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
+        }
+
+        // check if user exist
         const recipient = await User.findOne({ username: toUsername }).lean();
         if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
 
-        console.log({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        // Prevent sending a request if already friends
+        if (recipient.friends?.some(id => id.toString() === req.userId.toString())) {
+        return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
+        }
 
+        //P revent duplicate friend requests
         const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
         
