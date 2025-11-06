@@ -5,16 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListPlus } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function AddServerDialog() {
   const [open, setOpen] = useState(false);
   const [serverName, setServerName] = useState("");
-    const handleCreate = () => {
-    if (serverName.trim()) {
-      // Add your server creation logic here
-      alert(`✅Server "${serverName}" created!`);
+
+  const router = useRouter();
+  
+  const handleCreate = async () => {
+    if (!serverName.trim()) return;
+
+    try {
+      const res = await fetch("http://localhost:3001/api/v1/servers/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ serverName }),
+        credentials: "include"
+      });
+
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert(`✅ Server "${serverName}" created!`);
+
+        router.push(`/chats/rooms/${data.firstRoomId}`);
+        window.location.reload();
+
+      } else {
+        alert(`❌ ${data.message}`);
+      }
+
+      handleClose();
+
+    } catch (err) {
+      console.error(err);
+      alert("Server error while creating server.");
     }
-    };
+  };
+
     const handleClose = () => {
     setOpen(false);
     setServerName(""); // Clear input when closing

@@ -1,3 +1,4 @@
+const e = require('express');
 const mongoose = require('mongoose');
 const { Schema, models, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -75,7 +76,7 @@ const memberSchema = new Schema(
         user: { type: ObjectId, ref: 'User', required: true },
         server: { type: ObjectId, ref: 'Server', required: true },
         nickname: { type: String, trim: true, default: null },
-        role: { type: String, default: 'member' } // 'owner', 'moderator', 'member'
+        role: { type: String, enum: ['OWNER', 'MODERATOR', 'MEMBER'], default: 'MEMBER' },
     },
     { timestamps: { createdAt: 'joined_at', updatedAt: 'updated_at' } }
 );
@@ -153,6 +154,18 @@ messageSchema.pre('validate', function (next) {
 });
 
 /* -----------------------------
+ * NOTIFICATION
+ * ---------------------------*/
+
+const notificationSchema = new Schema({
+    user: { type: ObjectId, ref: 'User', required: true },
+    type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+    location: { type: ObjectId, ref: 'Message' },
+    from: { type: ObjectId, ref: 'User', required: true },
+});
+
+
+/* -----------------------------
  * ATTACHMENTS
  * ---------------------------*/
 const attachmentSchema = new Schema(
@@ -226,5 +239,6 @@ const Message = models.Message || model('Message', messageSchema);
 const Attachment = models.Attachment || model('Attachment', attachmentSchema);
 const Reaction = models.Reaction || model('Reaction', reactionSchema);
 const TimeSlot = models.TimeSlot || model('TimeSlot', timeSlotSchema);
+const Notification = models.Notification || model('Notification', notificationSchema);
 
-module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot };
+module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification };

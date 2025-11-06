@@ -32,7 +32,7 @@ const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
 const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
-const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
+const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
 const path = require('path');
 
 // config (env)
@@ -131,7 +131,6 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 // Register
 app.post('/api/v1/login/register', async (req, res) => {
     try {
-        console.log(req.body);
         const { username, email, password, password_confirmation } = req.body;
 
 
@@ -859,6 +858,50 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
 
 // ====================== Servers =====================
 
+// CREATE SERVER
+app.post('/api/v1/servers/create', auth, async (req, res) => {
+    try {
+        const { serverName } = req.body;
+        const userId = req.userId;
+
+        if (!serverName || !userId) {
+            return res.status(400).json({ message: 'Missing serverName or userId.' });
+        }
+
+        // ✅ 1. Create server
+        const newServer = await Server.create({
+            server_name: serverName,
+            icon_file: null,
+            banned_users: []
+        });
+
+        // ✅ 2. Add creator as owner
+        const ownerMember = await Member.create({
+            user: userId,
+            server: newServer._id,
+            role: 'OWNER'
+        });
+
+        // ✅ 3. Create first/default room
+        const generalRoom = await Room.create({
+            server: newServer._id,
+            title: "general",
+            order: 0
+        });
+
+        return res.status(201).json({
+            message: "Server created successfully!",
+            server: newServer,
+            owner: ownerMember,
+            firstRoomId: generalRoom._id
+        });
+
+    } catch (error) {
+        console.error("Error creating server:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
 // List servers (that the user is a member of)
 app.get('/api/v1/servers', auth, async (req, res) => {
     try {
@@ -893,6 +936,24 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     }
 });
 
+// Get server by Id
+app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const server = await Server.findById(serverId);
+
+        if (!server) {
+            return res.status(404).json({ message: "Server not found." });
+        }
+
+        return res.status(200).json({ server });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+
 // Generate server invite link (which is just href={`/join/${server._id}`})
 app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
     try {
@@ -911,9 +972,114 @@ app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
         res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
     }
 });
+
+// Join server
+app.post('/api/v1/servers/join', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!userId || !serverId) {
+            return res.status(400).json({ message: 'Missing userId or serverId.' });
+        }
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ message: 'Server not found.' });
+        }
+
+        // Check membership
+        let member = await Member.findOne({ user: userId, server: serverId });
+        if (!member) {
+            member = await Member.create({
+                user: userId,
+                server: serverId,
+                role: 'MEMBER'
+            });
+        }
+
+        // Get first room
+        const firstRoom = await Room.findOne({ server: serverId }).sort({ order: 1 });
+
+        return res.status(200).json({
+            message: "Success",
+            member,
+            firstRoomId: firstRoom ? firstRoom._id : null
+        });
+
+    } catch (error) {
+        console.error('Error joining server:', error);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+// DELETE SERVER
+app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const userId = req.userId;
+
+        if (!oid(serverId)) {
+            return res.status(400).json({ status: 'failed', message: 'Invalid server id' });
+        }
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ status: 'failed', message: 'Server not found' });
+        }
+
+        const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'OWNER' });
+        if (!ownerRecord) {
+            return res.status(403).json({ status: 'failed', message: 'Only server owner can delete server' });
+        }
+
+        const rooms = await Room.find({ server: serverId }, '_id');
+        const roomIds = rooms.map(r => r._id);
+
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: { $in: roomIds }
+        }, '_id');
+
+        const messageIds = messages.map(m => m._id);
+
+        await Reaction.deleteMany({ message: { $in: messageIds } });
+
+        const attachments = await Attachment.find({ message: { $in: messageIds } });
+
+        for (const att of attachments) {
+            const fileDoc = await File.findById(att.file);
+            if (fileDoc) {
+                await File.deleteOne({ _id: fileDoc._id });
+            }
+        }
+
+        await Attachment.deleteMany({ message: { $in: messageIds } });
+        await Message.deleteMany({ _id: { $in: messageIds } });
+        await Room.deleteMany({ server: serverId });
+        await Member.deleteMany({ server: serverId });
+
+        if (server.icon_file) {
+            await File.deleteOne({ _id: server.icon_file });
+        }
+
+        await Server.deleteOne({ _id: serverId });
+
+        return res.json({
+            status: 'success',
+            message: 'Server and all related data deleted',
+            deletedServerId: serverId
+        });
+
+    } catch (err) {
+        console.error("Error deleting server:", err);
+        return res.status(500).json({ status: 'failed', message: 'Internal server error' });
+    }
+});
+
 // ====================== Rooms =====================
 
-//add a room to a server
+// Add a room to a server
 app.post('/api/v1/rooms', auth, async (req, res) => {
     try {
         const { serverId, title } = req.body;
@@ -922,17 +1088,21 @@ app.post('/api/v1/rooms', auth, async (req, res) => {
             return res.status(400).json({ status: 'failed', message: 'Server ID and room title are required' });
         }
 
-        const isPermission = await Member.findOne({ server: serverId, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        const isPermission = await Member.findOne({
+            server: serverId,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
         if (!isPermission) {
             return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
         }
 
         const last_room_order = await Room.countDocuments({ server: serverId });
 
-        // Create the room
         const room = await Room.create({
             server: serverId,
-            title: title,
+            title,
             order: last_room_order,
             createdBy: req.userId
         });
@@ -944,27 +1114,31 @@ app.post('/api/v1/rooms', auth, async (req, res) => {
     }
 });
 
-//edit room
+// Edit room
 app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
     try {
         const { roomId } = req.params;
         const { title, order } = req.body;
 
-        // Find the room
         const room = await Room.findById(roomId);
         if (!room) {
             return res.status(404).json({ status: 'failed', message: 'Room not found' });
         }
 
-        const isPermission = await Member.findOne({ server: room.server, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
         if (!isPermission) {
             return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
         }
 
-        // Update the room
         if (order !== undefined) {
             const old_index = room.order;
             const new_index = order;
+
             await Room.updateMany(
                 { server: room.server, order: { $gt: old_index } },
                 { $inc: { order: -1 } }
@@ -975,6 +1149,7 @@ app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
             );
             room.order = new_index;
         }
+
         if (title !== undefined) room.title = title;
         await room.save();
 
@@ -985,22 +1160,26 @@ app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
     }
 });
 
-// delete room
+// Delete room
 app.delete('/api/v1/rooms/:roomId', auth, async (req, res) => {
     try {
         const { roomId } = req.params;
 
-        // Find the room
         const room = await Room.findById(roomId);
         if (!room) {
             return res.status(404).json({ status: 'failed', message: 'Room not found' });
         }
 
-        const isPermission = await Member.findOne({ server: room.server, user: req.userId, role: { $in: ['owner', 'moderator'] } });
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
         if (!isPermission) {
             return res.status(403).json({ status: 'failed', message: 'You do not have permission to delete this room' });
         }
-        // get room order an reorder other rooms that come after it
+
         const deletedRoomOrder = room.order;
         await Room.deleteOne({ _id: room._id });
 
@@ -1161,6 +1340,105 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
+// ====================== Notifications ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
+
+app.get('/api/v1/notifications', auth, async (req, res) => {
+    try {
+        const notifications = await Notification.find({ user: req.userId })
+            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' }})
+            .populate('location')
+            .sort({ created_at: -1 })
+            .lean();
+
+        res.json({ status: 'success', notifications });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch notifications' });
+    }
+});
+
+// ====================== Friends ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
+app.post('/api/v1/friend/add', auth, async (req, res) => {
+    try {
+        const { toUsername } = req.body;
+        const recipient = await User.findOne({ username: toUsername }).lean();
+        if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
+
+        console.log({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+
+        const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
+        
+
+        const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });
+
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to send friend request' });
+    }
+});
+
+app.post('/api/v1/friend/respond', auth, async (req, res) => {
+    try {
+        const { notificationId, accept } = req.body;
+        const notification = await Notification.findById(notificationId);
+        if (!notification) return res.status(404).json({ status: 'failed', message: 'Notification not found' });
+        
+        if (notification.type === 'FRIEND_REQUEST' && String(notification.user) === String(req.userId)) {
+            if (accept) {
+                await User.updateOne(
+                    { _id: req.userId },
+                    { $addToSet: { friends: notification.from } }
+                );
+                await Notification.deleteOne({ _id: notificationId });
+
+                return res.json({ status: 'success', message: 'Friend request accepted' });
+
+            } else {
+                // Decline: just delete the notification
+                await Notification.deleteOne({ _id: notificationId });
+                return res.json({ status: 'success', message: 'Friend request declined' });
+            }
+        } else {
+            return res.status(400).json({ status: 'failed', message: 'Invalid notification type or user' });
+        }
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to accept friend request' });
+    }
+});
+
+app.post('/api/v1/friend/remove', auth, async (req, res) => {
+    try {
+        const { friendId } = req.body;
+        const removed = await User.updateOne(
+            { _id: req.userId },
+            { $pull: { friends: friendId } }
+        );
+        if (removed.modifiedCount === 0) {
+            return res.status(404).json({ status: 'failed', message: 'Friend not found in your friend list' });
+        } else {
+            return res.json({ status: 'success', message: 'Friend removed' });
+        }
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to remove friend' });
+    }
+});
+
 // ====================== Socket Logic ======================
 
 io.on("connection", (socket) => {
@@ -1253,7 +1531,7 @@ socket.on("send_message", async (msgData) => {
         }
     });
 
-socket.on("disconnect", () => {
+    socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });

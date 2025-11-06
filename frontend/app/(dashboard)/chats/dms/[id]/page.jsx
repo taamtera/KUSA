@@ -14,7 +14,6 @@ import SearchChatDialog from "@/components/message/searchchatdialog";
 import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 
-
 export default function Chat() {
   const params = useParams();
   const otherUserId = params.id;
@@ -70,10 +69,6 @@ export default function Chat() {
     setThreadReplies([]);
     setThreadParent(null);
   };
-
-  useEffect(() => {
-    console.log(threadParent?._id);
-  }, [threadParent]);
 
   // WebSocket setup
   useEffect(() => {
@@ -316,7 +311,7 @@ export default function Chat() {
       {replyingTo && (
         <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
           <div className="text-3xl px-3">↰</div>
-          <div className="flex-1 w-[16px]">
+          <div className="flex-1 w-4">
             <div className="text-sm text-gray-500 font-medium">
               Replying to {replyingTo.sender?.user?.username || "user"}
             </div>
