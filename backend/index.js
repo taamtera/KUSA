@@ -1414,6 +1414,10 @@ app.post('/api/v1/friend/respond', auth, async (req, res) => {
                     { _id: req.userId },
                     { $addToSet: { friends: notification.from } }
                 );
+                await User.updateOne(
+                    { _id: notification.from },
+                    { $addToSet: { friends: req.userId } }
+                );
                 await Notification.deleteOne({ _id: notificationId });
 
                 return res.json({ status: 'success', message: 'Friend request accepted' });
