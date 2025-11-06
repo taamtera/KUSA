@@ -1,9 +1,9 @@
 "use client";
 import React, { useId } from "react";
 import { useState, useEffect } from "react";
-import { useUser } from "../../../context/UserContext";
+import { useUser } from "../../context/UserContext";
 import useTimetable from "@/components/TableContent";
-import { ChartNoAxesColumnIcon } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
 import TimeTablePopoverDetail from "./timetable-popover-detail";
 
@@ -44,7 +44,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
       title: s.title,
       description: s.description,
       location: s.location,
-      color: s.color || '000000',
+      color: s.color || '#2b2b2b',
       gridColumn: `${startCol} / span ${spanCols}`,
       gridRow: row,
       maxWidthPx: durationHours * time_width,
@@ -160,7 +160,9 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                   </span>
                 )}
                 {slot.location && (
-                  <span className="px-2 text-[12px] text-white dark:text-fuchsia-100">{slot.location}</span>
+                  <span className="flex items-center px-2 text-[12px] text-white dark:text-fuchsia-100">
+                    <MapPin className="size-[14px]"/> {slot.location}
+                  </span>
                 )}
               </PopoverTrigger>
 
