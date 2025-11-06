@@ -152,7 +152,6 @@ export default function ProfilePage({ user }) {
         }
     };
 
-
     const handleSubmitAdd = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -210,12 +209,7 @@ export default function ProfilePage({ user }) {
                 <h2 className="text-xl font-semibold">
                     Timetable
                 </h2>
-
-                {/* Share Button */}
-                <Button className="absolute px-4 right-10 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">share</Button>
-                {/* Save Button */}
-                <Button className="absolute px-4 right-30 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">save</Button>
-
+                
                 {/* Add Button */}
                 <TimeTableAddDialog
                     open={open}
@@ -241,7 +235,6 @@ export default function ProfilePage({ user }) {
                 />
 
                 {/* Edit Button */}
-                {/* <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button> */}
                 <TimeTableEditDialog
                     openEdit={openEdit}
                     setOpenEdit={setOpenEdit}

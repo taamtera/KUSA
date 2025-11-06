@@ -27,7 +27,7 @@ export default function TimeTableAddDialog({
     return (
         <Dialog open={open} onOpenChange={setOpenAdd}>
             <DialogTrigger asChild>
-                <Button className="absolute right-70 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
+                <Button className="absolute right-30 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
                     add
                 </Button>
             </DialogTrigger>
@@ -47,8 +47,10 @@ export default function TimeTableAddDialog({
                             <textarea
                                 className="w-full border rounded p-2 text-[14px] h-[36px]"
                                 value={title}
+                                maxLength={120}
                                 onChange={(e) => setTitle(e.target.value)}
                             />
+                            <p className={`text-[12px] flex justify-end ${title.length === 120 ? "text-red-500" : ""}`}>{title.length}/120</p>
                         </div>
 
                         {/* Day + Start/End */}

@@ -160,8 +160,8 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                   </span>
                 )}
                 {slot.location && (
-                  <span className="flex items-center px-2 text-[12px] text-white dark:text-fuchsia-100">
-                    <MapPin className="size-[14px]"/> {slot.location}
+                  <span className="flex items-center pl-0.5 pr-2 text-[12px] text-white dark:text-fuchsia-100">
+                    <MapPin className="size-[16px]"/> <p className="overflow-hidden truncate">{slot.location}</p>
                   </span>
                 )}
               </PopoverTrigger>
@@ -182,8 +182,8 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                     minStart={slot.minStart}
                     hourEnd={slot.hourEnd}
                     minEnd={slot.minEnd}
+                    slotId={slot.id}
                     onEdit={() => onEditSlot?.(slot)}
-                    onDelete={() => onDeleteSlot?.(slot)}
                   />
                 </div>
               </PopoverContent>

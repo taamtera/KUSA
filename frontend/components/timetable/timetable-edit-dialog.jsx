@@ -40,7 +40,7 @@ export default function TimeTableEditDialog({
     return (
         <Dialog open={openEdit} onOpenChange={setOpenEdit}>
             <DialogTrigger asChild>
-                <Button className="absolute right-50 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
+                <Button className="absolute right-10 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
                     edit
                 </Button>
             </DialogTrigger>
@@ -118,8 +118,10 @@ export default function TimeTableEditDialog({
                                 <textarea
                                     className="w-full border rounded p-2 text-[14px] h-[36px]"
                                     value={editTitle}
+                                    maxLength={120}
                                     onChange={(e) => setEditTitle(e.target.value)}
                                 />
+                                <p className={`text-[12px] flex justify-end ${editTitle.length === 120 ? "text-red-500" : ""}`}>{editTitle.length}/120</p>
                             </div>
                             
                             <div className="flex gap-4 items-center">
