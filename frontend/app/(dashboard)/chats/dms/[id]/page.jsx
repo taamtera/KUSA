@@ -15,6 +15,7 @@ import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 import MessageReply from "@/components/message/messagereply";
 import MessageThread from "@/components/message/messagethread";
+// import MessageEdit from "@/components/message/messageedit";
 
 
 export default function Chat() {
@@ -28,7 +29,8 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
-  const [replyingTo, setReplyingTo] = useState(null); //
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [editingTo, setEditingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -192,6 +194,14 @@ export default function Chat() {
     setReplyingTo(null);
   };
 
+  const handleEdit = (message) => {
+    setEditingTo(message);//
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTo(null);//
+  };
+
   // --- Send Message ---
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
@@ -213,11 +223,13 @@ export default function Chat() {
       content: newMessage,
       message_type: "text",
       reply_to: replyingTo?._id || null, // 👈 include reply reference if replying
+      edit_to: editingTo?._id || null
     };
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
     setReplyingTo(null); // 👈 clear reply after sending
+    setEditingTo(null);
   };
 
   // --- Render ---
@@ -301,6 +313,8 @@ export default function Chat() {
                   fromCurrentUser={fromCurrentUser}
                   onReply={handleReply} // ✅ pass reply handler
                   onOpenThread={openThread}
+                  onEdit={handleEdit}
+                  editingTo={editingTo}
                 />
               );
 
@@ -320,6 +334,13 @@ export default function Chat() {
           replyingTo={replyingTo}
           onCancel={handleCancelReply}>
         </MessageReply>
+      )}
+
+      {/* Edit Preview */}
+      {editingTo && (
+        <div>
+          {/* Amogus */}
+        </div>
       )}
 
       {/* Input */}

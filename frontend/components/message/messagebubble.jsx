@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { ContextMenu } from "@/components/contextmenu";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
 
 const initialContextMenu = {
   visible: false,
@@ -9,7 +11,7 @@ const initialContextMenu = {
   y: 0,
 }
 
-export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread }) {
+export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo }) {
   const isPending = message.temp || message.pending;
   const [contextMenu, setContextMenu] = useState(initialContextMenu);
   
@@ -36,8 +38,19 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     contextMenuClose();
   }
 
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(message);
+    }
+    contextMenuClose();
+  }
+
   const handleOpenThread = () => {
     if (onOpenThread && message.reply_to?._id) onOpenThread(message.reply_to);
+  };
+
+  const handleCancel = () => {
+    onEdit(null);
   };
 
   return (
@@ -48,6 +61,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
           y={contextMenu.y} 
           closeMenu={contextMenuClose}
           onReplyClick={handleReplyClick}
+          onEditClick={handleEditClick}
         />
       )}
       
@@ -90,7 +104,27 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
             whiteSpace: "pre-wrap",
           }}
         >
-          <p>{message.content}</p>
+          {
+            editingTo?._id === message._id ? 
+            <div>
+              <textarea
+                value={message.content}
+                className="w-[416px]"
+                
+              >
+              </textarea>
+              <div className="flex justify-end content-end gap-2 pt-4">
+                <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={handleCancel}>
+                    Cancel
+                </Button>
+                <Button type="submit" className="cursor-pointer">
+                    Save
+                </Button>
+              </div>
+            </div>
+            : 
+            <p>{message.content}</p>
+          }
         </div>
       </div>
       

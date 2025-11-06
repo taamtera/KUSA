@@ -2,13 +2,17 @@ import { Button } from "./ui/button";
 import { useRef } from "react";
 import useOnClickOutside from "@/hooks/useOnClickOutside";
 
-export function ContextMenu({ visible, x, y, closeMenu, onReplyClick }) {
+export function ContextMenu({ visible, x, y, closeMenu, onReplyClick, onEditClick }) {
 
     const contextMenuRef = useRef(null);
     useOnClickOutside(contextMenuRef, closeMenu);
 
     const handleReplyClick = () => {
         if (onReplyClick) onReplyClick(); // Call the parent handler
+    };
+
+    const handleEditClick = () => {
+        if (onEditClick) onEditClick();
     };
 
     return (
@@ -19,7 +23,14 @@ export function ContextMenu({ visible, x, y, closeMenu, onReplyClick }) {
         >
             <Button 
                 className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
-                onClick={closeMenu} // Just close menu for edit
+                onClick={closeMenu} // Copy
+                // data-clipboard-target="amogus"
+            >
+                Copy
+            </Button>
+            <Button 
+                className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
+                onClick={handleEditClick} // 
             >
                 Edit
             </Button>
