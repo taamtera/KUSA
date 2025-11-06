@@ -14,7 +14,6 @@ import SearchChatDialog from "@/components/message/searchchatdialog";
 import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 
-
 export default function Chat() {
   const params = useParams();
   const otherUserId = params.id;
