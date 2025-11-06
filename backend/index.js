@@ -1374,14 +1374,14 @@ app.post('/api/v1/friend/add', auth, async (req, res) => {
     try {
         const { toUsername } = req.body;
 
+        // check if user exist
+        const recipient = await User.findOne({ username: toUsername }).lean();
+        if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
+
         // Prevent sending a request to yourself
         if (recipient._id.toString() === req.userId.toString()) {
         return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
         }
-
-        // check if user exist
-        const recipient = await User.findOne({ username: toUsername }).lean();
-        if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
 
         // Prevent sending a request if already friends
         if (recipient.friends?.some(id => id.toString() === req.userId.toString())) {
@@ -1435,11 +1435,16 @@ app.post('/api/v1/friend/respond', auth, async (req, res) => {
 app.post('/api/v1/friend/remove', auth, async (req, res) => {
     try {
         const { friendId } = req.body;
-        const removed = await User.updateOne(
+        const removedMe = await User.updateOne(
             { _id: req.userId },
             { $pull: { friends: friendId } }
         );
-        if (removed.modifiedCount === 0) {
+        const removeThem = await User.updateOne(
+            { _id: friendId },
+            { $pull: { friends: req.userId } }
+        );
+
+        if (removedMe.modifiedCount !== 1 && removeThem.modifiedCount !== 1) {
             return res.status(404).json({ status: 'failed', message: 'Friend not found in your friend list' });
         } else {
             return res.json({ status: 'success', message: 'Friend removed' });

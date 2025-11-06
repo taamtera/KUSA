@@ -14,6 +14,7 @@ export function NotificationFriend({ notif, onRemove }) {
                 body: JSON.stringify({  notificationId: notif._id, accept}),
             })
             onRemove(notif._id)
+            window.location.href = "/chats/dms/" + fromUser._id
         } catch (err) {
             console.error("Error accepting friend:", err)
         }

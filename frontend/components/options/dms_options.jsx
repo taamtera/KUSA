@@ -23,7 +23,9 @@ export default function DMsOptions({ open, onOpenChange, otherUserId }) {
 
             const data = await res.json()
             if (res.ok) {
-                setMessage("Friend successfully removed.")
+                alert("Friendship destroyed 💔")
+                onOpenChange(false)
+                window.location.href = "/chats"
             } else {
                 setMessage(data.message || "Failed to remove friend.")
             }
