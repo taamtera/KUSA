@@ -1351,7 +1351,7 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
 app.get('/api/v1/notifications', auth, async (req, res) => {
     try {
         const notifications = await Notification.find({ user: req.userId })
-            .populate({ path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' }})
+            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' }})
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
