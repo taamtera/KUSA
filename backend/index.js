@@ -1351,7 +1351,7 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
 app.get('/api/v1/notifications', auth, async (req, res) => {
     try {
         const notifications = await Notification.find({ user: req.userId })
-            .populate('from', 'username display_name icon_file')
+            .populate({ path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' }})
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
@@ -1376,8 +1376,11 @@ app.post('/api/v1/friend/add', auth, async (req, res) => {
         const recipient = await User.findOne({ username: toUsername }).lean();
         if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
 
+        console.log({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+
         const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
+        
 
         const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });

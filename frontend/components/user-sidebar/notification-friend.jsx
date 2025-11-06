@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button"
 export function NotificationFriend({ notif, onRemove }) {
     const fromUser = notif.fromUser
 
-    async function handleAccept() {
+    async function handleClick(accept) {
         try {
-            await fetch("http://localhost:3001/api/v1/friends/accept", {
+            await fetch("http://localhost:3001/api/v1/friend/respond", {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fromUserId: notif.from }),
+                body: JSON.stringify({  notificationId: notif._id, accept}),
             })
             onRemove(notif._id)
         } catch (err) {
@@ -19,19 +19,6 @@ export function NotificationFriend({ notif, onRemove }) {
         }
     }
 
-    async function handleDecline() {
-        try {
-            await fetch("http://localhost:3001/api/v1/friends/decline", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fromUserId: notif.from }),
-            })
-            onRemove(notif._id)
-        } catch (err) {
-            console.error("Error declining friend:", err)
-        }
-    }
 
     return (
         <div className="border rounded-lg p-3 text-sm flex flex-col gap-2 hover:bg-muted/40 transition">
@@ -43,10 +30,10 @@ export function NotificationFriend({ notif, onRemove }) {
             </div>
 
             <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="default" onClick={handleAccept}>
+                <Button size="sm" variant="default" onClick={() => handleClick(true)}>
                     Accept
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleDecline}>
+                <Button size="sm" variant="outline" onClick={() => handleClick(false)}>
                     Decline
                 </Button>
             </div>

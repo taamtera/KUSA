@@ -17,21 +17,8 @@ export function UserSidebar() {
         })
         const data = await res.json()
 
-        const enriched = await Promise.all(
-          (data.notifications || []).map(async (n) => {
-            if (n.type === "FRIEND_REQUEST") {
-              const profileRes = await fetch(
-                `http://localhost:3001/api/v1/users/${n.from}`,
-                { credentials: "include" }
-              )
-              const profileData = await profileRes.json()
-              return { ...n, fromUser: profileData.user }
-            }
-            return n
-          })
-        )
-
-        setNotifications(enriched)
+        setNotifications(data.notifications)
+        console.log(data)
       } catch (err) {
         console.error("Error fetching notifications:", err)
       }
