@@ -114,7 +114,7 @@ export default function TimeTableEditDialog({
 
                             {/* Class name */}
                             <div>
-                                <label>Class name</label>
+                                <label>Title</label>
                                 <textarea
                                     className="w-full border rounded p-2 text-[14px] h-[36px]"
                                     value={editTitle}

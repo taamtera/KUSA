@@ -43,7 +43,7 @@ export default function TimeTableAddDialog({
                     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden text-[16px]">
                         {/* Title */}
                         <div>
-                            <label>Class name</label>
+                            <label>Title</label>
                             <textarea
                                 className="w-full border rounded p-2 text-[14px] h-[36px]"
                                 value={title}
