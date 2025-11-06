@@ -22,6 +22,7 @@ export function AddFriendDialog() {
           credentials: 'include',
           body: JSON.stringify({ toUsername: username }),
         });
+        const data = await response.json();
         if (data.status === 'success') {
           setMessage(`${data.message}`);
         } else {
