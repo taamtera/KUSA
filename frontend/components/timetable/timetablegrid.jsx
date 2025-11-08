@@ -7,23 +7,31 @@ import { MapPin } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
 import TimeTablePopoverDetail from "./timetable-popover-detail";
 
-export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) {
-  const Days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const Hours = [
-    "0:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
-  ];
+import {
+  DAYS,
+  DAY_TO_INDEX,
+  MINUTES_PER_COLUMN,
+  COLS_PER_DAY,
+  TIME_WIDTH,
+  pad2,
+} from "./time-utils";
 
-  const time_width = 75;
-  const minutesPerColumn = 60; // change to 15 for finer resolution
-  const colsPerDay = (24 * 60) / minutesPerColumn; // e.g. 48 for 30-min steps
+export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) {
+
+  const minutesPerColumn = MINUTES_PER_COLUMN;
+  const colsPerDay = COLS_PER_DAY;
+  const time_width = TIME_WIDTH;
+  const Days = DAYS;
+
+  const columnsPerHour = 60 / minutesPerColumn; // 4 when 15 minutes, 2 when 30, 1 when 60
+  const hoursPerDay = 24;
+
+  const timeLabels = Array.from({ length: hoursPerDay }, (_, h) => `${pad2(h)}`); 
 
   // const [slots, setSlots] = useState([]);
   const { user } = useUser();
   const userId = propUserId || user?._id;
   const { slots, loading, error, reload } = useTimetable(userId);
-  // console.log("slots from useTimetable:", slots);
-
-  if (!userId || loading) return <div>Loading timetable...</div>;
 
   // helper map to convert backend day ('mon') -> row index where Sun=0
   const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
@@ -34,20 +42,20 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
     const endMin = Number(s.end_min);
 
     const durationMin = endMin - startMin;
-    const durationHours = durationMin / minutesPerColumn; // can be fractional (1.5h, 0.5h, etc.)
+    const durationCols = durationMin / minutesPerColumn;
 
-    const startCol = Math.floor(startMin / minutesPerColumn) + 2; // grid columns start at 2
-    const spanCols = Math.max(1, Math.ceil((endMin - startMin) / minutesPerColumn));
-    const row = (DAY_TO_INDEX[s.day] ?? 0) + 2; // grid rows start at 2
+    const startCol = Math.floor(startMin / minutesPerColumn) + 2;
+    const spanCols = Math.max(1, Math.ceil(durationMin / minutesPerColumn));
+    const row = (DAY_TO_INDEX[s.day] ?? 0) + 2;
+
     return {
       id: s._id || `${s.day}-${s.start_min}-${s.end_min}`,
       title: s.title,
       description: s.description,
       location: s.location,
-      color: s.color || '#2b2b2b',
+      color: s.color || "#2b2b2b",
       gridColumn: `${startCol} / span ${spanCols}`,
       gridRow: row,
-      maxWidthPx: durationHours * time_width,
       day: s.day,
       hourStart: Math.floor(startMin / 60),
       minStart: startMin % 60,
@@ -55,17 +63,30 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
       minEnd: endMin % 60,
     };
   });
-  // console.log()
+
+
+  if (!userId || loading) return <div>Loading timetable...</div>;
 
   // Pre-calculate grid positions
-  const hourColumns = Hours.map((_, index) => index + 2);
   const dayRows = Days.map((_, index) => index + 1);
-  const gridCells = Days.flatMap((_, h_index) =>
-    Hours.map((_, d_index) => ({
-      col: d_index + 2,
-      row: h_index + 2,
-    }))
+  const gridCells = Days.flatMap((_, dayIndex) =>
+    Array.from({ length: colsPerDay }, (_, colIndex) => {
+      const colsPerHour = 60 / minutesPerColumn;   // 4 when 15min
+      const isHour = colIndex % colsPerHour === 0; // 0,4,8,... full hours
+
+      // half-hour = 30 minutes; that’s half an hour index
+      const isHalfHour =
+        !isHour && colIndex % (colsPerHour / 2) === 0; // 2,6,10,... when 15min
+
+      return {
+        col: colIndex + 2,
+        row: dayIndex + 2,
+        isHour,
+        isHalfHour,
+      };
+    })
   );
+
 
   return (
     <div className="relative overflow-auto rounded-[16px] outline-gray-400 bg-white outline dark:bg-gray-950/50">
@@ -73,7 +94,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
         <div
           className={
             `grid 
-            grid-cols-[repeat(${Hours.length + 1},${time_width}px)] 
+            grid-cols-[repeat(${colsPerDay + 1},${time_width}px)] 
             grid-rows-[repeat(${Days.length + 1},12px)] 
             min-w-max`
           }
@@ -92,57 +113,65 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
           />
 
           {/* Hour headers */}
-          {Hours.map((hour, index) => (
-            <div
-              key={index}
-              className={
-                `sticky 
-                border-b 
-                top-0
-                z-10 
-                border-gray-100 
-                bg-white 
-                bg-clip-padding 
-                py-2 
-                text-left 
-                text-base 
-                font-medium 
-                text-gray-500 
-                dark:border-black/10 
-                dark:bg-gradient-to-b 
-                dark:from-gray-600 
-                dark:to-gray-700 
-                dark:text-gray-200`
-              }
-              style={{ gridColumn: hourColumns[index], gridRow: 1, width: `${time_width}px`, }}
-            >
+          {timeLabels.map((label, hourIndex) => {
+            const startCol = 2 + hourIndex * columnsPerHour; // col 2 is the first time column
+
+            return (
               <div
-                style={{ width: `${time_width}px` }}
-              >{hour}</div>
-            </div>
-          ))}
+                key={hourIndex}
+                className="sticky border-b border-gray-200 top-0 z-10 border-gray-100 bg-white bg-clip-padding py-2 text-left text-base font-medium text-gray-500 dark:border-black/10 dark:bg-gradient-to-b dark:from-gray-600 dark:to-gray-700 dark:text-gray-200"
+                style={{
+                  gridColumn: `${startCol} / span ${columnsPerHour}`,
+                  gridRow: 1,
+                }}
+              >
+                <div className="w-full">
+                  {label}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Day headers */}
           {Days.map((day, h_index) => (
             <div
               key={h_index}
-              className="sticky left-0 z-30 border-r border-gray-100 bg-white dark:border-gray-200/5 dark:bg-gray-800 flex items-center justify-center px-[25] h-[10vh] min-h-[72px]"
+              className="sticky left-0 z-30 border-r border-gray-200 bg-white dark:border-gray-200/5 dark:bg-gray-800 flex items-center justify-center px-[4px] h-[10vh] max-h-[48px] min-h-[72px]"
               style={{ gridColumn: 1, gridRow: dayRows[h_index] + 1 }}
             >
-              <div className="text-xl font-medium text-gray-500 uppercase text-center w-full">
+              <div className="text-[16px] font-medium text-gray-500 uppercase text-center w-full">
                 {day}
               </div>
             </div>
           ))}
 
           {/* Grid cells */}
-          {gridCells.map((cell, index) => (
-            <div
-              key={index}
-              className="border-l border-b border-t border-gray-200 dark:border-gray-200/5"
-              style={{ gridColumn: cell.col, gridRow: cell.row }}
-            ></div>
-          ))}
+          {gridCells.map((cell, index) => {
+            // base class = horizontal line
+            let className =
+              "border-b border-gray-300 dark:border-gray-200/5 min-w-[12px]";
+
+            // vertical lines only at 60 and 30 minutes
+            if (cell.isHour) {
+              // thicker / darker for hours
+              className += " border-l border-l-gray-300 dark:border-l-gray-400";
+            } else if (cell.isHalfHour) {
+              // normal for half-hour
+              className += " border-l border-l-gray-100 dark:border-l-gray-500";
+            } else {
+              // no left border at 15-minute marks
+              className += " border-l-0";
+            }
+
+            return (
+              <div
+                key={index}
+                className={className}
+                style={{ gridColumn: cell.col, gridRow: cell.row }}
+              />
+            );
+          })}
+
 
           {/* Render fetched time slots */}
           {mappedSlots.map((slot) => (
@@ -150,7 +179,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
             <Popover key={slot.id}>
               <PopoverTrigger
                 className={`slot-card text-left m-[2px] rounded-[8px] flex flex-col border border-gray-700/10 px-1 py-0.5 whitespace-normal wrap-break-word overflow-hidden`}
-                style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow, backgroundColor: slot.color, maxWidth: `${slot.maxWidthPx}px` }}>
+                style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow, backgroundColor: slot.color, }}>
                 <span className="px-2 text-[14px] font-[1000] text-white dark:text-fuchsia-100 overflow-hidden truncate">
                   {slot.title}
                 </span>
@@ -161,7 +190,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                 )}
                 {slot.location && (
                   <span className="flex items-center pl-0.5 pr-2 text-[12px] text-white dark:text-fuchsia-100">
-                    <MapPin className="size-[16px]"/> <p className="overflow-hidden truncate">{slot.location}</p>
+                    <MapPin className="size-[16px]" /> <p className="overflow-hidden truncate">{slot.location}</p>
                   </span>
                 )}
               </PopoverTrigger>

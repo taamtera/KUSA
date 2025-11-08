@@ -1,8 +1,11 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { minToHHMM, DaysList, MINUTES_PER_COLUMN } from "./time-utils";
+import TimetableTimeInput from "./timetable-time-input";
 
 export default function TimeTableAddDialog({
     open,
@@ -54,41 +57,61 @@ export default function TimeTableAddDialog({
                         </div>
 
                         {/* Day + Start/End */}
-                        <div className="flex gap-4 items-center">
-                            <div className="flex-1">
-                                <label>Day</label>
-                                <select
-                                    className="w-full border rounded px-2 text-[14px] h-[34px]"
-                                    value={day}
-                                    onChange={(e) => setDay(e.target.value)}
-                                >
-                                    <option value="" disabled>
-                                        SELECT DAY
-                                    </option>
-                                    {DaysList.map((d) => (
-                                        <option key={d.value} value={d.value}>
-                                            {d.value.toUpperCase()}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2 items-center">
+                                {/* Day */}
+                                <div className="flex-2">
+                                    <label className="block">Day</label>
 
-                            <div className="flex-1">
-                                <label>Start (hr)</label>
-                                <Input
-                                    value={start_min}
-                                    onChange={(e) => setStart_min(e.target.value)}
-                                    className="text-[14px] h-[34px]"
-                                />
-                            </div>
-
-                            <div className="flex-1">
-                                <label>End (hr)</label>
-                                <Input
-                                    value={end_min}
-                                    onChange={(e) => setEnd_min(e.target.value)}
-                                    className="text-[14px] h-[34px]"
-                                />
+                                    <ToggleGroup
+                                        type="single"
+                                        value={day || undefined}               // allow "no selection" when empty
+                                        onValueChange={(value) => {
+                                            if (value) setDay(value);            // ignore clearing clicks
+                                        }}
+                                        className="flex flex-wrap gap-1 p-2"
+                                    >
+                                        {DaysList.map((d) => (
+                                            <ToggleGroupItem
+                                                key={d.value}
+                                                value={d.value}
+                                                className="
+                                                    w-[56px]
+                                                    text-xs md:text-sm
+                                                    rounded-[999px]
+                                                    border border-gray-300
+                                                    bg-white
+                                                    text-gray-700
+                                                    hover:bg-gray-100
+                                                    data-[state=on]:bg-gray-600
+                                                    data-[state=on]:text-white
+                                                    data-[state=on]:border-gray-600
+                                                "
+                                            >
+                                                {d.value.toUpperCase()}
+                                            </ToggleGroupItem>
+                                        ))}
+                                    </ToggleGroup>
+                                </div>
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="">
+                                        <TimetableTimeInput
+                                            label="Start"
+                                            minutes={Number(start_min) || 0}
+                                            onChange={setStart_min}
+                                            maxHour={23}               // start cannot be 24
+                                        />
+                                    </div>
+                                    <div>
+                                        <TimetableTimeInput
+                                            label="End"
+                                            minutes={Number(end_min) || 0}
+                                            onChange={setEnd_min}
+                                            maxHour={24}               // can go up to 24:00
+                                            forbidExactMidnight={true} // end cannot be 00:00
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -126,12 +149,12 @@ export default function TimeTableAddDialog({
 
                     {/* Action buttons */}
                     <div className="flex justify-end content-end gap-2 pt-4">
-                            <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenAdd(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" className="cursor-pointer">
-                                Save
-                            </Button>
+                        <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenAdd(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" className="cursor-pointer">
+                            Save
+                        </Button>
                     </div>
                 </form>
             </DialogContent>

@@ -6,6 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/compone
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil2Icon, TrashIcon, Cross2Icon, TextAlignLeftIcon } from "@radix-ui/react-icons";
 import { X, MapPin, AlignLeft, PencilIcon } from "lucide-react";
+import { pad2, formatLongDay } from "./time-utils";
 
 export default function TimeTablePopoverDetail({
     title,
@@ -27,10 +28,13 @@ export default function TimeTablePopoverDetail({
     const hasLocation = location != null;
     const hasDescription = description != null;
 
-    const hour_start = (hourStart).toString().padStart(2, '0');
-    const min_start = minStart.toString().padStart(2, '0');
-    const hour_end = (hourEnd).toString().padStart(2, '0');
-    const min_end = minEnd.toString().padStart(2, '0');
+    const hour_start = pad2(hourStart % 24);
+    const min_start = pad2(minStart);
+    const hour_end = pad2(hourEnd % 24);
+    const min_end = pad2(minEnd);
+
+    const CapitalizedDay = formatLongDay(day);
+
 
     const DAY_PREFIXES = {
         mon: "mon",
@@ -41,12 +45,6 @@ export default function TimeTablePopoverDetail({
         sat: "satur",
         sun: "sun",
     };
-
-    const actualDay = DAY_PREFIXES[day] ?? day;
-    const CapitalizedDay =
-        actualDay.charAt(0).toUpperCase()
-        + actualDay.slice(1)
-        + "day";
 
     const handleDelete = async () => {
         if (!slotId) return;
@@ -86,14 +84,14 @@ export default function TimeTablePopoverDetail({
 
                     <button 
                         onClick={onEdit}
-                        className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-300/30 hover:rounded-full size-[30px]"
+                        className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]"
                     >
                     <PencilIcon className="size-[16px]"/>
                     </button>
 
                     <Dialog open={openDelete} onOpenChange={setOpenDelete}>
                         <DialogTrigger>
-                            <button className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-300/30 hover:rounded-full size-[30px]">
+                            <button className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
                                 <TrashIcon className="size-[18px]"/>
                             </button>
                         </DialogTrigger>

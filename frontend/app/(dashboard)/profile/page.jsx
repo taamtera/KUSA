@@ -23,7 +23,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className=" w-[calc(100vw-260px)]">
+    <div className=" w-[100vw]">
       {/* Banner Section */}
       <div className="relative w-full h-48 bg-gray-300">
         <Image
@@ -45,7 +45,7 @@ export default function ProfilePage() {
           
         </div>
       </div>
-      <div className="max-h-[80vh] min-w-[640px] max-w-[80vp]">
+      <div className="max-h-[80vh] max-w-[90vw]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* TimeTable Session */}
