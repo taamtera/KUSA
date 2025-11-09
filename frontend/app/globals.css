@@ -150,3 +150,72 @@ body {
     --sidebar-ring: oklch(0.439 0 0);
   }
 }
+
+/* Make each slot act as a container whose size we can query */
+.slot-card {
+  /* We care about height as well, so use size instead of inline-size */
+  container-type: size;
+}
+
+/* Default: allow up to 3 lines, ellipsis if over */
+.slot-card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2; /* max lines when slot is tall enough */
+}
+
+/* If the slot is short (small height), clamp to 1 line */
+@container (max-height: 80px) {
+  .slot-card-title {
+    -webkit-line-clamp: 1;
+    /* optional extra safety */
+    white-space: nowrap;
+  }
+}
+
+/* Text stroke */
+@layer utilities {
+  .text-outline {
+    -webkit-text-stroke: 0.7px rgba(0, 0, 0, 0.9); /* outline color + thickness */
+  }
+}
+
+/* Animation for dialog */
+@keyframes overlayShow {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes contentShow {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes overlayHide {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes contentHide {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+}
+
+/* Turn them into Tailwind utilities */
+@utility animate-overlayShow {
+  animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility animate-contentShow {
+  animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility animate-overlayHide {
+  animation: overlayHide 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility animate-contentHide {
+  animation: contentHide 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}

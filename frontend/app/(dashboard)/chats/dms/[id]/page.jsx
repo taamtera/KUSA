@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react"; 
 import { useParams } from "next/navigation";
 import { Send, Paperclip, Users, X, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,10 @@ import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
 import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
+import MessageReply from "@/components/message/messagereply";
+import MessageThread from "@/components/message/messagethread";
+// import MessageEdit from "@/components/message/messageedit";
+
 
 export default function Chat() {
   const params = useParams();
@@ -26,6 +30,7 @@ export default function Chat() {
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingTo, setEditingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -185,6 +190,14 @@ export default function Chat() {
     setReplyingTo(null);
   };
 
+  const handleEdit = (message) => {
+    setEditingTo(message);//
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTo(null);//
+  };
+
   // --- Send Message ---
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
@@ -206,11 +219,13 @@ export default function Chat() {
       content: newMessage,
       message_type: "text",
       reply_to: replyingTo?._id || null, // 👈 include reply reference if replying
+      edit_to: editingTo?._id || null
     };
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
     setReplyingTo(null); // 👈 clear reply after sending
+    setEditingTo(null);
   };
 
   // --- Render ---
@@ -294,6 +309,8 @@ export default function Chat() {
                   fromCurrentUser={fromCurrentUser}
                   onReply={handleReply} // ✅ pass reply handler
                   onOpenThread={openThread}
+                  onEdit={handleEdit}
+                  editingTo={editingTo}
                 />
               );
 
@@ -309,24 +326,16 @@ export default function Chat() {
 
       {/* Reply Preview */}
       {replyingTo && (
-        <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
-          <div className="text-3xl px-3">↰</div>
-          <div className="flex-1 w-4">
-            <div className="text-sm text-gray-500 font-medium">
-              Replying to {replyingTo.sender?.user?.username || "user"}
-            </div>
-            <div className="text-sm text-gray-600 truncate w-auto">
-              {replyingTo.content}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={handleCancelReply}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <MessageReply
+          replyingTo={replyingTo}
+          onCancel={handleCancelReply}>
+        </MessageReply>
+      )}
+
+      {/* Edit Preview */}
+      {editingTo && (
+        <div>
+          {/* Amogus */}
         </div>
       )}
 
@@ -359,49 +368,13 @@ export default function Chat() {
 
       {/* Thread Modal */}
       {threadOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[min(92vw,520px)] max-h-[70vh] bg-white rounded-2xl shadow-xl flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div className="text-sm font-semibold">
-                Thread • Reply to {threadParent?.sender?.nickname || threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
-              </div>
-              <button onClick={closeThread} className="p-1 rounded hover:bg-gray-100">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* parent message */}
-            {threadParent && (
-              <div className="px-4 pt-3 pb-2 bg-gray-50">
-                <div className="text-xs text-gray-600 mb-1">
-                  {threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
-                </div>
-                <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                  {threadParent.content}
-                </div>
-              </div>
-            )}
-
-            <div className="px-4 py-3 border-t overflow-y-auto space-y-2">
-              {threadLoading ? (
-                <div className="text-sm text-gray-500">Loading replies…</div>
-              ) : threadReplies.length === 0 ? (
-                <div className="text-sm text-gray-500">No replies yet.</div>
-              ) : (
-                threadReplies.map((msg) => (
-                  <div key={msg._id}>
-                    <div className="text-xs text-gray-600">
-                      {msg.sender?.user?.display_name || msg.sender?.user?.username || "user"}
-                    </div>
-                    <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                      {msg.content}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <MessageThread
+          threadParent={threadParent}
+          threadLoading={threadLoading}
+          threadReplies={threadReplies}
+          closeThread={closeThread}
+        >
+        </MessageThread>
       )}
 
       <SearchChatDialog

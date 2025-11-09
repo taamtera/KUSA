@@ -4,7 +4,7 @@ import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 
-export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread }) {
+export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo }) {
   const senderName = fromCurrentUser
     ? "You"
     : sender?.display_name || sender?.username || "User";
@@ -43,6 +43,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
                   fromCurrentUser={fromCurrentUser}
                   onReply={onReply}
                   onOpenThread={onOpenThread}
+                  onEdit={onEdit}
                 />
               ))}
             </div>
@@ -69,6 +70,8 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
                 fromCurrentUser={fromCurrentUser}
                 onReply={onReply}
                 onOpenThread={onOpenThread}
+                onEdit={onEdit}
+                editingTo={editingTo}
               />
             ))}
           </div>

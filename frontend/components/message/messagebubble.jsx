@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ContextMenu } from "@/components/contextmenu";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
 
 const initialContextMenu = {
   visible: false,
@@ -9,9 +11,14 @@ const initialContextMenu = {
   y: 0,
 }
 
-export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread }) {
+export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo }) {
   const isPending = message.temp || message.pending;
+  const [error, setError] = useState(null)
+  const isEditing = editingTo?._id === message._id;
   const [contextMenu, setContextMenu] = useState(initialContextMenu);
+  const [editedContent, setEditedContent] = useState(message?.content);
+  const [textareaHeight, setTextareaHeight] = useState("auto");
+  const textareaRef = useRef(null);
   
   const handleContextMenu = (e) => {
     e.preventDefault();
@@ -22,6 +29,29 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
       x: pageX,
       y: pageY,
     });
+  };
+
+  const handleSave = async () => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/messages/${message._id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editedContent })
+      })
+      // console.log(body)
+    } catch (error) {
+      setError("Fail to edited message")
+    } finally {
+      message.content = editedContent;
+      onEdit(null)
+    }
+  }
+
+  const resizeTextarea = (el) => {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    setTextareaHeight(`${el.scrollHeight}px`);
   };
 
   const contextMenuClose = () => {
@@ -36,9 +66,41 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     contextMenuClose();
   }
 
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(message);
+    }
+    contextMenuClose();
+  }
+
   const handleOpenThread = () => {
     if (onOpenThread && message.reply_to?._id) onOpenThread(message.reply_to);
   };
+
+  const handleCancel = () => {
+    onEdit(null);
+  };
+
+  const handleTextareaChange = (e) => {
+    setEditedContent(e.target.value);
+
+    // dynamically grow height
+    const target = e.target;
+    target.style.height = "auto";
+    target.style.height = target.scrollHeight + "px";
+    setTextareaHeight(target.scrollHeight + "px");
+  };
+
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      resizeTextarea(textareaRef.current);
+
+      // Optional: focus & move cursor to end
+      const el = textareaRef.current;
+      el.focus();
+      el.selectionStart = el.selectionEnd = el.value.length;
+    }
+  }, [isEditing, message.content]);
 
   return (
     <div className="">
@@ -48,6 +110,9 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
           y={contextMenu.y} 
           closeMenu={contextMenuClose}
           onReplyClick={handleReplyClick}
+          onEditClick={handleEditClick}
+          currentUser={fromCurrentUser}
+          content={editedContent || message.content}
         />
       )}
       
@@ -90,7 +155,29 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
             whiteSpace: "pre-wrap",
           }}
         >
-          <p>{message.content}</p>
+          {
+            editingTo?._id === message._id ? 
+            <div>
+              <textarea
+                ref={textareaRef}
+                value={editedContent}
+                className="w-[416px] overflow-hidden rounded-md border border-gray-300 p-2 text-black"
+                onChange={handleTextareaChange}
+                style={{height: textareaHeight}}
+              >
+              </textarea>
+              <div className="flex justify-end content-end gap-2 pt-4">
+                <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={handleCancel}>
+                    Cancel
+                </Button>
+                <Button type="submit" className="cursor-pointer" onClick={handleSave}>
+                    Save
+                </Button>
+              </div>
+            </div>
+            : 
+            <p>{message.content}</p>
+          }
         </div>
       </div>
       
