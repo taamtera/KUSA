@@ -12,6 +12,14 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
     const [allServers, setAllServers] = useState([])
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
     const [inviteLink, setInviteLink] = useState("")
+    const role = useMemo(() => {
+        return otherUser?.find((m) => m.user?._id === user?._id)?.role
+    }, [otherUser, user])
+
+    const isOwner = role === "OWNER"
+    const isOwnerOrAdmin = isOwner || role == "ADMIN"
+
+    console.log("owner,admin",isOwner,isOwnerOrAdmin)
 
     useEffect(() => {
         const fetchServers = async () => {
@@ -30,41 +38,6 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
         if (user) fetchServers()
     }, [user])
 
-    const handleInviteClick = async () => {
-        try {
-            const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-            })
-
-            const text = await res.text()
-            let data
-
-            try {
-                data = JSON.parse(text)
-            } catch (e) {
-                console.error("Invalid server response:", text)
-                throw new Error("Invalid JSON")
-            }
-
-            if (data.status === "success") {
-                setInviteLink(data.invite_link || data.inviteLink || "")
-                setInviteDialogOpen(true)
-            }
-        } catch (err) {
-            console.error("Invite error:", err)
-        }
-    }
-
-    const currentMember = useMemo(() => {
-        return otherUser?.find((m) => m.user?._id === user?._id)
-    }, [otherUser, user])
-
-    const isOwner = currentMember?.role === "owner"
-    const isAdmin = currentMember?.role === "admin"
-    const isOwnerOrAdmin = isOwner || isAdmin
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md overflow-y-auto">
@@ -79,7 +52,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                     </TabsList>
 
                     <TabsContent value="options" className="mt-4">
-                        <OptionsTab server={server} isOwnerOrAdmin={isOwnerOrAdmin} isOwner={isOwner} handleInviteClick={handleInviteClick} />
+                        <OptionsTab server={server} isOwnerOrAdmin={isOwnerOrAdmin} isOwner={isOwner} />
                     </TabsContent>
 
                     <TabsContent value="rooms" className="mt-4">

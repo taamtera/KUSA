@@ -67,7 +67,6 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
     }
 
     // Add new room
-    const [newRoomOpen, setNewRoomOpen] = useState(false)
     const [newRoomName, setNewRoomName] = useState("")
 
     const addRoom = async () => {
@@ -81,7 +80,6 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
         const data = await res.json()
         setRooms([...rooms, data.room])
         setNewRoomName("")
-        setNewRoomOpen(false)
         setLoading(false)
     }
 
