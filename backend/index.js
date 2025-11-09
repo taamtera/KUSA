@@ -988,6 +988,11 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             return res.status(404).json({ message: 'Server not found.' });
         }
 
+        // if user is banned
+        if (server.banned_users.includes(userId)) {
+            return res.status(403).json({ message: 'You are banned from this server.' });
+        }
+
         // Check membership
         let member = await Member.findOne({ user: userId, server: serverId });
         if (!member) {
