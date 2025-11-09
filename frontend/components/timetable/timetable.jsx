@@ -9,6 +9,12 @@ import useTimetable from "@/components/TableContent"
 import { useRef } from "react"
 import * as ToggleGroup from "@radix-ui/react-toggle-group"
 
+import {
+    MINUTES_PER_COLUMN,
+    DAY_TO_INDEX as DAY_TO_INDEX_MAP,
+    DaysList,
+} from "./time-utils";
+
 
 export default function ProfilePage({ user }) {
     const [open, setOpenAdd] = useState(false);
@@ -41,42 +47,33 @@ export default function ProfilePage({ user }) {
     // console.log("slots from useTimetable:", slots);
     // console.log("user id in timetable page:", user?._id);
 
-    const time_width = 150;
-    const minutesPerColumn = 60; // change to 15 for finer resolution
-    const DAY_TO_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-    const DaysList = [
-        { label: "Sunday", value: "sun" },
-        { label: "Monday", value: "mon" },
-        { label: "Tuesday", value: "tue" },
-        { label: "Wednesday", value: "wed" },
-        { label: "Thursday", value: "thu" },
-        { label: "Friday", value: "fri" },
-        { label: "Saturday", value: "sat" },
-    ];
+    const minutesPerColumn = MINUTES_PER_COLUMN;
+    const DAY_TO_INDEX = DAY_TO_INDEX_MAP;
 
 
     //Convert slots into grid placement props
     const mappedSlots = slots.map((s) => {
         const startMin = Number(s.start_min);
         const endMin = Number(s.end_min);
-        const startCol = Math.floor(startMin / minutesPerColumn) + 2; // grid columns start at 2
+        const startCol = Math.floor(startMin / minutesPerColumn) + 2;
         const spanCols = Math.max(1, Math.ceil((endMin - startMin) / minutesPerColumn));
-        const row = (DAY_TO_INDEX[s.day] ?? 0) + 2; // grid rows start at 2
+        const row = (DAY_TO_INDEX[s.day] ?? 0) + 2;
         return {
             id: s._id || `${s.day}-${s.start_min}-${s.end_min}`,
             title: s.title,
             description: s.description,
             location: s.location,
-            color: s.color || 'purple',
+            color: s.color || "purple",
             gridColumn: `${startCol} / span ${spanCols}`,
             gridRow: row,
             hourStart: Math.floor(startMin / 60),
             minStart: startMin % 60,
             hourEnd: Math.floor(endMin / 60),
             minEnd: endMin % 60,
-            day: s.day
+            day: s.day,
         };
     });
+
 
     const handleColorChange = (e) => {
         const newColor = e.target.value;
@@ -106,13 +103,19 @@ export default function ProfilePage({ user }) {
         setEditTitle(slot.title || "");
         setEditDescription(slot.description || "");
         setEditDay(slot.day);
-        setEditStartMin(slot.hourStart);  // using hourStart from grid
-        setEditEndMin(slot.hourEnd);
+
+        // convert to minutes since midnight
+        const startMinutes = slot.hourStart * 60 + slot.minStart;
+        const endMinutes = slot.hourEnd * 60 + slot.minEnd;
+        setEditStartMin(startMinutes);
+        setEditEndMin(endMinutes);
+
         setEditLocation(slot.location || "");
         setEditColor(slot.color || "");
 
-        setOpenEdit(true); // 👈 open dialog
+        setOpenEdit(true);
     };
+
 
     const handleSubmitEdit = async (e) => {
         e.preventDefault();
@@ -131,8 +134,8 @@ export default function ProfilePage({ user }) {
                     description: editDescription,
                     location: editLocation,
                     day: editDay,
-                    start_min: (Number(editStartMin)) * 60,
-                    end_min: (Number(editEndMin)) * 60,
+                    start_min: Number(editStartMin),
+                    end_min: Number(editEndMin),
                     color: editColor,
                 }),
                 credentials: "include",
@@ -152,7 +155,6 @@ export default function ProfilePage({ user }) {
         }
     };
 
-
     const handleSubmitAdd = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -170,8 +172,8 @@ export default function ProfilePage({ user }) {
                         title,
                         description,
                         day,
-                        start_min: (Number(start_min)) * 60,
-                        end_min: (Number(end_min)) * 60,
+                        start_min: Number(start_min),
+                        end_min: Number(end_min),
                         location,
                         color
                     }),
@@ -211,11 +213,6 @@ export default function ProfilePage({ user }) {
                     Timetable
                 </h2>
 
-                {/* Share Button */}
-                <Button className="absolute px-4 right-10 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">share</Button>
-                {/* Save Button */}
-                <Button className="absolute px-4 right-30 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">save</Button>
-
                 {/* Add Button */}
                 <TimeTableAddDialog
                     open={open}
@@ -241,7 +238,6 @@ export default function ProfilePage({ user }) {
                 />
 
                 {/* Edit Button */}
-                {/* <Button className="absolute py-3 mt-5 px-4 right-50 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded">edit</Button> */}
                 <TimeTableEditDialog
                     openEdit={openEdit}
                     setOpenEdit={setOpenEdit}

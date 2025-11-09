@@ -22,7 +22,7 @@ const PopoverContent = React.forwardRef(
                 ref={ref}
             >
                 {children}
-                {showArrow && <PopoverPrimitive.Arrow />}
+                {showArrow && <PopoverPrimitive.Arrow className="fill-gray-800"/>}
             </PopoverPrimitive.Content>
         </PopoverPrimitive.Portal>
     ),

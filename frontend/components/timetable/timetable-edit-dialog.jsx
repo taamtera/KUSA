@@ -1,8 +1,9 @@
 "use client"
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import TimetableTimeInput from "./timetable-time-input";
 
 export default function TimeTableEditDialog({
     openEdit,
@@ -40,13 +41,13 @@ export default function TimeTableEditDialog({
     return (
         <Dialog open={openEdit} onOpenChange={setOpenEdit}>
             <DialogTrigger asChild>
-                <Button className="absolute right-50 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
+                <Button className="absolute right-10 px-4 cursor-pointer bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white border border-blue-500 hover:border-transparent rounded w-15">
                     edit
                 </Button>
             </DialogTrigger>
 
             <DialogContent
-                className={`${selectSlot ? "w-[720px]" : "w-[150px] h-[150px]"} max-w-[90vw] min-w-[350px] max-h-[60vh] bg-white text-black flex flex-col`}
+                className={`${selectSlot ? "w-[720px]" : "h-[150px] w-[300px]"} min-w-[350px] max-w-[90vw] max-h-[60vh] bg-white text-black flex flex-col`}
             >
                 <DialogHeader>
                     <DialogTitle>Edit Timetable</DialogTitle>
@@ -92,67 +93,103 @@ export default function TimeTableEditDialog({
                                                 setEditTitle(slot.title);
                                                 setEditDescription(slot.description);
                                                 setEditDay(slot.day);
-                                                setEditStartMin(slot.startMin);
-                                                setEditEndMin(slot.endMin);
+
+                                                const startMinutes = slot.hourStart * 60 + slot.minStart;
+                                                const endMinutes = slot.hourEnd * 60 + slot.minEnd;
+                                                setEditStartMin(startMinutes);
+                                                setEditEndMin(endMinutes);
+
                                                 setEditColor(slot.color);
+
                                             }}
                                             className="hover:bg-gray-200 bg-gray-100 w-full text-left p-2 rounded-[4px] justify-between items-center flex"
                                         >
                                             <p className="text-left text-[12px] text-gray-500 w-[150px] overflow-hidden truncate">{slot.title}</p>
                                             <p className="text-right text-[12px] text-gray-500 text-sm">
-                                                {slot.day} {leadingTwoZero(slot.hourStart)}:{leadingTwoZero(slot.minStart)} - {leadingTwoZero(slot.hourEnd)}:{leadingTwoZero(slot.minEnd)}</p>
+                                                {slot.day} {leadingTwoZero(slot.hourStart)}:{leadingTwoZero(slot.minStart)} - {leadingTwoZero(slot.hourEnd)}:{leadingTwoZero(slot.minEnd)}
+                                            </p>
                                         </Button>
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
-                    
+
                     {/* Edit session */}
                     {spanEdit && (
                         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden text-[16px]">
 
                             {/* Class name */}
                             <div>
-                                <label>Class name</label>
+                                <label>Title</label>
                                 <textarea
                                     className="w-full border rounded p-2 text-[14px] h-[36px]"
                                     value={editTitle}
+                                    maxLength={120}
                                     onChange={(e) => setEditTitle(e.target.value)}
                                 />
+                                <p className={`text-[12px] flex justify-end ${editTitle.length === 120 ? "text-red-500" : ""}`}>{editTitle.length}/120</p>
                             </div>
-                            
-                            <div className="flex gap-4 items-center">
-                                <div className="flex-1">
-                                    <label>Day</label>
-                                    <select
-                                        className="w-full border rounded px-2 text-[14px] h-[34px]"
-                                        value={editDay}
-                                        onChange={(e) => setEditDay(e.target.value)}
-                                    >
-                                        {DaysList.map((d) => (
-                                            <option key={d.value} value={d.value}>{d.value.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-1">
-                                    <label>Start (hr)</label>
-                                    <Input
-                                        value={editStartMin}
-                                        onChange={(e) => setEditStartMin(e.target.value)}
-                                        className="text-[14px] h-[34px]"
-                                    />
-                                </div>
-                                <div className="flex-1">
-                                    <label>End (hr)</label>
-                                    <Input
-                                        value={editEndMin}
-                                        onChange={(e) => setEditEndMin(e.target.value)}
-                                        className="text-[14px] h-[34px]"
-                                    />
+
+                            {/* Day + Start/End */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-2 items-center">
+                                    {/* Day */}
+                                    <div className="flex-2">
+                                        <label className="block">Day</label>
+
+                                        <ToggleGroup
+                                            type="single"
+                                            value={editDay || undefined}               // allow "no selection" when empty
+                                            onValueChange={(value) => {
+                                                if (value) setEditDay(value);            // ignore clearing clicks
+                                            }}
+                                            className="flex flex-wrap gap-1 p-2 "
+                                        >
+                                            {DaysList.map((d) => (
+                                                <ToggleGroupItem
+                                                    key={d.value}
+                                                    value={d.value}
+                                                    className="
+                                                        w-[56px]
+                                                        text-xs md:text-sm
+                                                        rounded-[999px]
+                                                        border border-gray-300
+                                                        bg-white
+                                                        text-gray-700
+                                                        hover:bg-gray-100
+                                                        data-[state=on]:bg-gray-600
+                                                        data-[state=on]:text-white
+                                                        data-[state=on]:border-gray-600
+                                                    "
+                                                >
+                                                    {d.value.toUpperCase()}
+                                                </ToggleGroupItem>
+                                            ))}
+                                        </ToggleGroup>
+                                    </div>
+                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        <div>
+                                            <TimetableTimeInput
+                                                label="Start"
+                                                minutes={Number(editStartMin) || 0}
+                                                onChange={setEditStartMin}
+                                                maxHour={23}               // start cannot be 24
+                                            />
+                                        </div>
+                                        <div>
+                                            <TimetableTimeInput
+                                                label="End"
+                                                minutes={Number(editEndMin) || 0}
+                                                onChange={setEditEndMin}
+                                                maxHour={24}               // can go up to 24:00
+                                                forbidExactMidnight={true} // end cannot be 00:00
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            
+
                             {/* Description */}
                             <div>
                                 <label>Description</label>
@@ -172,7 +209,7 @@ export default function TimeTableEditDialog({
                                     onChange={(e) => setEditLocation(e.target.value)}
                                 />
                             </div>
-                            
+
                             {/* Color */}
                             <div>
                                 <label>Color</label>

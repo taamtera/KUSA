@@ -1,10 +1,12 @@
 "use client"
 import React from "react";
 import { useState, useEffect } from "react";
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pencil2Icon, TrashIcon, Cross2Icon, TextAlignLeftIcon } from "@radix-ui/react-icons";
 import { X, MapPin, AlignLeft, PencilIcon } from "lucide-react";
+import { pad2, formatLongDay } from "./time-utils";
 
 export default function TimeTablePopoverDetail({
     title,
@@ -16,17 +18,23 @@ export default function TimeTablePopoverDetail({
     minStart,
     hourEnd,
     minEnd,
+    slotId,
     onEdit,
-    onDelete,
 }) {
 
+    const [deleteSlot, setDeleteSlot] = useState(false);
+    const [openDelete, setOpenDelete] = useState(false);
+    
     const hasLocation = location != null;
     const hasDescription = description != null;
 
-    const hour_start = (hourStart).toString().padStart(2, '0');
-    const min_start = minStart.toString().padStart(2, '0');
-    const hour_end = (hourEnd).toString().padStart(2, '0');
-    const min_end = minEnd.toString().padStart(2, '0');
+    const hour_start = pad2(hourStart % 24);
+    const min_start = pad2(minStart);
+    const hour_end = pad2(hourEnd % 24);
+    const min_end = pad2(minEnd);
+
+    const CapitalizedDay = formatLongDay(day);
+
 
     const DAY_PREFIXES = {
         mon: "mon",
@@ -38,11 +46,34 @@ export default function TimeTablePopoverDetail({
         sun: "sun",
     };
 
-    const actualDay = DAY_PREFIXES[day] ?? day;
-    const CapitalizedDay =
-        actualDay.charAt(0).toUpperCase()
-        + actualDay.slice(1)
-        + "day";
+    const handleDelete = async () => {
+        if (!slotId) return;
+
+        try {
+            const res = await fetch(`http://localhost:3001/api/v1/timetable/${slotId}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            let data = {};
+            try {
+                data = await res.json();
+            } catch (_) {
+                data = {};
+            }
+
+            if (res.ok) {
+                // simple: reload profile to refresh timetable
+                window.location.href = "/profile";
+            } else {
+                alert(data.message || "Failed to delete slot");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Something went wrong while deleting");
+        }
+    };
+
 
     return (
         <div className="relative w-full">
@@ -50,14 +81,34 @@ export default function TimeTablePopoverDetail({
             {/* Button session */}
             <div className="flex justify-end items-center gap-4 pb-2">
                 <div className="flex gap-2">
-                    <PencilIcon
+
+                    <button 
                         onClick={onEdit}
-                        className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"
-                    />
-                    <TrashIcon
-                        onClick={onDelete}
-                        className="p-[6px] cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[30px]"
-                    />
+                        className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]"
+                    >
+                    <PencilIcon className="size-[16px]"/>
+                    </button>
+
+                    <Dialog open={openDelete} onOpenChange={setOpenDelete}>
+                        <DialogTrigger>
+                            <button className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
+                                <TrashIcon className="size-[18px]"/>
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent className="w-[256px]">
+                            <DialogHeader>
+                                <DialogTitle>Delete Time Slot</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex justify-between items-center pt-4">
+                                <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={() => setOpenDelete(false)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleDelete} type="submit" className="cursor-pointer bg-red-500 border border-red-500 hover:bg-transparent hover:text-red-500 hover:border hover:border-red-500">
+                                    Delete
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
                 <PopoverClose className="">
                     <X className="p-2 cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[35px]" />
