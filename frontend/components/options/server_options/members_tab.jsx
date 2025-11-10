@@ -2,21 +2,54 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, Ellipsis } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
-export default function MembersTab({ otherUser, user, query, setQuery, isOwnerOrAdmin }) {
+export default function MembersTab({ server, otherUser, user, query, setQuery, isOwnerOrAdmin }) {
+
+    const [members, setMembers] = useState(otherUser);
+
+    useEffect(() => {
+        setMembers(otherUser);
+    }, [otherUser]);
 
     const results = useMemo(() => {
-        if (!query.trim()) return otherUser;
-        return otherUser.filter((member) =>
+        if (!query.trim()) return members;
+        return members.filter((member) =>
             member.user.username.toLowerCase().includes(query.toLowerCase()) ||
             member.user.display_name.toLowerCase().includes(query.toLowerCase())
         );
-    }, [query, otherUser]);
+    }, [query, members]);
+
+    async function handleKick(targetUserId) {
+        const res = await fetch('http://localhost:3001/api/v1/servers/kick', {
+            credentials: "include",
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverId: server._id, userId: targetUserId })
+        });
+        if (res.ok) {
+            const kickedMember = otherUser.find(m => m.user._id === targetUserId);
+            setMembers(prev => prev.filter(m => m.user._id !== targetUserId));
+            alert(`${kickedMember.user.display_name} has been kicked.`);
+        }
+    }
+
+    async function handleBan(targetUserId) {
+        const res = await fetch('http://localhost:3001/api/v1/servers/ban', {
+            credentials: "include",
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverId: server._id, userId: targetUserId })
+        });
+        if (res.ok) {
+            const bannedMember = otherUser.find(m => m.user._id === targetUserId);
+            setMembers(prev => prev.filter(m => m.user._id !== targetUserId));
+            alert(`${bannedMember.user.display_name} has been banned.`);
+        }
+    }
 
     return (
         <div className="space-y-4">
-
             <div className="relative flex items-center">
                 <Input
                     placeholder="Search members..."
@@ -63,8 +96,19 @@ export default function MembersTab({ otherUser, user, query, setQuery, isOwnerOr
                                             <>
                                                 <DropdownMenuItem>Set Role</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600">Kick</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600">Ban</DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    className="text-red-600"
+                                                    onClick={() => handleKick(member.user._id)}
+                                                >
+                                                    Kick
+                                                </DropdownMenuItem>
+
+                                                <DropdownMenuItem
+                                                    className="text-red-600"
+                                                    onClick={() => handleBan(member.user._id)}
+                                                >
+                                                    Ban
+                                                </DropdownMenuItem>
                                             </>
                                         )}
                                     </DropdownMenuContent>

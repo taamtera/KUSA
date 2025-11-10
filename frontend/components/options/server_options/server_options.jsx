@@ -19,8 +19,6 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
     const isOwner = role === "OWNER"
     const isOwnerOrAdmin = isOwner || role == "ADMIN"
 
-    console.log("owner,admin",isOwner,isOwnerOrAdmin)
-
     useEffect(() => {
         const fetchServers = async () => {
             try {
@@ -60,7 +58,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                     </TabsContent>
 
                     <TabsContent value="members" className="mt-4">
-                        <MembersTab otherUser={otherUser} user={user} query={query} setQuery={setQuery} isOwnerOrAdmin={isOwnerOrAdmin} />
+                        <MembersTab server={server} otherUser={otherUser} user={user} query={query} setQuery={setQuery} isOwnerOrAdmin={isOwnerOrAdmin} />
                     </TabsContent>
                 </Tabs>
             </DialogContent>

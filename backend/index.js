@@ -1018,6 +1018,62 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
     }
 });
 
+// Kick user from server
+app.post('/api/v1/servers/kick', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        // Check permissions (only OWNER or MODERATOR can kick)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to kick users" });
+        }
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User kicked successfully" });
+    } catch (error) {
+        console.error("Kick error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Ban user
+app.post('/api/v1/servers/ban', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to ban users" });
+        }
+
+        // Add to banned list (if not already)
+        await Server.findByIdAndUpdate(serverId, {
+            $addToSet: { banned_users: userId }
+        });
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User banned successfully" });
+    } catch (error) {
+        console.error("Ban error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 // DELETE SERVER
 app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
     try {
