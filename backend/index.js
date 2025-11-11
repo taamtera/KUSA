@@ -1018,6 +1018,35 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
     }
 });
 
+// Set role for a member
+app.post('/api/v1/servers/set-role', auth, async (req, res) => {
+    try {
+        const { serverId, userId, role } = req.body;
+        const requester = req.userId;
+        if (!serverId || !userId || !role) {
+            return res.status(400).json({ message: "Missing serverId, userId, or role" });
+        }
+        // Check permissions (only OWNER can set roles)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || requesterMember.role !== 'OWNER') {
+            return res.status(403).json({ message: "No permission to set roles" });
+        }
+        // Update member role
+        const updatedMember = await Member.findOneAndUpdate(
+            { user: userId, server: serverId },
+            { role: role },
+            { new: true }
+        );
+        if (!updatedMember) {
+            return res.status(404).json({ message: "Member not found in server" });
+        }
+        return res.status(200).json({ message: "Role updated successfully", member: updatedMember });
+    } catch (error) {
+        console.error("Set role error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 // Kick user from server
 app.post('/api/v1/servers/kick', auth, async (req, res) => {
     try {

@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuPortal } from "@/components/ui/dropdown-menu";
 import { Search, Ellipsis } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
@@ -19,6 +19,24 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
             member.user.display_name.toLowerCase().includes(query.toLowerCase())
         );
     }, [query, members]);
+
+    async function handleSetRole(targetUserId, newRole) {
+        const res = await fetch('http://localhost:3001/api/v1/servers/set-role', {
+            credentials: "include",
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverId: server._id, userId: targetUserId, role: newRole })
+        });
+        if (res.ok) {
+            setMembers(prev => prev.map(m => {
+                if (m.user._id === targetUserId) {
+                    return { ...m, role: newRole };
+                }
+                return m;
+            }));
+            alert(`Role updated successfully.`);
+        }
+    }
 
     async function handleKick(targetUserId) {
         const res = await fetch('http://localhost:3001/api/v1/servers/kick', {
@@ -94,7 +112,23 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
 
                                         {isOwnerOrAdmin && member.user._id !== user._id && (
                                             <>
-                                                <DropdownMenuItem>Set Role</DropdownMenuItem>
+                                                <DropdownMenuSub>
+                                                    <DropdownMenuSubTrigger
+                                                    >Set Role</DropdownMenuSubTrigger>
+                                                    <DropdownMenuPortal>
+                                                        <DropdownMenuSubContent>
+                                                            <DropdownMenuItem onClick={() => handleSetRole(member.user._id, "MEMBER")}>
+                                                                Member
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleSetRole(member.user._id, "MODERATOR")}>
+                                                                Moderator
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleSetRole(member.user._id, "OWNER")}>
+                                                                Owner
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuPortal>
+                                                </DropdownMenuSub>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                     className="text-red-600"
