@@ -1456,6 +1456,22 @@ app.get('/api/v1/notifications', auth, async (req, res) => {
     }
 });
 
+app.post('/api/v1/notification/respond', auth, async (req, res) => {
+    try {
+        const { notificationId, accept } = req.body;
+        if (accept) {
+            const result = await Notification.deleteOne({ _id: notificationId });
+            if (result.deletedCount === 0) {
+                return res.status(404).json({ status: 'failed', message: 'Notification not found' });
+            }
+            return res.json({ status: 'success', message: 'Notification accepted and deleted' });
+        }
+    } catch (error) {
+        console.error('Error responding to notification:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });   
+    }
+});
+
 // ====================== Friends ======================
 // const notificationSchema = new Schema({
 //     user: { type: ObjectId, ref: 'User', required: true },
@@ -1638,6 +1654,20 @@ io.on("connection", (socket) => {
                 io.to(recipientId.toString()).emit("receive_message", populatedMessage);
             }
 
+            // if mentiond, create notification
+            const mentionRegex = /@([\w]+)/g;
+            let match;
+            const mentionedUsernames = new Set();
+
+            while ((match = mentionRegex.exec(content)) !== null) {
+                mentionedUsernames.add(match[1]);
+            }
+            for (const username of mentionedUsernames) {
+                const mentionedUser = await User.findOne({ username }).lean();
+                if (mentionedUser && String(mentionedUser._id) !== String(from_id)) {
+                    const result = await Notification.create({ user: mentionedUser._id, type: 'MENTION', location: message._id, from: from_id });
+                }
+            }
             console.log("📨 Message delivered via WS:", content);
         } catch (err) {
             console.error("Socket message error:", err);

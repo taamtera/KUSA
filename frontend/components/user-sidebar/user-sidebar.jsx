@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch"
 import { Bell } from "lucide-react"
 import { useEffect, useState } from "react"
 import { NotificationFriend } from "./notification-friend"
+import { NotificationMention } from "./notification-mention"
 
 export function UserSidebar() {
   const [notifications, setNotifications] = useState([])
@@ -52,6 +53,14 @@ export function UserSidebar() {
               if (notif.type === "FRIEND_REQUEST") {
                 return (
                   <NotificationFriend
+                    key={notif._id}
+                    notif={notif}
+                    onRemove={handleRemoveNotification}
+                  />
+                )
+              } else if (notif.type === "MENTION") {
+                return (
+                  <NotificationMention
                     key={notif._id}
                     notif={notif}
                     onRemove={handleRemoveNotification}
