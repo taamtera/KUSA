@@ -1,20 +1,12 @@
 import { Button } from "./ui/button";
 import { useRef } from "react";
 import useOnClickOutside from "@/hooks/useOnClickOutside";
-import { useUser } from "@/context/UserContext";
 
-export function ContextMenu({ visible, x, y, closeMenu, onReplyClick, onEditClick, currentUser, content }) {
+export function ContextMenu({ x, y, closeMenu, onReplyClick, onEditClick, onUnsendClick, currentUser, content }) {
     // const { user } = useUser();
     const contextMenuRef = useRef(null);
     useOnClickOutside(contextMenuRef, closeMenu);
 
-    const handleReplyClick = () => {
-        if (onReplyClick) onReplyClick(); // Call the parent handler
-    };
-
-    const handleEditClick = () => {
-        if (onEditClick) onEditClick();
-    };
     // console.log("user: ", user);
     // console.log("author: ", messageAuthor);
     const copyToClipboard = async () => {
@@ -42,14 +34,14 @@ export function ContextMenu({ visible, x, y, closeMenu, onReplyClick, onEditClic
             {currentUser && ( // now this limitation isn't include the server(room) owner/admin to editing member messages
                 <Button
                     className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
-                    onClick={handleEditClick} // 
+                    onClick={onEditClick} // 
                 >
                     Edit
                 </Button>
             )}
             <Button
                 className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
-                onClick={handleReplyClick} // Use the new handler
+                onClick={onReplyClick} // Use the new handler
             >
                 Reply
             </Button>
@@ -61,9 +53,9 @@ export function ContextMenu({ visible, x, y, closeMenu, onReplyClick, onEditClic
             </Button>
             <Button
                 className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
-                onClick={closeMenu} // Just close menu for delete
+                onClick={onUnsendClick} // Just close menu for delete
             >
-                Delete
+                Unsend
             </Button>
         </div>
     );

@@ -948,6 +948,64 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
     }
 });
 
+app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) {
+            return res.status(400).json({ status: 'failed', message: 'invalid id' });
+        }
+
+        const message = await Message.findById(id)
+            .populate({
+                path: "sender",
+                populate: [
+                    { path: "user", select: "_id" },
+                    { path: "role" },
+                ],
+            });
+
+        if (!message || message.active === false) {
+            return res.status(404).json({
+                status: 'failed',
+                message: 'message not found or already inactive'
+            });
+        }
+
+        const senderId = message.sender?.user?._id?.toString();
+        const currentUserId = req.userId?.toString();
+
+        // let canModerate = false;
+        // if (message.context_type === "Room") {
+        //     const userRole = message.sender?.role;
+        //     canModerate = ["OWNER", "MODERATOR"].includes(userRole);
+        // }
+
+        const isSender = senderId === currentUserId;
+
+        if (!isSender) {
+            return res.status(403).json({ status: 'failed', message: 'No permission to unsend this message' });
+        }
+
+        message.active = false;
+
+        await message.save();
+
+        return res.json({
+            status: 'success',
+            message: 'Message unsent',
+            data: {
+                _id: message._id,
+                active: message.active,
+                edited_count: message.edited_count,
+                content: message.content
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to unsend message' });
+    }
+});
+
 
 // ====================== Servers =====================
 
@@ -1444,7 +1502,7 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
 app.get('/api/v1/notifications', auth, async (req, res) => {
     try {
         const notifications = await Notification.find({ user: req.userId })
-            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' }})
+            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' } })
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
@@ -1468,7 +1526,7 @@ app.post('/api/v1/notification/respond', auth, async (req, res) => {
         }
     } catch (error) {
         console.error('Error responding to notification:', error);
-        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });   
+        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });
     }
 });
 
@@ -1489,18 +1547,18 @@ app.post('/api/v1/friend/add', auth, async (req, res) => {
 
         // Prevent sending a request to yourself
         if (recipient._id.toString() === req.userId.toString()) {
-        return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
+            return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
         }
 
         // Prevent sending a request if already friends
         if (recipient.friends?.some(id => id.toString() === req.userId.toString())) {
-        return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
+            return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
         }
 
         //P revent duplicate friend requests
         const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
-        
+
 
         const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });
@@ -1516,7 +1574,7 @@ app.post('/api/v1/friend/respond', auth, async (req, res) => {
         const { notificationId, accept } = req.body;
         const notification = await Notification.findById(notificationId);
         if (!notification) return res.status(404).json({ status: 'failed', message: 'Notification not found' });
-        
+
         if (notification.type === 'FRIEND_REQUEST' && String(notification.user) === String(req.userId)) {
             if (accept) {
                 await User.updateOne(
@@ -1674,7 +1732,7 @@ io.on("connection", (socket) => {
         }
     });
 
-        socket.on("disconnect", () => {
+    socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react"; 
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Send, Paperclip, Users, X, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function Chat() {
   const [editingTo, setEditingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const [error, setError] = useState(null);
 
   // Thread state
   const [threadOpen, setThreadOpen] = useState(false);
@@ -228,6 +229,26 @@ export default function Chat() {
     setEditingTo(null);
   };
 
+  const handleUnsend = async (message) => {
+    setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
+
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to unsend");
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to unsend message");
+    }
+  };
+
   // --- Render ---
   if (loading) {
     return (
@@ -311,6 +332,7 @@ export default function Chat() {
                   onOpenThread={openThread}
                   onEdit={handleEdit}
                   editingTo={editingTo}
+                  onUnsend={handleUnsend}
                 />
               );
 
@@ -330,13 +352,6 @@ export default function Chat() {
           replyingTo={replyingTo}
           onCancel={handleCancelReply}>
         </MessageReply>
-      )}
-
-      {/* Edit Preview */}
-      {editingTo && (
-        <div>
-          {/* Amogus */}
-        </div>
       )}
 
       {/* Input */}
