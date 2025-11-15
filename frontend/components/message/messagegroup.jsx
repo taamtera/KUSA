@@ -3,6 +3,7 @@
 import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
+import FriendProfile from "@/components/friend-profile";
 
 export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread }) {
   const senderName = fromCurrentUser
@@ -22,7 +23,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
     >
       {/* Left side (other user) */}
       {!fromCurrentUser && (
-        <div className="flex items-start space-x-2">
+        <div className="flex items-start space-x-2" onClick={<FriendProfile />}>
           <Avatar className="w-10 h-10 shrink-0">
             <AvatarImage src={senderAvatar} />
             <AvatarFallback>{getAvatarFallback(senderName)}</AvatarFallback>
