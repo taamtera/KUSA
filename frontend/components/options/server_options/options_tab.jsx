@@ -1,94 +1,225 @@
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
-    const router = useRouter();
+  const router = useRouter();
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
 
-    async function handleDeleteServer() {
-        if (!confirm("Are you sure? This will delete everything forever.")) return;
-        const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}`, {
-            method: "DELETE",
-            credentials: "include"
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alert("Server deleted");
-            router.push("/chats");
-            window.location.reload();
-        } else {
-            alert(data.message);
+  async function handleChangeServerName() {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/v1/servers/${server._id}/name`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ newName }),
         }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("Server name updated.");
+      setNameDialogOpen(false);
+      router.refresh?.();
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Name update error:", err);
+      alert("Error updating name.");
     }
+  }
 
-    const handleInviteClick = async () => {
-        try {
-            const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/invite`, {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-            })
+  async function handleLeaveServer() {
+    if (!confirm("Are you sure you want to leave this server?")) return;
 
-            const text = await res.text()
-            let data
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/servers/leave`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId: server._id }),
+      });
 
-            try {
-                data = JSON.parse(text)
-            } catch (e) {
-                console.error("Invalid server response:", text)
-                throw new Error("Invalid JSON")
-            }
+      const data = await res.json();
 
-            if (data.status === "success") {
-                setInviteLink(data.invite_link || data.inviteLink || "")
-                setInviteDialogOpen(true)
-            }
-        } catch (err) {
-            console.error("Invite error:", err)
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("You left the server.");
+      router.push("/chats");
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Leave error:", err);
+      alert("An error occurred.");
+    }
+  }
+
+
+  // Delete server
+  async function handleDeleteServer() {
+    if (!confirm("Are you sure? This will delete everything forever.")) return;
+
+    const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("Server deleted");
+      router.push("/chats");
+      window.location.reload();
+    } else {
+      alert(data.message);
+    }
+  }
+
+  // Fetch invite link
+  const handleInviteClick = async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/v1/servers/${server._id}/invite`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
         }
+      );
+
+      const text = await res.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Invalid server response:", text);
+        throw new Error("Invalid JSON");
+      }
+
+      if (data.status === "success") {
+        setInviteLink(data.invite_link || data.inviteLink || "");
+        setInviteDialogOpen(true);
+      }
+    } catch (err) {
+      console.error("Invite error:", err);
     }
+  };
 
-    return (
-        <div className="space-y-4">
+  return (
+    <div className="space-y-4">
+      {/* Server Avatar */}
+      <div className="flex flex-col items-center space-y-2">
+        <Avatar className="h-16 w-16">
+          <AvatarImage
+            src={server?.icon_file ? `/api/v1/files/${server.icon_file._id}` : undefined}
+          />
+          <AvatarFallback>{server?.server_name.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <h2 className="text-lg font-medium">{server?.server_name}</h2>
+      </div>
 
-            <div className="flex flex-col items-center space-y-2">
-                <Avatar className="h-16 w-16">
-                    <AvatarImage src={server?.icon_file ? `/api/v1/files/${server.icon_file._id}` : undefined} />
-                    <AvatarFallback>{server?.server_name.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <h2 className="text-lg font-medium">{server?.server_name}</h2>
-            </div>
+      {/* Owner/Admin Actions */}
+      {isOwnerOrAdmin && (
+        <Button variant="outline" className="w-full">
+          Change Server Profile
+        </Button>
+      )}
 
-            {isOwnerOrAdmin && (
-                <Button variant="outline" className="w-full">
-                    Change Server Profile
-                </Button>
-            )}
+      {isOwnerOrAdmin && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setNameDialogOpen(true)}
+        >
+          Change Server Name
+        </Button>
+      )}
 
-            {isOwnerOrAdmin && (
-                <Button variant="outline" className="w-full">
-                    Change Server Name
-                </Button>
-            )}
+      {/* Invite Members */}
+      <Button variant="outline" className="w-full" onClick={handleInviteClick}>
+        Invite Members
+      </Button>
 
-            <Button variant="outline" className="w-full" onClick={handleInviteClick}>
-                Invite Members
+      {/* Delete Server */}
+      {isOwner && (
+        <Button variant="destructive" className="w-full" onClick={handleDeleteServer}>
+          Delete Server
+        </Button>
+      )}
+
+      {/* Leave Server */}
+      <Button variant="destructive" className="w-full" onClick={handleLeaveServer}>
+        Leave Server
+      </Button>
+
+      {/* Invite Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Link</DialogTitle>
+            <DialogDescription>
+                Share this link to invite others to the server:
+                <div className="mt-2 p-2 bg-gray-100 rounded break-all">{inviteLink}</div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => {navigator.clipboard.writeText(inviteLink); alert("Invite link copied to clipboard!");}}>
+              Copy Link
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Change server name dialouge. */}
+      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Server Name</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this server.
+            </DialogDescription>
+          </DialogHeader>
 
-            {isOwner && (
-                <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={handleDeleteServer}
-                >
-                    Delete Server
-                </Button>
-            )}
+          <input
+            type="text"
+            className="border p-2 w-full rounded"
+            placeholder="New server name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
 
-            <Button variant="destructive" className="w-full">
-                Leave Server
+          <DialogFooter>
+            <Button onClick={handleChangeServerName}>Save</Button>
+            <Button variant="outline" onClick={() => setNameDialogOpen(false)}>
+              Cancel
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        </div>
-    )
+    </div>
+  );
 }
