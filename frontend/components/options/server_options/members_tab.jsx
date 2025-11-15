@@ -95,6 +95,30 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
         }
     }
 
+    async function handleSendFriendRequest(username) {
+        try {
+            const res = await fetch("http://localhost:3001/api/v1/friend/add", {
+                credentials: "include",
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ toUsername: username })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || data.status === "failed") {
+                alert(data.message || "Failed to send friend request");
+                return;
+            }
+
+            alert(data.message || "Friend request sent.");
+        } catch (err) {
+            console.error("Error:", err);
+            alert("Something went wrong sending friend request.");
+        }
+    }
+
+
     return (
         
         <div className="space-y-4">
@@ -144,10 +168,12 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
                                     </DropdownMenuTrigger>
 
                                     <DropdownMenuContent className="w-40">
-                                        <DropdownMenuLabel>{member.user.username}</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem>View Profile</DropdownMenuItem>
-                                        <DropdownMenuItem>Message</DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleSendFriendRequest(member.user.username)}
+                                        >
+                                            Send Friend Request
+                                        </DropdownMenuItem>
 
                                         {isOwnerOrAdmin && member.user._id !== user._id && (
                                             <>
