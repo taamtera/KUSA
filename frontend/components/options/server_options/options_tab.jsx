@@ -15,6 +15,68 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   const router = useRouter();
   const [inviteLink, setInviteLink] = useState("");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+
+  async function handleChangeServerName() {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/v1/servers/${server._id}/name`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ newName }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("Server name updated.");
+      setNameDialogOpen(false);
+      router.refresh?.();
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Name update error:", err);
+      alert("Error updating name.");
+    }
+  }
+
+  async function handleLeaveServer() {
+    if (!confirm("Are you sure you want to leave this server?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/servers/leave`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId: server._id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("You left the server.");
+      router.push("/chats");
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Leave error:", err);
+      alert("An error occurred.");
+    }
+  }
+
 
   // Delete server
   async function handleDeleteServer() {
@@ -87,7 +149,11 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
       )}
 
       {isOwnerOrAdmin && (
-        <Button variant="outline" className="w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setNameDialogOpen(true)}
+        >
           Change Server Name
         </Button>
       )}
@@ -105,7 +171,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
       )}
 
       {/* Leave Server */}
-      <Button variant="destructive" className="w-full">
+      <Button variant="destructive" className="w-full" onClick={handleLeaveServer}>
         Leave Server
       </Button>
 
@@ -126,6 +192,34 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Change server name dialouge. */}
+      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Server Name</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this server.
+            </DialogDescription>
+          </DialogHeader>
+
+          <input
+            type="text"
+            className="border p-2 w-full rounded"
+            placeholder="New server name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+
+          <DialogFooter>
+            <Button onClick={handleChangeServerName}>Save</Button>
+            <Button variant="outline" onClick={() => setNameDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -936,6 +936,20 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     }
 });
 
+// GET /api/v1/servers/banned
+app.get('/api/v1/servers/banned', async (req, res) => {
+    const { serverId } = req.query;
+
+    const server = await Server.findById(serverId)
+        .populate('banned_users', 'username display_name icon_file');
+
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    res.json(server.banned_users);
+});
+
 // Get server by Id
 app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     try {
@@ -950,6 +964,34 @@ app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+// Change server name
+app.put('/api/v1/servers/:serverId/name', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { newName } = req.body;
+        const requester = req.userId;
+
+        if (!newName || newName.trim().length === 0) {
+            return res.status(400).json({ message: "New name required." });
+        }
+
+        // Check permission
+        const member = await Member.findOne({ server: serverId, user: requester });
+        if (!member || (member.role !== "OWNER" && member.role !== "MODERATOR")) {
+            return res.status(403).json({ message: "No permission to change server name." });
+        }
+
+        // Update server name
+        await Server.findByIdAndUpdate(serverId, { server_name: newName.trim() });
+
+        return res.status(200).json({ message: "Server name updated successfully." });
+
+    } catch (error) {
+        console.error("Change name error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -1073,6 +1115,47 @@ app.post('/api/v1/servers/kick', auth, async (req, res) => {
     }
 });
 
+// Leave server
+app.post('/api/v1/servers/leave', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!serverId) {
+            return res.status(400).json({ message: "Missing serverId" });
+        }
+
+        // Find membership
+        const member = await Member.findOne({ server: serverId, user: userId });
+        if (!member) {
+            return res.status(400).json({ message: "You are not a member of this server." });
+        }
+
+        // If leaving member is OWNER → ensure there is another owner
+        if (member.role === "OWNER") {
+            const totalOwners = await Member.countDocuments({
+                server: serverId,
+                role: "OWNER"
+            });
+
+            if (totalOwners <= 1) {
+                return res.status(403).json({
+                    message: "You are the only owner. Promote another owner before leaving."
+                });
+            }
+        }
+
+        // Remove the membership
+        await Member.deleteOne({ server: serverId, user: userId });
+
+        return res.status(200).json({ message: "You left the server." });
+
+    } catch (error) {
+        console.error("Leave error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 // Ban user
 app.post('/api/v1/servers/ban', auth, async (req, res) => {
     try {
@@ -1101,6 +1184,25 @@ app.post('/api/v1/servers/ban', auth, async (req, res) => {
         console.error("Ban error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
+});
+
+// POST /api/v1/servers/unban
+app.post('/api/v1/servers/unban', async (req, res) => {
+    const { serverId, userId } = req.body;
+
+    const server = await Server.findById(serverId);
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    // Remove user from banned_users
+    server.banned_users = server.banned_users.filter(
+        id => id.toString() !== userId
+    );
+
+    await server.save();
+
+    res.json({ message: "User unbanned." });
 });
 
 // DELETE SERVER

@@ -4,9 +4,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Search, Ellipsis } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
-export default function MembersTab({ server, otherUser, user, query, setQuery, isOwnerOrAdmin }) {
+export default function MembersTab({ server, otherUser, user, query, setQuery, isOwnerOrAdmin, isOwner }) {
 
     const [members, setMembers] = useState(otherUser);
+    const [showBannedModal, setShowBannedModal] = useState(false);
+    const [bannedMembers, setBannedMembers] = useState([]);
 
     useEffect(() => {
         setMembers(otherUser);
@@ -39,6 +41,8 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
     }
 
     async function handleKick(targetUserId) {
+        if (!confirm(`Are you sure you want to kick this user?`)) return;
+
         const res = await fetch('http://localhost:3001/api/v1/servers/kick', {
             credentials: "include",
             method: 'POST',
@@ -53,6 +57,7 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
     }
 
     async function handleBan(targetUserId) {
+        if (!confirm(`Are you sure you want to ban this user?`)) return;
         const res = await fetch('http://localhost:3001/api/v1/servers/ban', {
             credentials: "include",
             method: 'POST',
@@ -66,7 +71,32 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
         }
     }
 
+    async function loadBannedMembers() {
+        const res = await fetch(`http://localhost:3001/api/v1/servers/banned?serverId=${server._id}`, {
+            credentials: "include"
+        });
+        if (res.ok) {
+            setBannedMembers(await res.json());
+            setShowBannedModal(true);
+        }
+    }
+
+    async function handleUnban(userId) {
+        const res = await fetch('http://localhost:3001/api/v1/servers/unban', {
+            credentials: "include",
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverId: server._id, userId })
+        });
+
+        if (res.ok) {
+            setBannedMembers(prev => prev.filter(u => u._id !== userId));
+            alert("User unbanned.");
+        }
+    }
+
     return (
+        
         <div className="space-y-4">
             <div className="relative flex items-center">
                 <Input
@@ -76,6 +106,15 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
                 />
                 <Search className="absolute right-3 h-5 w-5 text-gray-500" />
             </div>
+
+            {isOwnerOrAdmin && (
+                <button
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    onClick={loadBannedMembers}
+                >
+                    View Banned Members
+                </button>
+            )}
 
             {results.length === 0 ? (
                 <p className="text-sm text-gray-500">No members found.</p>
@@ -123,9 +162,11 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
                                                             <DropdownMenuItem onClick={() => handleSetRole(member.user._id, "MODERATOR")}>
                                                                 Moderator
                                                             </DropdownMenuItem>
+                                                            {isOwner && (
                                                             <DropdownMenuItem onClick={() => handleSetRole(member.user._id, "OWNER")}>
                                                                 Owner
                                                             </DropdownMenuItem>
+                                                            )}
                                                         </DropdownMenuSubContent>
                                                     </DropdownMenuPortal>
                                                 </DropdownMenuSub>
@@ -152,6 +193,48 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
                     ))}
                 </div>
             )}
+
+        {showBannedModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white p-4 rounded shadow-lg w-80">
+                    <h2 className="text-lg font-semibold mb-3">Banned Members</h2>
+
+                    {bannedMembers.length === 0 ? (
+                        <p className="text-sm text-gray-500">No banned users.</p>
+                    ) : (
+                        <div className="max-h-60 overflow-y-auto space-y-3">
+                            {bannedMembers.map(user => (
+                                <div key={user._id} className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={user.icon_file ? `/api/v1/files/${user.icon_file._id}` : undefined}/>
+                                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+
+                                        <p>{user.display_name}</p>
+                                    </div>
+
+                                    <button
+                                        className="text-blue-600 hover:text-blue-800"
+                                        onClick={() => handleUnban(user._id)}
+                                    >
+                                        Unban
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <button
+                        className="mt-4 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded"
+                        onClick={() => setShowBannedModal(false)}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        )}
+
         </div>
     )
 }

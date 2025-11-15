@@ -58,7 +58,7 @@ export default function ServerOptions({ open, onOpenChange, otherUser, server, u
                     </TabsContent>
 
                     <TabsContent value="members" className="mt-4">
-                        <MembersTab server={server} otherUser={otherUser} user={user} query={query} setQuery={setQuery} isOwnerOrAdmin={isOwnerOrAdmin} />
+                        <MembersTab server={server} otherUser={otherUser} user={user} query={query} setQuery={setQuery} isOwnerOrAdmin={isOwnerOrAdmin} isOwner={isOwner} />
                     </TabsContent>
                 </Tabs>
             </DialogContent>
