@@ -1648,15 +1648,20 @@ io.on("connection", (socket) => {
             // 💾 Gets users and id to make sure the user exist
             const currentUserMembers = await Member.find({ user: from_id });
             const otherUserMemberIds = [];
+            const recipientUserIds = [];
+
             if (context_type === "User") {
                 const otherUserMembers = await Member.find({ user: to_id });
                 otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
+                recipientUserIds.push(to_id.toString());
+
             } else if (context_type === "Room") {
                 const room = await Room.findById(to_id).lean();
                 const memberRecords = await Member.find({ server: room?.server }).select('_id user');
                 memberRecords.forEach(member => {
                     if (member.user.toString() !== currentUserMembers[0].user.toString()) {
                         otherUserMemberIds.push(member._id);
+                        recipientUserIds.push(member.user.toString());
                     }
                 });
             }
@@ -1708,9 +1713,14 @@ io.on("connection", (socket) => {
             // Emit the message to both sender and recipient
             io.to(from_id).emit("receive_message", populatedMessage);
             //emmit to all recipient member ids
-            for (const recipientId of otherUserMemberIds) {
-                io.to(recipientId.toString()).emit("receive_message", populatedMessage);
-            }
+
+            recipientUserIds.forEach((uid) => {
+                io.to(uid).emit("receive_message", populatedMessage);
+            });
+
+            // for (const recipientId of otherUserMemberIds) {
+            //     io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+            // }
 
             // if mentiond, create notification
             const mentionRegex = /@([\w]+)/g;
