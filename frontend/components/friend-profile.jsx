@@ -13,10 +13,6 @@ import Image from 'next/image';
 import pbanner from "@/components/img/pbanner.jpg";
 
 export default function FriendProfile({ open, onOpenChange, friend }) {
-  if (!friend) {
-    return null;
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClick={(e) => e.stopPropagation()}>
@@ -42,6 +38,9 @@ export default function FriendProfile({ open, onOpenChange, friend }) {
           <div className="flex flex-col gap-3 text-sm">
             {friend.display_name && (
               <p><span>Name: </span>{friend.display_name}</p>
+            )}
+            {friend.bio && (
+                <p><span>Bio: </span>{friend.bio}</p>
             )}
             {friend.gender && (
               <p><span>Gender: </span>{friend.gender}</p>
