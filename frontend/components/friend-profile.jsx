@@ -28,15 +28,28 @@ export default function FriendProfile({ open, onOpenChange, friend }) {
               <AvatarImage src={friend.icon_file?.storage_key} />
               <AvatarFallback>{friend.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
             </Avatar>
+            <Button type="Button" className="mt-4 w-full">Add Friend</Button>
           </div>
 
           <div className="flex flex-col gap-3 text-sm">
-            <p><span>Name: </span>{friend.display_name}</p>
-            <p><span>Gender: </span>{friend.gender}</p>
-            <p><span>Faculty: </span>{friend.faculty}</p>
-            <p><span>Major: </span>{friend.major}</p>
-            <p><span>Email: </span>{friend.email}</p>
-            <p><span>Phone: </span>{friend.phone_number}</p>
+            {friend.display_name && (
+              <p><span>Name: </span>{friend.display_name}</p>
+            )}
+            {friend.gender && (
+              <p><span>Gender: </span>{friend.gender}</p>
+            )}
+            {friend.faculty && (
+              <p><span>Faculty: </span>{friend.faculty}</p>
+            )}
+            {friend.major && (
+              <p><span>Major: </span>{friend.major}</p>
+            )}
+            {friend.email && (
+              <p><span>Email: </span>{friend.email}</p>
+            )}
+            {friend.phone_number && (
+              <p><span>Phone: </span>{friend.phone_number}</p>
+            )}
           </div>
 
         </div>
