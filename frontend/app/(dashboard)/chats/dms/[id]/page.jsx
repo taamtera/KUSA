@@ -229,25 +229,25 @@ export default function Chat() {
     setEditingTo(null);
   };
 
-  const handleUnsend = async (message) => {
-    setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
+  // const handleUnsend = async (message) => {
+  //   // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
 
-    try {
-      const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
-        method: "PATCH",
-        credentials: "include",
-      });
+  //   try {
+  //     const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
+  //       method: "PATCH",
+  //       credentials: "include",
+  //     });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to unsend");
-      }
+  //     if (!res.ok) {
+  //       const data = await res.json().catch(() => ({}));
+  //       throw new Error(data.message || "Failed to unsend");
+  //     }
 
-    } catch (err) {
-      console.error(err);
-      setError("Failed to unsend message");
-    }
-  };
+  //   } catch (err) {
+  //     console.error(err);
+  //     setError("Failed to unsend message");
+  //   }
+  // };
 
   // --- Render ---
   if (loading) {
@@ -332,7 +332,7 @@ export default function Chat() {
                   onOpenThread={openThread}
                   onEdit={handleEdit}
                   editingTo={editingTo}
-                  onUnsend={handleUnsend}
+                  // onUnsend={handleUnsend}
                 />
               );
 

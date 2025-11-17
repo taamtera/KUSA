@@ -12,7 +12,7 @@ const initialContextMenu = {
     y: 0,
 }
 
-export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo, onUnsend }) {
+export default function MessageBubble({ message, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo }) {
     const isPending = message.temp || message.pending
     const [error, setError] = useState(null)
     const isEditing = editingTo?._id === message._id
@@ -110,10 +110,25 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         }
     }, [isEditing, message.content])
 
-    const handleUnsend = () => {
-        if (onUnsend) onUnsend(message)
-        contextMenuClose()
-    }
+    const handleUnsend = async () => {
+        // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
+
+        try {
+            const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
+                method: "PATCH",
+                credentials: "include",
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || "Failed to unsend");
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Failed to unsend message");
+        }
+    };
 
     function highlightMentions(text, currentUsername) {
         const mentionRegex = /@([\w]+)/g

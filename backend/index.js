@@ -952,6 +952,7 @@ app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
     try {
         const { id } = req.params;
         if (!oid(id)) {
+            console.log("Invalid message ID:", id);
             return res.status(400).json({ status: 'failed', message: 'invalid id' });
         }
 
@@ -959,8 +960,7 @@ app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
             .populate({
                 path: "sender",
                 populate: [
-                    { path: "user", select: "_id" },
-                    { path: "role" },
+                    { path: "user", select: "_id username" },
                 ],
             });
 
@@ -971,18 +971,29 @@ app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
             });
         }
 
+        if (message.context_type === "Room") {
+            await message.populate({ path: "context", populate: { path: "server" } });
+        } else {
+            await message.populate("context");
+        }
+
         const senderId = message.sender?.user?._id?.toString();
         const currentUserId = req.userId?.toString();
 
-        // let canModerate = false;
-        // if (message.context_type === "Room") {
-        //     const userRole = message.sender?.role;
-        //     canModerate = ["OWNER", "MODERATOR"].includes(userRole);
-        // }
+        let canModerate = false;
+        if (message.context_type === "User") {
+            canModerate = senderId === currentUserId;
+        } else if (message.context_type === "Room") {
+            const member = await Member.findOne({
+                user: currentUserId,
+                server: message.context.server,
+            });
 
-        const isSender = senderId === currentUserId;
+            const userRole = member.role?.toUpperCase();
+            canModerate = senderId === currentUserId || ["OWNER", "MODERATOR"].includes(userRole);
+        }
 
-        if (!isSender) {
+        if (!canModerate) {
             return res.status(403).json({ status: 'failed', message: 'No permission to unsend this message' });
         }
 
