@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogClose
 } from "@/components/ui/dialog";
+import Image from 'next/image';
+import pbanner from "@/components/img/pbanner.jpg";
 
 export default function FriendProfile({ open, onOpenChange, friend }) {
   if (!friend) {
@@ -21,6 +23,12 @@ export default function FriendProfile({ open, onOpenChange, friend }) {
         <DialogHeader>
           <DialogTitle>{friend.display_name}'s Profile</DialogTitle>
         </DialogHeader>
+
+        <Image
+          src={pbanner}
+          alt="Profile Banner"
+          className="w-full h-full object-cover flex"
+        />
 
         <div className="flex gap-6 items-start">
           <div className="flex-shrink-0">
