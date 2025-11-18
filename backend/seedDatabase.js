@@ -71,7 +71,7 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
         const seedMessages = await Message.find({
             $or: [
             { context_type: 'Room', context: { $in: seedRoomIds } },
-            { sender: { $in: seedMemberIds } },
+            { sender: { $in: seedUserIds } },
             { recipients: { $in: seedMemberIds } },
             ]
         }, { _id: 1 }).lean();
@@ -204,7 +204,7 @@ const [alice, bob, cara] = await User.create([
     
         // Messages & Attachments
     const m1 = await Message.create({
-        sender: aliceHub._id,
+        sender: alice._id,
         recipients: [aliceHub._id, bobHub._id, caraHub._id], // Add recipients for room messages
         context: roomGeneral._id,
         context_type: 'Room',
@@ -213,7 +213,7 @@ const [alice, bob, cara] = await User.create([
     });
     
     const m2 = await Message.create({
-        sender: bobHub._id,
+        sender: bob._id,
         recipients: [aliceHub._id, bobHub._id, caraHub._id],
         context: roomGeneral._id,
         context_type: 'Room',
@@ -230,7 +230,7 @@ const [alice, bob, cara] = await User.create([
     
     // Direct messages (1-on-1) - Alice to Bob
     const dm1 = await Message.create({
-        sender: aliceHub._id,
+        sender: alice._id,
         recipients: [bobHub._id],
         context: bob._id,  // Bob's User ID (not member ID)
         context_type: 'User',
@@ -240,7 +240,7 @@ const [alice, bob, cara] = await User.create([
     
     // Group direct message - Bob to Alice & Cara
     const gdm1 = await Message.create({
-        sender: bobHub._id,
+        sender: bob._id,
         recipients: [aliceHub._id, caraHub._id],
         context: alice._id,  // Can use any user ID as context, or create a group DM room
         context_type: 'User',
@@ -250,7 +250,7 @@ const [alice, bob, cara] = await User.create([
     
     // Dev room message
     await Message.create({
-        sender: bobDev._id,
+        sender: bob._id,
         recipients: [bobDev._id], // Add appropriate recipients
         context: roomDevChat._id,
         context_type: 'Room',
@@ -260,7 +260,7 @@ const [alice, bob, cara] = await User.create([
     
     // Private messages between Alice and everyone else
     const aliceToBobDM = await Message.create({
-        sender: aliceHub._id,
+        sender: alice._id,
         recipients: [bobHub._id],
         context: bob._id,  // Bob's User ID
         context_type: 'User',
@@ -269,7 +269,7 @@ const [alice, bob, cara] = await User.create([
     });
     
     const aliceToCaraDM = await Message.create({
-        sender: aliceHub._id,
+        sender: alice._id,
         recipients: [caraHub._id],
         context: cara._id,  // Cara's User ID
         context_type: 'User',
@@ -279,7 +279,7 @@ const [alice, bob, cara] = await User.create([
     
     // Responses to Alice's DMs
     const bobToAliceDM = await Message.create({
-        sender: bobHub._id,
+        sender: bob._id,
         recipients: [aliceHub._id],
         context: alice._id,  // Alice's User ID
         context_type: 'User',
@@ -288,7 +288,7 @@ const [alice, bob, cara] = await User.create([
     });
     
     const caraToAliceDM = await Message.create({
-        sender: caraHub._id,
+        sender: cara._id,
         recipients: [aliceHub._id],
         context: alice._id,  // Alice's User ID
         context_type: 'User',

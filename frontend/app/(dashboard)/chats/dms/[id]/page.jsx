@@ -94,7 +94,7 @@ export default function Chat() {
 
     socket.on("receive_message", (msg) => {
       const isRelevant =
-        msg.sender?.user?._id === otherUserId || msg.context === otherUserId;
+        msg.sender?._id === otherUserId || msg.context === otherUserId;
       if (isRelevant) {
         console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
@@ -128,8 +128,8 @@ export default function Chat() {
             const firstMessage = data.messages[0];
             if (firstMessage.context_type === "User") {
               setOtherUser(firstMessage.context);
-            } else if (firstMessage.sender?.user?._id !== otherUserId) {
-              setOtherUser(firstMessage.sender?.user);
+            } else if (firstMessage.sender?._id !== otherUserId) {
+              setOtherUser(firstMessage.sender);
             }
           }
         }
@@ -165,9 +165,9 @@ export default function Chat() {
     let currentGroup = null;
 
     messages.forEach((msg) => {
-      const senderId = msg.sender?.user?._id || "unknown";
+      const senderId = msg.sender?._id || "unknown";
       if (!currentGroup || currentGroup.senderId !== senderId) {
-        currentGroup = { senderId, sender: msg.sender?.user, messages: [msg] };
+        currentGroup = { senderId, sender: msg.sender, messages: [msg] };
         groups.push(currentGroup);
       } else {
         currentGroup.messages.push(msg);

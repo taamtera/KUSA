@@ -98,7 +98,7 @@ export default function Chat() {
     socket.on("receive_message", (msg) => {
       // only update if the message belongs to this chat
       const isRelevant =
-        msg.sender?.user?._id === roomId || msg.context === roomId;
+        msg.sender?._id === roomId || msg.context === roomId;
       if (isRelevant) {
         messages.find((m) => m._id === msg._id);
         console.log("📩 New message received:", msg);
@@ -182,9 +182,9 @@ export default function Chat() {
     let currentGroup = null;
 
     messages.forEach((msg) => {
-      const senderId = msg.sender?.user?._id || "unknown";
+      const senderId = msg.sender?._id || "unknown";
       if (!currentGroup || currentGroup.senderId !== senderId) {
-        currentGroup = { senderId, sender: msg.sender?.user, messages: [msg] };
+        currentGroup = { senderId, sender: msg.sender, messages: [msg] };
         groups.push(currentGroup);
       } else {
         currentGroup.messages.push(msg);

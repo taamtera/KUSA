@@ -665,13 +665,6 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
         // Sort direction
         const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
-        // Find all member IDs for both users
-        const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
-        const otherUserMembers = await Member.find({ user: otherUserId }).select('_id');
-
-        const currentUserMemberIds = currentUserMembers.map(m => m._id);
-        const otherUserMemberIds = otherUserMembers.map(m => m._id);
-
         // Find direct messages between the two users
         const messages = await Message.find({
             context_type: 'User',
@@ -679,23 +672,20 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
                 // Messages from current user to other user
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 // Messages from other user to current user
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         })
             .populate({
                 path: 'sender',
+                select: 'username display_name icon_file',
                 populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: {
-                        path: 'icon_file'
-                    }
+                    path: 'icon_file',
                 }
             })
             .populate({
@@ -710,7 +700,8 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
                 populate: [
                     {
                         path: 'sender',
-                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
                     },
                     { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
                 ]
@@ -733,11 +724,11 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             $or: [
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         });
@@ -792,11 +783,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         })
             .populate({
                 path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: { path: 'icon_file' }
-                }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' },
             })
             .populate({
                 path: 'recipients',
@@ -878,7 +866,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
         let msg = await Message.findById(id)
             .populate({
                 path: "sender",
-                populate: { path: "user", select: "_id username" },
+                select: "_id username",
             });
 
         if (!msg) {
@@ -893,7 +881,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
         }
 
         // --- Permission checks ---
-        const senderUserId = msg.sender.user._id.toString();
+        const senderUserId = msg.sender?._id.toString();
         const currentUserId = req.userId.toString();
         let canEdit = false;
 
@@ -948,7 +936,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
     }
 });
 
-app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
+app.patch('/api/v1/messages/:id/unsend', auth, async (req, res) => {
     try {
         const { id } = req.params;
         if (!oid(id)) {
@@ -959,9 +947,7 @@ app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
         const message = await Message.findById(id)
             .populate({
                 path: "sender",
-                populate: [
-                    { path: "user", select: "_id username" },
-                ],
+                select: "_id username",
             });
 
         if (!message || message.active === false) {
@@ -977,7 +963,7 @@ app.patch('/api/v1/messages/dms/:id/unsend', auth, async (req, res) => {
             await message.populate("context");
         }
 
-        const senderId = message.sender?.user?._id?.toString();
+        const senderId = message.sender?._id?.toString();
         const currentUserId = req.userId?.toString();
 
         let canModerate = false;
@@ -1370,7 +1356,6 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         if (!content || content.trim() === '') {
             return res.status(400).json({ status: 'failed', message: 'Message content cannot be empty' });
         }
-        const senderMemberId = currentUserMembers[0]._id; // Use first member record
 
         // Get current user's member IDs
         const currentUserMembers = await Member.find({ user: currentUserId });
@@ -1405,7 +1390,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 
         // Create the message
         const message = await Message.create({
-            sender: senderMemberId,
+            sender: currentUserId,
             recipients: otherUserMemberIds,
             context: otherUserId,
             context_type: 'User',
@@ -1418,11 +1403,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         const populatedMessage = await Message.findById(message._id)
             .populate({
                 path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: { path: 'icon_file' }
-                }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' },
             })
             .populate({
                 path: 'recipients',
@@ -1436,7 +1418,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 populate: [
                     {
                         path: 'sender',
-                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' },
                     },
                     { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
                 ]
@@ -1481,7 +1464,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
             .limit(limit)
             .populate({
                 path: 'sender',
-                populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
             })
             .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
             .lean();
@@ -1644,7 +1628,7 @@ io.on("connection", (socket) => {
 
     // Join room per user ID (from query or handshake)
     const userId = socket.handshake.query.userId;
-    if (userId) socket.join(userId);
+    if (userId) socket.join(userId.toString());
 
     // Listen for "send_message" event from client
     socket.on("send_message", async (msgData) => {
@@ -1697,7 +1681,7 @@ io.on("connection", (socket) => {
 
             // create message in DB 
             const message = await Message.create({
-                sender: currentUserMembers[0]._id,
+                sender: from_id,
                 recipients: otherUserMemberIds,
                 context: to_id,
                 context_type: context_type,
@@ -1709,13 +1693,14 @@ io.on("connection", (socket) => {
             const populatedMessage = await Message.findById(message._id)
                 .populate({
                     path: "sender",
-                    populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } }
+                    select: "username display_name icon_file", 
+                    populate: { path: 'icon_file' }
                 })
                 .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })
                 .populate({
                     path: "reply_to",
                     populate: [
-                        { path: "sender", populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } } },
+                        { path: "sender", select: "username display_name icon_file", populate: { path: 'icon_file' } },
                         { path: "recipients", populate: { path: "user", select: "username display_name" } }
                     ]
                 })

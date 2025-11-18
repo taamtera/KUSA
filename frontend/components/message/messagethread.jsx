@@ -8,7 +8,7 @@ export default function MessageThread({ threadParent, threadLoading, threadRepli
             <div className="w-[min(92vw,520px)] max-h-[70vh] bg-white rounded-2xl shadow-xl flex flex-col">
                 <div className="flex items-center justify-between px-4 py-3 border-b">
                     <div className="text-sm font-semibold">
-                        Thread • Reply to {threadParent?.sender?.nickname || threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
+                        Thread • Reply to {threadParent?.sender?.display_name || threadParent?.sender?.username || "user"}
                     </div>
                     <button onClick={closeThread} className="p-1 rounded hover:bg-gray-100">
                         <X className="h-4 w-4" />
@@ -19,7 +19,7 @@ export default function MessageThread({ threadParent, threadLoading, threadRepli
                 {threadParent && (
                     <div className="px-4 pt-3 pb-2 bg-gray-50">
                         <div className="text-xs text-gray-600 mb-1">
-                            {threadParent?.sender?.user?.display_name || threadParent?.sender?.user?.username || "user"}
+                            {threadParent?.sender?.display_name || threadParent?.sender?.username || "user"}
                         </div>
                         <div className="text-sm text-gray-900 whitespace-pre-wrap">
                             {threadParent.content}
@@ -36,7 +36,7 @@ export default function MessageThread({ threadParent, threadLoading, threadRepli
                         threadReplies.map((msg) => (
                             <div key={msg._id}>
                                 <div className="text-xs text-gray-600">
-                                    {msg.sender?.user?.display_name || msg.sender?.user?.username || "user"}
+                                    {msg.sender?.display_name || msg.sender?.username || "user"}
                                 </div>
                                 <div className="text-sm text-gray-900 whitespace-pre-wrap">
                                     {msg.content}

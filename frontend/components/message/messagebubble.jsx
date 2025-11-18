@@ -114,7 +114,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
 
         try {
-            const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
+            const res = await fetch(`http://localhost:3001/api/v1/messages/${message._id}/unsend`, {
                 method: "PATCH",
                 credentials: "include",
             });
@@ -171,7 +171,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                         title="View thread"
                     >
                         <div className="rounded-xl border border-gray-300 bg-white px-3 py-2">
-                            <div className="text-xm font-medium text-gray-700 text-left">{message.reply_to?.sender?.user?.display_name || message.reply_to?.sender?.user?.username || "Unknown"}</div>
+                            <div className="text-xm font-medium text-gray-700 text-left">{message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}</div>
                             <div className="text-xs text-gray-600 truncate">{message.reply_to?.content || "—"}</div>
                         </div>
                     </button>
