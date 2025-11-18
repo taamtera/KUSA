@@ -1,8 +1,7 @@
-./backend/node_modules
-./backend/.env
-./frontend/node_modules
-./frontend/.env
-./node_modules
-./mongod-data/
-./mongod-data/*
+backend/node_modules
+backend/.env
+frontend/node_modules
+frontend/.env
+node_modules
+mongod-data/
 **/.DS_Store

@@ -13,36 +13,25 @@ To get started with the project, follow these steps:
    cd ISPProject1
    ```
 
-2. **Install dependencies**:
-   For the frontend:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-   For the backend:
-   ```bash
-   cd backend
-   npm install
-   ```
-   
-3. **Run Mongo Db Container in Docker**:
+2. **Setup MongoDB**:
    Make sure you have Docker installed and running. Then, run the following command to start a MongoDB container:
    ```bash
-   cd mongod-data
-   docker run --name mongo -d -p 27017:27017 -v .:/data/db mongo
+   docker run --name mongo -d -p 27017:27017 -v ./mongod-data:/data/db mongo
    ```
 
-4. **Run the application**:
-   Start the backend server:
+3. **Setup Backend**:
+   Install dependencies and start the backend server:
    ```bash
    cd backend
+   npm install
    npm start
    ```
 
-   Start the frontend development server:
+4. **Setup Frontend**:
+   Open a new terminal, install dependencies and start the frontend development server:
    ```bash
    cd frontend
+   npm install
    npm run dev
    ```
 
