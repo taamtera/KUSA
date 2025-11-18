@@ -15,6 +15,7 @@ import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 import MessageReply from "@/components/message/messagereply";
 import MessageThread from "@/components/message/messagethread";
+import { useMessageThread } from "@/components/message/use-message-thread";
 // import MessageEdit from "@/components/message/messageedit";
 
 
@@ -35,46 +36,15 @@ export default function Chat() {
   const socketRef = useRef(null);
   const [error, setError] = useState(null);
 
-  // Thread state
-  const [threadOpen, setThreadOpen] = useState(false);
-  const [threadParent, setThreadParent] = useState(null);
-  const [threadReplies, setThreadReplies] = useState([]);
-  const [threadLoading, setThreadLoading] = useState(false);
-
-  // OPEN THREAD (reply list)
-  const openThread = async (parentMsg) => {
-    if (!parentMsg?._id) {
-      console.warn('OpenThread called without a valid _id', parentMsg);
-      return;
-    }
-    try {
-      setThreadLoading(true);
-      setThreadOpen(true);
-      setThreadParent(parentMsg);
-
-      const res = await fetch(
-        `http://localhost:3001/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
-        { credentials: "include" }
-      );
-      const data = await res.json();
-      if (data.status === "success") {
-        setThreadReplies(data.replies || []);
-      } else {
-        setThreadReplies([]);
-      }
-    } catch (e) {
-      console.error("Thread fetch failed:", e);
-      setThreadReplies([]);
-    } finally {
-      setThreadLoading(false);
-    }
-  };
-
-  const closeThread = () => {
-    setThreadOpen(false);
-    setThreadReplies([]);
-    setThreadParent(null);
-  };
+  // Message Thread State and Handlers
+  const {
+  threadOpen,
+  threadParent,
+  threadReplies,
+  threadLoading,
+  openThread,
+  closeThread,
+  } = useMessageThread();
 
   // WebSocket setup
   useEffect(() => {
@@ -228,26 +198,6 @@ export default function Chat() {
     setReplyingTo(null); // 👈 clear reply after sending
     setEditingTo(null);
   };
-
-  // const handleUnsend = async (message) => {
-  //   // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
-
-  //   try {
-  //     const res = await fetch(`http://localhost:3001/api/v1/messages/dms/${message._id}/unsend`, {
-  //       method: "PATCH",
-  //       credentials: "include",
-  //     });
-
-  //     if (!res.ok) {
-  //       const data = await res.json().catch(() => ({}));
-  //       throw new Error(data.message || "Failed to unsend");
-  //     }
-
-  //   } catch (err) {
-  //     console.error(err);
-  //     setError("Failed to unsend message");
-  //   }
-  // };
 
   // --- Render ---
   if (loading) {

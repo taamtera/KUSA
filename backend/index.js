@@ -793,7 +793,17 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
                     select: 'username display_name'
                 }
             })
-            .populate('reply_to')
+            .populate({
+                path: 'reply_to',
+                populate: [
+                    {
+                        path: 'sender',
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
+                    },
+                    { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+                ]
+            })
             .populate({
                 path: 'context',
                 select: 'title server',
@@ -1438,7 +1448,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
-// Get replies to a specific message (only for DMs)
+// Get replies to a specific message
 app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     try {
         const parentId = req.params.id;
@@ -1446,16 +1456,42 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
         const sortDir = req.query.sort === 'asc' ? 1 : -1;
 
-        // optional: ensure requester participates in the parent DM
-        const parent = await Message.findById(parentId).lean();
-        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
-        if (parent.context_type !== 'User') {
-            return res.status(400).json({ status: 'failed', message: 'only supports DM replies' });
-        }
-        // Very light permission: the requester must be either the DM peer (context == me or otherUser)
         const me = req.userId;
-        if (String(parent.context) !== String(me) && String(parent.context) !== String(await Message.findById(parentId).distinct('recipients.user'))) {
-            // If you need stricter checks, expand this to confirm the pair is {me, otherUser}
+
+        // Validate parent message
+        const parent = await Message.findById(parentId)
+            .populate({
+                path: 'context',
+                select: 'server',
+            }).lean();
+        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
+
+        // Fix: robust way to get context id whether populated or not
+        const contextId = parent.context?._id || parent.context;
+
+        if (parent.context_type === 'User') {
+            // DM: participants = sender + context (both User IDs)
+            const isParticipant =
+                String(parent.sender) === String(me) ||
+                String(contextId) === String(me);
+
+            if (!isParticipant) {
+                return res.status(403).json({ status: 'failed', message: 'forbidden: not in this DM' });
+            }
+        } else if (parent.context_type === 'Room') {
+            // Room: context = Room; we populated server on it
+            const serverId = parent.context?.server || null;
+            if (!serverId) {
+                return res.status(500).json({ status: 'failed', message: 'parent room missing server' });
+            }
+
+            const member = await Member.findOne({ user: me, server: serverId }).lean();
+            if (!member) {
+                return res.status(403).json({
+                    status: 'failed',
+                    message: 'forbidden: not a member of this room\'s server'
+                });
+            }
         }
 
         const replies = await Message.find({ reply_to: parentId })

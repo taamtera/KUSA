@@ -24,6 +24,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     const currentUsername = user?.username || "";
 
     const isUnsent = message.active === false;
+    const isParentUnsent = message.reply_to && message.reply_to.active === false;
 
     const handleContextMenu = (e) => {
         if (isUnsent) return;
@@ -170,9 +171,13 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                         ${fromCurrentUser ? "self-end" : ""}`}
                         title="View thread"
                     >
-                        <div className="rounded-xl border border-gray-300 bg-white px-3 py-2">
-                            <div className="text-xm font-medium text-gray-700 text-left">{message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}</div>
-                            <div className="text-xs text-gray-600 truncate">{message.reply_to?.content || "—"}</div>
+                        <div className={`rounded-xl border-1 border-gray-300 px-3 py-2 bg-white ${isParentUnsent ? "bg-opacity-5 italic text-gray-500" : "text-gray-700"}`}>
+                            <div className="text-xm font-medium text-left">
+                                {message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}
+                            </div>
+                            <div className="text-xs truncate">
+                                { !isParentUnsent ? message.reply_to?.content || "—" : "This message was unsent."}
+                            </div>
                         </div>
                     </button>
                 )}
@@ -202,12 +207,8 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                                 </Button>
                             </div>
                         </div>
-                    ) : isUnsent ? (
-                        <p className="">
-                            This message was unsent.
-                        </p>
                     ) : (
-                        <p>{highlightMentions(message.content, currentUsername)}</p>
+                        <p>{ isUnsent ? "This message was unsent." : highlightMentions(message.content, currentUsername)}</p>
                     )}
                 </div>
             </div>

@@ -15,6 +15,7 @@ import ServerOptions from "@/components/options/server_options";
 import { Search } from "lucide-react"
 import MessageReply from "@/components/message/messagereply";
 import MessageThread from "@/components/message/messagethread";
+import { useMessageThread } from "@/components/message/use-message-thread";
 
 
 export default function Chat() {
@@ -34,50 +35,15 @@ export default function Chat() {
   const socketRef = useRef(null);
   const [replyingTo, setReplyingTo] = useState(null);
 
-  // Thread state
-  const [threadOpen, setThreadOpen] = useState(false);
-  const [threadParent, setThreadParent] = useState(null);
-  const [threadReplies, setThreadReplies] = useState([]);
-  const [threadLoading, setThreadLoading] = useState(false);
-
-  // OPEN THREAD (reply list)
-  const openThread = async (parentMsg) => {
-    if (!parentMsg?._id) {
-      console.warn('OpenThread called without a valid _id', parentMsg);
-      return;
-    }
-    try {
-      setThreadLoading(true);
-      setThreadOpen(true);
-      setThreadParent(parentMsg);
-
-      const res = await fetch(
-        `http://localhost:3001/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
-        { credentials: "include" }
-      );
-      const data = await res.json();
-      if (data.status === "success") {
-        setThreadReplies(data.replies || []);
-      } else {
-        setThreadReplies([]);
-      }
-    } catch (e) {
-      console.error("Thread fetch failed:", e);
-      setThreadReplies([]);
-    } finally {
-      setThreadLoading(false);
-    }
-  };
-
-  const closeThread = () => {
-    setThreadOpen(false);
-    setThreadReplies([]);
-    setThreadParent(null);
-  };
-
-  useEffect(() => {
-    console.log(threadParent?._id);
-  }, [threadParent]);
+  // Message Thread State and Handlers
+  const {
+  threadOpen,
+  threadParent,
+  threadReplies,
+  threadLoading,
+  openThread,
+  closeThread,
+  } = useMessageThread();
 
   // WebSocket setup
   useEffect(() => {
@@ -210,7 +176,9 @@ export default function Chat() {
       context_type: "Room",
       content: newMessage,
       message_type: "text",
+      reply_to: replyingTo?._id || null,
     };
+
   socketRef.current?.emit("send_message", messageToSend);
   setNewMessage("");
   setReplyingTo(null);
@@ -309,6 +277,7 @@ export default function Chat() {
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
                   onReply={handleReply}
+                  onOpenThread={openThread}
                 />
               );
 
