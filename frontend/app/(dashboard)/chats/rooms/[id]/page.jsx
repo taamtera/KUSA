@@ -37,12 +37,14 @@ export default function Chat() {
 
   // Message Thread State and Handlers
   const {
-  threadOpen,
-  threadParent,
-  threadReplies,
-  threadLoading,
-  openThread,
-  closeThread,
+    threadOpen,
+    threadParent,
+    threadReplies,
+    threadLoading,
+    setThreadReplies,
+    setThreadParent,
+    openThread,
+    closeThread,
   } = useMessageThread();
 
   // WebSocket setup
@@ -70,6 +72,48 @@ export default function Chat() {
         console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
+    });
+
+    socket.on("message_unsent", (payload) => {
+      // 1) update main message list + any embedded reply_to that points to this message
+      setMessages((prev) =>
+        prev.map((m) => {
+          let updated = m;
+
+          // If this *is* the message being unsent
+          if (m._id === payload._id) {
+            updated = { ...updated, active: false, content: payload.content };
+          }
+
+          // If this message is a reply and its parent (reply_to) was unsent
+          if (m.reply_to && m.reply_to._id === payload._id) {
+            updated = {
+              ...updated,
+              reply_to: {
+                ...m.reply_to,
+                active: false,
+                content: payload.content,
+              },
+            };
+          }
+
+          return updated;
+        })
+      );
+
+      // 2) update open thread replies
+      setThreadReplies((prev) =>
+        prev.map((r) =>
+          r._id === payload._id ? { ...r, active: false, content: payload.content } : r
+        )
+      );
+
+      // 3) update thread parent if the parent got unsent
+      setThreadParent((prev) =>
+        prev && prev._id === payload._id
+          ? { ...prev, active: false, content: payload.content }
+          : prev
+      );
     });
 
     socket.on("disconnect", () => {
@@ -179,14 +223,14 @@ export default function Chat() {
       reply_to: replyingTo?._id || null,
     };
 
-  socketRef.current?.emit("send_message", messageToSend);
-  setNewMessage("");
-  setReplyingTo(null);
+    socketRef.current?.emit("send_message", messageToSend);
+    setNewMessage("");
+    setReplyingTo(null);
 
   };
-  
+
   const handleReply = (message) => {
-  setReplyingTo(message);
+    setReplyingTo(message);
   };
 
   const handleCancelReply = () => {
@@ -195,7 +239,7 @@ export default function Chat() {
 
   // console.log("📤 Sending message:", messageToSend);
 
-  
+
 
   // Render
   if (loading) {
@@ -350,7 +394,7 @@ export default function Chat() {
         onOpenChange={setIsOptionsOpen}
         otherUser={otherUser}
         server={server}
-        user = {user}
+        user={user}
       />
     </div>
   );

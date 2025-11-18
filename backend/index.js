@@ -997,6 +997,29 @@ app.patch('/api/v1/messages/:id/unsend', auth, async (req, res) => {
 
         await message.save();
 
+        // Notify via WebSocket
+        if (io) {
+            const payload = {
+                _id: message._id.toString(),
+                active: false,
+                content: message.content,
+                context_type: message.context_type,
+            };
+
+            if (message.context_type === "User") {
+                // DM: notify both users
+                const otherUserId = message.context._id.toString(); // populated above
+                io.to(senderId).emit("message_unsent", payload);
+                io.to(otherUserId).emit("message_unsent", payload);
+            } else if (message.context_type === "Room") {
+                // Room: notify every user in that server
+                const members = await Member.find({ server: message.context.server }).select("user");
+                members.forEach(m => {
+                    io.to(m.user.toString()).emit("message_unsent", payload);
+                });
+            }
+        }
+
         return res.json({
             status: 'success',
             message: 'Message unsent',
