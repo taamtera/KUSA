@@ -23,7 +23,11 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     const { user } = useUser();
     const currentUsername = user?.username || "";
 
+    const isUnsent = message.active === false;
+    const isParentUnsent = message.reply_to && message.reply_to.active === false;
+
     const handleContextMenu = (e) => {
+        if (isUnsent) return;
         e.preventDefault()
 
         const { pageX, pageY } = e
@@ -63,6 +67,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     // console.log("MessageBubble props:", { onReply, message });
     const handleReplyClick = () => {
         // console.log("Reply clicked, onReply function:", onReply);
+        if (isUnsent) return;
         if (onReply) {
             onReply(message)
         }
@@ -70,6 +75,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     }
 
     const handleEditClick = () => {
+        if (isUnsent) return;
         if (onEdit) {
             onEdit(message)
         }
@@ -105,6 +111,26 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         }
     }, [isEditing, message.content])
 
+    const handleUnsend = async () => {
+        // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
+
+        try {
+            const res = await fetch(`http://localhost:3001/api/v1/messages/${message._id}/unsend`, {
+                method: "PATCH",
+                credentials: "include",
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || "Failed to unsend");
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Failed to unsend message");
+        }
+    };
+
     function highlightMentions(text, currentUsername) {
         const mentionRegex = /@([\w]+)/g
         const parts = text.split(mentionRegex)
@@ -134,20 +160,24 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
 
     return (
         <div className="">
-            {contextMenu.visible && <ContextMenu x={contextMenu.x} y={contextMenu.y} closeMenu={contextMenuClose} onReplyClick={handleReplyClick} onEditClick={handleEditClick} currentUser={fromCurrentUser} content={editedContent || message.content} />}
+            {contextMenu.visible && <ContextMenu x={contextMenu.x} y={contextMenu.y} closeMenu={contextMenuClose} onReplyClick={handleReplyClick} onEditClick={handleEditClick} onUnsendClick={handleUnsend} currentUser={fromCurrentUser} content={editedContent || message.content} />}
 
             <div className={`flex flex-col ${fromCurrentUser ? "justify-end" : "justify-start"} items-start`}>
                 {/* Reply preview (quoted parent) */}
-                {message.reply_to && (
+                {message.reply_to && !isUnsent && (
                     <button
                         onClick={handleOpenThread}
-                        className={`inline-block w-fit text-right mb-1 max-w-[min(80vw,28rem)]
+                        className={`inline-block w-fit text-right -mb-2 max-w-[min(80vw,28rem)]
                         ${fromCurrentUser ? "self-end" : ""}`}
                         title="View thread"
                     >
-                        <div className="rounded-xl border border-gray-300/70 bg-white/60 px-3 py-2">
-                            <div className="text-xm font-medium text-gray-700 text-left">{message.reply_to?.sender?.user?.display_name || message.reply_to?.sender?.user?.username || "Unknown"}</div>
-                            <div className="text-xs text-gray-600 truncate">{message.reply_to?.content || "—"}</div>
+                        <div className={`rounded-xl border-1 border-gray-300 px-3 py-2 bg-white ${isParentUnsent ? "bg-opacity-5 italic text-gray-500" : "text-gray-700"}`}>
+                            <div className="text-xm font-medium text-left">
+                                {message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}
+                            </div>
+                            <div className="text-xs truncate">
+                                { !isParentUnsent ? message.reply_to?.content || "—" : "This message was unsent."}
+                            </div>
                         </div>
                     </button>
                 )}
@@ -155,7 +185,8 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                 {/* Message */}
                 <div
                     onContextMenu={handleContextMenu}
-                    className={`inline-block w-fit px-4 py-2 rounded-2xl break-words bg-gray-300 text-gray-900 
+                    className={`inline-block w-fit px-4 py-2 rounded-2xl break-words
+                      ${isUnsent ? "bg-transparent border-1 border-gray-300 italic text-gray-500" : "bg-gray-300 text-gray-900"}
                       ${isPending ? "opacity-60 animate-pulse" : ""}
                       ${fromCurrentUser ? "self-end" : ""}`}
                     style={{
@@ -177,7 +208,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                             </div>
                         </div>
                     ) : (
-                        <p>{highlightMentions(message.content, currentUsername)}</p>
+                        <p>{ isUnsent ? "This message was unsent." : highlightMentions(message.content, currentUsername)}</p>
                     )}
                 </div>
             </div>

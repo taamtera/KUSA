@@ -110,7 +110,7 @@ roomSchema.index({ server: 1, title: 1 }, { unique: true });
  * ---------------------------*/
 const messageSchema = new Schema(
     {
-        sender: { type: ObjectId, ref: 'Member', required: true },
+        sender: { type: ObjectId, ref: 'User', required: true },
         recipients: [{ type: ObjectId, ref: 'Member' }],
         context: {
             type: ObjectId,
