@@ -31,6 +31,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [editingTo, setEditingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -74,6 +75,7 @@ export default function Chat() {
       }
     });
 
+    // === unsend message handler === //
     socket.on("message_unsent", (payload) => {
       // 1) update main message list + any embedded reply_to that points to this message
       setMessages((prev) =>
@@ -112,6 +114,67 @@ export default function Chat() {
       setThreadParent((prev) =>
         prev && prev._id === payload._id
           ? { ...prev, active: false, content: payload.content }
+          : prev
+      );
+    });
+
+    // === edit message handler === //
+    socket.on("message_edited", (payload) => {
+      // 1) update main message list + embedded reply_to references
+      setMessages((prev) =>
+        prev.map((m) => {
+          let updated = m;
+
+          // If this is the edited message itself
+          if (m._id === payload._id) {
+            updated = {
+              ...updated,
+              content: payload.content,
+              edited_count: payload.edited_count,
+              edited_at: payload.edited_at,
+            };
+          }
+
+          // If this message is a reply and its parent was edited
+          if (m.reply_to && m.reply_to._id === payload._id) {
+            updated = {
+              ...updated,
+              reply_to: {
+                ...m.reply_to,
+                content: payload.content,
+                edited_count: payload.edited_count,
+                edited_at: payload.edited_at,
+              },
+            };
+          }
+
+          return updated;
+        })
+      );
+
+      // 2) update open thread replies (if thread open)
+      setThreadReplies((prev) =>
+        prev.map((r) =>
+          r._id === payload._id
+            ? {
+              ...r,
+              content: payload.content,
+              edited_count: payload.edited_count,
+              edited_at: payload.edited_at,
+            }
+            : r
+        )
+      );
+
+      // 3) update thread parent if it's the edited message
+      setThreadParent((prev) =>
+        prev && prev._id === payload._id
+          ? {
+            ...prev,
+            content: payload.content,
+            edited_count: payload.edited_count,
+            edited_at: payload.edited_at,
+          }
           : prev
       );
     });
@@ -170,6 +233,10 @@ export default function Chat() {
     if (roomId) fetchMessages();
   }, [roomId]);
 
+  const handleEdit = (message) => {
+    setEditingTo(message);//
+  };
+
   // // Fetch other user info if missing
   // useEffect(() => {
   //   const fetchOtherUser = async () => {
@@ -226,6 +293,7 @@ export default function Chat() {
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
     setReplyingTo(null);
+    setEditingTo(null);
 
   };
 
@@ -322,6 +390,9 @@ export default function Chat() {
                   fromCurrentUser={fromCurrentUser}
                   onReply={handleReply}
                   onOpenThread={openThread}
+                  onEdit={handleEdit}
+                  editingTo={editingTo}
+                  isRooms={true}
                 />
               );
 

@@ -4,7 +4,7 @@ import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 
-export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo }) {
+export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo, isRooms }) {
   const senderName = fromCurrentUser
     ? "You"
     : sender?.display_name || sender?.username || "User";
@@ -30,9 +30,9 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
 
           <div className="flex flex-col items-start">
             {/* Sender name on top */}
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+            {isRooms && (<span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
               {senderName}
-            </span>
+            </span>)}
 
             {/* Individual bubble widths */}
             <div className="flex flex-col items-start space-y-1">
@@ -48,7 +48,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
               ))}
             </div>
 
-            <p className="text-[10px] mt-1 opacity-75">
+            <p className="text-[12px] mt-1 opacity-75">
               {formatTime(messages[messages.length - 1]?.created_at)}
             </p>
           </div>
@@ -77,7 +77,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
             ))}
           </div>
 
-          <p className="text-[10px] mt-1 opacity-75">
+          <p className="text-[12px] mt-1 opacity-75">
             {formatTime(messages[messages.length - 1]?.created_at)}
           </p>
         </div>

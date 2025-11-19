@@ -172,7 +172,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                         title="View thread"
                     >
                         <div className={`rounded-xl border-1 border-gray-300 px-3 py-2 bg-white ${isParentUnsent ? "bg-opacity-5 italic text-gray-500" : "text-gray-700"}`}>
-                            <div className="text-xm font-medium text-left">
+                            <div className="text-xm font-medium text-left truncate">
                                 {message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}
                             </div>
                             <div className="text-xs truncate">
@@ -197,8 +197,8 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                 >
                     {editingTo?._id === message._id ? (
                         <div>
-                            <textarea ref={textareaRef} value={editedContent} className="w-[416px] overflow-hidden rounded-md border border-gray-300 p-2 text-black" onChange={handleTextareaChange} style={{ height: textareaHeight }}></textarea>
-                            <div className="flex justify-end content-end gap-2 pt-4">
+                            <textarea ref={textareaRef} value={editedContent} className="w-[416px] bg-gray-100 overflow-hidden rounded-md border border-gray-300 p-2 text-black" onChange={handleTextareaChange} style={{ height: textareaHeight }}></textarea>
+                            <div className="flex justify-end content-end gap-2 mt-2">
                                 <Button type="button" variant="outline" className="cursor-pointer bg-transparent" onClick={handleCancel}>
                                     Cancel
                                 </Button>
@@ -207,8 +207,13 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                                 </Button>
                             </div>
                         </div>
+                    ) : isUnsent ? (
+                        <p>This message was unsent.</p>
                     ) : (
-                        <p>{ isUnsent ? "This message was unsent." : highlightMentions(message.content, currentUsername)}</p>
+                        <div className="flex-col">
+                            {message.edited_count > 0 && (<p className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50"/></p>)}
+                            <p>{highlightMentions(message.content, currentUsername)}</p>
+                        </div>
                     )}
                 </div>
             </div>
