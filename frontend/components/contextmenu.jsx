@@ -51,12 +51,12 @@ export function ContextMenu({ x, y, closeMenu, onReplyClick, onEditClick, onUnse
             >
                 Forward
             </Button>
-            <Button
+            {currentUser && (<Button
                 className="w-full text-left rounded-xs bg-gray-100 text-gray-900 hover:text-white p-0 cursor-pointer"
                 onClick={onUnsendClick} // Just close menu for delete
             >
                 Unsend
-            </Button>
+            </Button>)}
         </div>
     );
 }
