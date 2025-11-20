@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DMsTab } from "./dms-tab";
 import { ServersTab } from "./servers-tab";
 import { AccountSettingsDialog } from "./account-settings-dialog";
+import { AddServerDialog } from "./add-server-dialog";
 import { AddFriendDialog } from "./add-friend-dialog";
 import { useUser } from "@/context/UserContext";
 
@@ -62,8 +63,9 @@ export function AppSidebar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.1">
             <AddFriendDialog />
+            <AddServerDialog />
             <AccountSettingsDialog />
           </div>
         </div>

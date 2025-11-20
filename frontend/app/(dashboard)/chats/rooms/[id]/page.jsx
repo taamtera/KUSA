@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Send, Paperclip, Users } from "lucide-react";
+import { Send, Paperclip, Users, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,7 +11,11 @@ import MessageGroup from "@/components/message/messagegroup";
 import { useUser } from "@/context/UserContext";
 import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
+import ServerOptions from "@/components/options/server_options";
 import { Search } from "lucide-react"
+import MessageReply from "@/components/message/messagereply";
+import MessageThread from "@/components/message/messagethread";
+import { useMessageThread } from "@/components/message/use-message-thread";
 
 
 export default function Chat() {
@@ -22,12 +26,26 @@ export default function Chat() {
   const [server, setServer] = useState(null);
   const [roomName, setRoomName] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Message Thread State and Handlers
+  const {
+    threadOpen,
+    threadParent,
+    threadReplies,
+    threadLoading,
+    setThreadReplies,
+    setThreadParent,
+    openThread,
+    closeThread,
+  } = useMessageThread();
 
   // WebSocket setup
   useEffect(() => {
@@ -48,11 +66,54 @@ export default function Chat() {
     socket.on("receive_message", (msg) => {
       // only update if the message belongs to this chat
       const isRelevant =
-        msg.sender?.user?._id === roomId || msg.context === roomId;
+        msg.sender?._id === roomId || msg.context === roomId;
       if (isRelevant) {
-        messages.find((m) => m._id === msg._id);        console.log("📩 New message received:", msg);
+        messages.find((m) => m._id === msg._id);
+        console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
+    });
+
+    socket.on("message_unsent", (payload) => {
+      // 1) update main message list + any embedded reply_to that points to this message
+      setMessages((prev) =>
+        prev.map((m) => {
+          let updated = m;
+
+          // If this *is* the message being unsent
+          if (m._id === payload._id) {
+            updated = { ...updated, active: false, content: payload.content };
+          }
+
+          // If this message is a reply and its parent (reply_to) was unsent
+          if (m.reply_to && m.reply_to._id === payload._id) {
+            updated = {
+              ...updated,
+              reply_to: {
+                ...m.reply_to,
+                active: false,
+                content: payload.content,
+              },
+            };
+          }
+
+          return updated;
+        })
+      );
+
+      // 2) update open thread replies
+      setThreadReplies((prev) =>
+        prev.map((r) =>
+          r._id === payload._id ? { ...r, active: false, content: payload.content } : r
+        )
+      );
+
+      // 3) update thread parent if the parent got unsent
+      setThreadParent((prev) =>
+        prev && prev._id === payload._id
+          ? { ...prev, active: false, content: payload.content }
+          : prev
+      );
     });
 
     socket.on("disconnect", () => {
@@ -86,14 +147,18 @@ export default function Chat() {
             setRoomName(data.roomName);
           }
 
-          if (data.messages.length > 0) {
-            const firstMessage = data.messages[0];
-            if (firstMessage.context_type === "User") {
-              setOtherUser(firstMessage.context);
-            } else if (firstMessage.sender?.user?._id !== roomId) {
-              setOtherUser(firstMessage.sender?.user);
-            }
+          if (data.members) {
+            setOtherUser(data.members);
           }
+
+          // if (data.messages.length > 0) {
+          //   const firstMessage = data.messages[0];
+          //   if (firstMessage.context_type === "User") {
+          //     setOtherUser(firstMessage.context);
+          //   } else if (firstMessage.sender?.user?._id !== roomId) {
+          //     setOtherUser(firstMessage.sender?.user);
+          //   }
+          // }
         }
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -105,21 +170,21 @@ export default function Chat() {
     if (roomId) fetchMessages();
   }, [roomId]);
 
-  // Fetch other user info if missing
-  useEffect(() => {
-    const fetchOtherUser = async () => {
-      if (!otherUser && roomId) {
-        try {
-          const response = await fetch(`http://localhost:3001/api/v1/users/${roomId}`);
-          const data = await response.json();
-          if (data.status === "success") setOtherUser(data.user);
-        } catch (error) {
-          console.error("Failed to fetch user:", error);
-        }
-      }
-    };
-    fetchOtherUser();
-  }, [roomId, otherUser]);
+  // // Fetch other user info if missing
+  // useEffect(() => {
+  //   const fetchOtherUser = async () => {
+  //     if (!otherUser && roomId) {
+  //       try {
+  //         const response = await fetch(`/api/v1/servers/${server._id}/members`);
+  //         const data = await response.json();
+  //         if (data.status === "success") setOtherUser(data.user);
+  //       } catch (error) {
+  //         console.error("Failed to fetch user:", error);
+  //       }
+  //     }
+  //   };
+  //   fetchOtherUser();
+  // }, [roomId, otherUser]);
 
   // Group messages (no hooks here)
   const groupMessages = (messages) => {
@@ -127,9 +192,9 @@ export default function Chat() {
     let currentGroup = null;
 
     messages.forEach((msg) => {
-      const senderId = msg.sender?.user?._id || "unknown";
+      const senderId = msg.sender?._id || "unknown";
       if (!currentGroup || currentGroup.senderId !== senderId) {
-        currentGroup = { senderId, sender: msg.sender?.user, messages: [msg] };
+        currentGroup = { senderId, sender: msg.sender, messages: [msg] };
         groups.push(currentGroup);
       } else {
         currentGroup.messages.push(msg);
@@ -147,29 +212,34 @@ export default function Chat() {
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
 
-    // const tempMessage = {
-    //   _id: `temp-${Date.now()}`,
-    //   content: newMessage,
-    //   sender: { user },
-    //   created_at: new Date(),
-    //   message_type: "text",
-    //   temp: true,
-    // };
-
     // setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = {
+
       from_id: user._id,
       to_id: roomId,
       context_type: "Room",
       content: newMessage,
       message_type: "text",
+      reply_to: replyingTo?._id || null,
     };
-
-    console.log("📤 Sending message:", messageToSend);
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
+    setReplyingTo(null);
+
   };
+
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // console.log("📤 Sending message:", messageToSend);
+
+
 
   // Render
   if (loading) {
@@ -183,7 +253,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white p-4 border-b flex items-center justify-between shrink-0">
+      <div className="bg-white p-2 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={getAvatarUrl(server?.icon_file)} />
@@ -200,8 +270,8 @@ export default function Chat() {
           <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon">
-            <Users className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={() => setIsOptionsOpen(true)}>
+            <Ellipsis className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -250,6 +320,8 @@ export default function Chat() {
                   sender={group.sender}
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={handleReply}
+                  onOpenThread={openThread}
                 />
               );
 
@@ -263,14 +335,33 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Reply Preview */}
+      {replyingTo && (
+        <MessageReply
+          replyingTo={replyingTo}
+          onCancel={handleCancelReply}>
+        </MessageReply>
+      )}
+
+      {/* Thread Modal */}
+      {threadOpen && (
+        <MessageThread
+          threadParent={threadParent}
+          threadLoading={threadLoading}
+          threadReplies={threadReplies}
+          closeThread={closeThread}
+        >
+        </MessageThread>
+      )}
+
       {/* Input */}
-      <div className="p-4 border-t bg-white flex items-end gap-2 shrink-0">
+      <div className="py-3 px-2 border-t bg-white flex items-end gap-2 shrink-0">
         <Button variant="outline" size="icon" className="shrink-0">
           <Paperclip className="h-4 w-4 text-gray-600" />
         </Button>
         <Textarea
           placeholder="Type a message"
-          className="flex-1 resize-none min-h-5 max-h-32 text-black"
+          className="flex-1 resize-none min-h-5 max-h-10 text-black"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => {
@@ -296,6 +387,14 @@ export default function Chat() {
         messages={messages}
         user={user}
         otherUser={otherUser}
+      />
+
+      <ServerOptions
+        open={isOptionsOpen}
+        onOpenChange={setIsOptionsOpen}
+        otherUser={otherUser}
+        server={server}
+        user={user}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 import "./globals.css"
 import { Manrope } from "next/font/google";
 
+
 export const metadata = {
   title: "Kusa",
   description: "Your app description",

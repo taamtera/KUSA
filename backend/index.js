@@ -29,10 +29,10 @@ const io = new Socket_Server.Server(chat_server, {
 // ---- DB CONNECT ----
 const PORT = process.env.PORT || 3001;
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/kusa';
-const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'false';
+const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
-const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot } = require('./schema.js');
+const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
 const path = require('path');
 
 // config (env)
@@ -131,7 +131,6 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 // Register
 app.post('/api/v1/login/register', async (req, res) => {
     try {
-        console.log(req.body);
         const { username, email, password, password_confirmation } = req.body;
 
 
@@ -333,9 +332,9 @@ app.patch('/api/v1/auth/me', auth, async (req, res) => {
             updates,
             { new: true, runValidators: true, context: 'query' }
         )
-        .populate('icon_file')
-        .populate('banner_file')
-        .lean();
+            .populate('icon_file')
+            .populate('banner_file')
+            .lean();
 
         if (!updatedUser) return res.status(404).json({ message: 'user not found' });
 
@@ -465,8 +464,8 @@ app.delete('/api/v1/users/:id', auth, async (req, res) => {
 
         // Clear cookies if the user deleted themself
         if (req.userId === id) {
-        res.clearCookie('access_token',  { path: '/' });
-        res.clearCookie('refresh_token', { path: '/' });
+            res.clearCookie('access_token', { path: '/' });
+            res.clearCookie('refresh_token', { path: '/' });
         }
 
         res.json({ status: 'success', deleted_id: id });
@@ -607,7 +606,7 @@ app.patch('/api/v1/timetable/:id', auth, async (req, res) => {
         if (!DAY_ENUM.includes(slot.day)) {
             return res.status(400).json({ status: 'failed', message: 'invalid day' });
         }
-        if (slot.start_min < 0 || slot.start_min > 1439 || slot.end_min < 1 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
+        if (slot.start_min < 0 || slot.start_min > 1440 || slot.end_min < 0 || slot.end_min > 1440 || slot.end_min <= slot.start_min) {
             return res.status(400).json({ status: 'failed', message: 'invalid time range' });
         }
 
@@ -666,13 +665,6 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
         // Sort direction
         const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
-        // Find all member IDs for both users
-        const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
-        const otherUserMembers = await Member.find({ user: otherUserId }).select('_id');
-
-        const currentUserMemberIds = currentUserMembers.map(m => m._id);
-        const otherUserMemberIds = otherUserMembers.map(m => m._id);
-
         // Find direct messages between the two users
         const messages = await Message.find({
             context_type: 'User',
@@ -680,53 +672,51 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
                 // Messages from current user to other user
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 // Messages from other user to current user
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         })
-        .populate({
-            path: 'sender',
-            populate: {
-                path: 'user',
+            .populate({
+                path: 'sender',
+                select: 'username display_name icon_file',
+                populate: {
+                    path: 'icon_file',
+                }
+            })
+            .populate({
+                path: 'recipients',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name'
+                }
+            })
+            .populate({
+                path: 'reply_to',
+                populate: [
+                    {
+                        path: 'sender',
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
+                    },
+                    { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+                ]
+            })
+            .populate({
+                path: 'context',
                 select: 'username display_name icon_file',
                 populate: {
                     path: 'icon_file'
                 }
-            }
-        })
-        .populate({
-            path: 'recipients',
-            populate: {
-                path: 'user',
-                select: 'username display_name'
-            }
-        })
-        .populate({
-            path: 'reply_to',
-            populate: [
-                {
-                    path: 'sender',
-                    populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } 
-                },
-                { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
-            ]
-        })
-        .populate({
-            path: 'context',
-            select: 'username display_name icon_file',
-            populate: {
-                path: 'icon_file'
-            }
-        })
-        .sort({ created_at: sortDir })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
+            })
+            .sort({ created_at: sortDir })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
 
         // Get total count for pagination
         const total = await Message.countDocuments({
@@ -734,11 +724,11 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             $or: [
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         });
@@ -785,44 +775,61 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             return res.status(403).json({ status: 'failed', message: 'Not a member of this room\'s server' });
         }
 
+
         // Fetch messages in this room
         const messages = await Message.find({
             context_type: 'Room',
             context: roomId
         })
-        .populate({
-            path: 'sender',
-            populate: {
-                path: 'user',
+            .populate({
+                path: 'sender',
                 select: 'username display_name icon_file',
-                populate: { path: 'icon_file' }
-            }
-        })
-        .populate({
-            path: 'recipients',
-            populate: {
-                path: 'user',
-                select: 'username display_name'
-            }
-        })
-        .populate('reply_to')
-        .populate({
-            path: 'context',
-            select: 'title server',
-            populate: {
-                path: 'server',
-                select: 'server_name icon_file',
-                populate: { path: 'icon_file' }
-            }
-        })
-        .sort({ created_at: sortDir })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
+                populate: { path: 'icon_file' },
+            })
+            .populate({
+                path: 'recipients',
+                populate: {
+                    path: 'user',
+                    select: 'username display_name'
+                }
+            })
+            .populate({
+                path: 'reply_to',
+                populate: [
+                    {
+                        path: 'sender',
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
+                    },
+                    { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+                ]
+            })
+            .populate({
+                path: 'context',
+                select: 'title server',
+                populate: {
+                    path: 'server',
+                    select: 'server_name icon_file',
+                    populate: { path: 'icon_file' }
+                }
+            })
+            .sort({ created_at: sortDir })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
 
         // Add server data
         const server = await Server.findById(room.server._id)
         const roomName = room.title;
+
+        // add members of the room's server
+        const members = await Member.find({ server: room.server._id })
+            .populate({
+                path: 'user',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            })
+            .lean();
 
         // Count total messages in this room
         const total = await Message.countDocuments({
@@ -838,7 +845,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             has_more: page * limit < total,
             server,
             roomName,
-            messages
+            messages,
+            members
         });
     } catch (error) {
         console.error('Error fetching room chat:', error);
@@ -846,7 +854,234 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
     }
 });
 
+// Edit message
+app.patch("/api/v1/messages/:id", auth, async (req, res) => {
+    try {
+        const id = req.params.id.trim();
+        const { content } = req.body;
+
+        console.log("PATCH body:", req.body);
+
+        // --- Validate ID ---
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ status: "failed", message: "Invalid message ID" });
+        }
+
+        // --- Validate content ---
+        if (!content || !content.trim()) {
+            return res.status(400).json({ status: "failed", message: "Empty content" });
+        }
+
+        // --- Find message and populate sender info ---
+        let msg = await Message.findById(id)
+            .populate({
+                path: "sender",
+                select: "_id username",
+            });
+
+        if (!msg) {
+            return res.status(404).json({ status: "failed", message: "Message not found" });
+        }
+
+        // --- Populate context safely ---
+        if (msg.context_type === "Room") {
+            await msg.populate({ path: "context", populate: { path: "server" } });
+        } else {
+            await msg.populate("context");
+        }
+
+        // --- Permission checks ---
+        const senderUserId = msg.sender?._id.toString();
+        const currentUserId = req.userId.toString();
+        let canEdit = false;
+
+        if (msg.context_type === "User") {
+            // Direct message: only sender can edit
+            canEdit = senderUserId === currentUserId;
+        } else if (msg.context_type === "Room") {
+            // Room: sender, owner, or moderator can edit
+            const member = await Member.findOne({
+                user: currentUserId,
+                server: msg.context.server,
+            });
+
+            if (member && ["owner", "moderator"].includes(member.role)) canEdit = true;
+            if (senderUserId === currentUserId) canEdit = true;
+        }
+
+        if (!canEdit) {
+            return res.status(403).json({
+                status: "failed",
+                message: "You do not have permission to edit this message",
+            });
+        }
+
+        // --- Update the message ---
+        msg.content = content.trim();
+        msg.edited_count += 1;
+        msg.edited_at = new Date();
+
+        await msg.save();
+
+        // --- Optional WebSocket broadcast ---
+        /*
+        if (io) {
+          if (msg.context_type === "User") {
+            io.to(msg.sender.user._id.toString()).emit("message_edited", msg);
+            io.to(msg.context._id.toString()).emit("message_edited", msg);
+          } else if (msg.context_type === "Room") {
+            io.to(msg.context._id.toString()).emit("message_edited", msg);
+          }
+        }
+        */
+
+        return res.json({ status: "success", message: msg });
+    } catch (err) {
+        console.error("Edit message error:", err);
+        return res.status(500).json({
+            status: "failed",
+            message: "Failed to edit message",
+            error: err.message,
+        });
+    }
+});
+
+app.patch('/api/v1/messages/:id/unsend', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) {
+            console.log("Invalid message ID:", id);
+            return res.status(400).json({ status: 'failed', message: 'invalid id' });
+        }
+
+        const message = await Message.findById(id)
+            .populate({
+                path: "sender",
+                select: "_id username",
+            });
+
+        if (!message || message.active === false) {
+            return res.status(404).json({
+                status: 'failed',
+                message: 'message not found or already inactive'
+            });
+        }
+
+        if (message.context_type === "Room") {
+            await message.populate({ path: "context", populate: { path: "server" } });
+        } else {
+            await message.populate("context");
+        }
+
+        const senderId = message.sender?._id?.toString();
+        const currentUserId = req.userId?.toString();
+
+        let canModerate = false;
+        if (message.context_type === "User") {
+            canModerate = senderId === currentUserId;
+        } else if (message.context_type === "Room") {
+            const member = await Member.findOne({
+                user: currentUserId,
+                server: message.context.server,
+            });
+
+            const userRole = member.role?.toUpperCase();
+            canModerate = senderId === currentUserId || ["OWNER", "MODERATOR"].includes(userRole);
+        }
+
+        if (!canModerate) {
+            return res.status(403).json({ status: 'failed', message: 'No permission to unsend this message' });
+        }
+
+        message.active = false;
+
+        await message.save();
+
+        // Notify via WebSocket
+        if (io) {
+            const payload = {
+                _id: message._id.toString(),
+                active: false,
+                content: message.content,
+                context_type: message.context_type,
+            };
+
+            if (message.context_type === "User") {
+                // DM: notify both users
+                const otherUserId = message.context._id.toString(); // populated above
+                io.to(senderId).emit("message_unsent", payload);
+                io.to(otherUserId).emit("message_unsent", payload);
+            } else if (message.context_type === "Room") {
+                // Room: notify every user in that server
+                const members = await Member.find({ server: message.context.server }).select("user");
+                members.forEach(m => {
+                    io.to(m.user.toString()).emit("message_unsent", payload);
+                });
+            }
+        }
+
+        return res.json({
+            status: 'success',
+            message: 'Message unsent',
+            data: {
+                _id: message._id,
+                active: message.active,
+                edited_count: message.edited_count,
+                content: message.content
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to unsend message' });
+    }
+});
+
+
 // ====================== Servers =====================
+
+// CREATE SERVER
+app.post('/api/v1/servers/create', auth, async (req, res) => {
+    try {
+        const { serverName } = req.body;
+        const userId = req.userId;
+
+        if (!serverName || !userId) {
+            return res.status(400).json({ message: 'Missing serverName or userId.' });
+        }
+
+        // ✅ 1. Create server
+        const newServer = await Server.create({
+            server_name: serverName,
+            icon_file: null,
+            banned_users: []
+        });
+
+        // ✅ 2. Add creator as owner
+        const ownerMember = await Member.create({
+            user: userId,
+            server: newServer._id,
+            role: 'OWNER'
+        });
+
+        // ✅ 3. Create first/default room
+        const generalRoom = await Room.create({
+            server: newServer._id,
+            title: "general",
+            order: 0
+        });
+
+        return res.status(201).json({
+            message: "Server created successfully!",
+            server: newServer,
+            owner: ownerMember,
+            firstRoomId: generalRoom._id
+        });
+
+    } catch (error) {
+        console.error("Error creating server:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
 
 // List servers (that the user is a member of)
 app.get('/api/v1/servers', auth, async (req, res) => {
@@ -864,7 +1099,9 @@ app.get('/api/v1/servers', auth, async (req, res) => {
 
         // find rooms for each server
         for (let server of servers) {
+            // Ensure rooms are returned in the defined "order" field
             const rooms = await Room.find({ server: server._id })
+                .sort({ order: 1 })
                 .lean();
             server.rooms = rooms;
         }
@@ -878,9 +1115,271 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         console.error('Error fetching servers:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to fetch servers' });
     }
-}); 
+});
+
+// Get server by Id
+app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const server = await Server.findById(serverId);
+
+        if (!server) {
+            return res.status(404).json({ message: "Server not found." });
+        }
+
+        return res.status(200).json({ server });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+
+// Generate server invite link (which is just href={`/join/${server._id}`})
+app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        // Check if the user is a member of the server
+        const isMember = await Member.findOne({ server: serverId, user: req.userId });
+        console.log(isMember);
+        if (!isMember) {
+            return res.status(403).json({ status: 'failed', message: 'You are not a member of this server' });
+        }
+        // For simplicity, the invite link is just the server ID.
+        const inviteLink = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/join/${serverId}`;
+        res.json({ status: 'success', invite_link: inviteLink });
+    } catch (error) {
+        console.error('Error generating invite link:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to generate invite link' });
+    }
+});
+
+// Join server
+app.post('/api/v1/servers/join', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!userId || !serverId) {
+            return res.status(400).json({ message: 'Missing userId or serverId.' });
+        }
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ message: 'Server not found.' });
+        }
+
+        // Check membership
+        let member = await Member.findOne({ user: userId, server: serverId });
+        if (!member) {
+            member = await Member.create({
+                user: userId,
+                server: serverId,
+                role: 'MEMBER'
+            });
+        }
+
+        // Get first room
+        const firstRoom = await Room.findOne({ server: serverId }).sort({ order: 1 });
+
+        return res.status(200).json({
+            message: "Success",
+            member,
+            firstRoomId: firstRoom ? firstRoom._id : null
+        });
+
+    } catch (error) {
+        console.error('Error joining server:', error);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+// DELETE SERVER
+app.delete('/api/v1/servers/:serverId', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const userId = req.userId;
+
+        if (!oid(serverId)) {
+            return res.status(400).json({ status: 'failed', message: 'Invalid server id' });
+        }
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ status: 'failed', message: 'Server not found' });
+        }
+
+        const ownerRecord = await Member.findOne({ server: serverId, user: userId, role: 'OWNER' });
+        if (!ownerRecord) {
+            return res.status(403).json({ status: 'failed', message: 'Only server owner can delete server' });
+        }
+
+        const rooms = await Room.find({ server: serverId }, '_id');
+        const roomIds = rooms.map(r => r._id);
+
+        const messages = await Message.find({
+            context_type: 'Room',
+            context: { $in: roomIds }
+        }, '_id');
+
+        const messageIds = messages.map(m => m._id);
+
+        await Reaction.deleteMany({ message: { $in: messageIds } });
+
+        const attachments = await Attachment.find({ message: { $in: messageIds } });
+
+        for (const att of attachments) {
+            const fileDoc = await File.findById(att.file);
+            if (fileDoc) {
+                await File.deleteOne({ _id: fileDoc._id });
+            }
+        }
+
+        await Attachment.deleteMany({ message: { $in: messageIds } });
+        await Message.deleteMany({ _id: { $in: messageIds } });
+        await Room.deleteMany({ server: serverId });
+        await Member.deleteMany({ server: serverId });
+
+        if (server.icon_file) {
+            await File.deleteOne({ _id: server.icon_file });
+        }
+
+        await Server.deleteOne({ _id: serverId });
+
+        return res.json({
+            status: 'success',
+            message: 'Server and all related data deleted',
+            deletedServerId: serverId
+        });
+
+    } catch (err) {
+        console.error("Error deleting server:", err);
+        return res.status(500).json({ status: 'failed', message: 'Internal server error' });
+    }
+});
+
+// ====================== Rooms =====================
+
+// Add a room to a server
+app.post('/api/v1/rooms', auth, async (req, res) => {
+    try {
+        const { serverId, title } = req.body;
+
+        if (!serverId || !title) {
+            return res.status(400).json({ status: 'failed', message: 'Server ID and room title are required' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: serverId,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        const last_room_order = await Room.countDocuments({ server: serverId });
+
+        const room = await Room.create({
+            server: serverId,
+            title,
+            order: last_room_order,
+            createdBy: req.userId
+        });
+
+        res.status(201).json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error creating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to create room' });
+    }
+});
+
+// Edit room
+app.patch('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { title, order } = req.body;
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to edit this room' });
+        }
+
+        if (order !== undefined) {
+            const old_index = room.order;
+            const new_index = order;
+
+            await Room.updateMany(
+                { server: room.server, order: { $gt: old_index } },
+                { $inc: { order: -1 } }
+            );
+            await Room.updateMany(
+                { server: room.server, order: { $gte: new_index } },
+                { $inc: { order: 1 } }
+            );
+            room.order = new_index;
+        }
+
+        if (title !== undefined) room.title = title;
+        await room.save();
+
+        res.json({ status: 'success', room });
+    } catch (error) {
+        console.error('Error updating room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to update room' });
+    }
+});
+
+// Delete room
+app.delete('/api/v1/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ status: 'failed', message: 'Room not found' });
+        }
+
+        const isPermission = await Member.findOne({
+            server: room.server,
+            user: req.userId,
+            role: { $in: ['OWNER', 'MODERATOR'] }
+        });
+
+        if (!isPermission) {
+            return res.status(403).json({ status: 'failed', message: 'You do not have permission to delete this room' });
+        }
+
+        const deletedRoomOrder = room.order;
+        await Room.deleteOne({ _id: room._id });
+
+        await Room.updateMany(
+            { server: room.server, order: { $gt: deletedRoomOrder } },
+            { $inc: { order: -1 } }
+        );
+
+        res.json({ status: 'success', message: 'Room deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to delete room' });
+    }
+});
+
+// ====================== Direct Messages =====================
 
 // POST /api/v1/chats/:userId/messages
+// Send a direct message to another user
 app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
     try {
         const otherUserId = req.params.userId;
@@ -890,7 +1389,6 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         if (!content || content.trim() === '') {
             return res.status(400).json({ status: 'failed', message: 'Message content cannot be empty' });
         }
-        const senderMemberId = currentUserMembers[0]._id; // Use first member record
 
         // Get current user's member IDs
         const currentUserMembers = await Member.find({ user: currentUserId });
@@ -925,7 +1423,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 
         // Create the message
         const message = await Message.create({
-            sender: senderMemberId,
+            sender: currentUserId,
             recipients: otherUserMemberIds,
             context: otherUserId,
             context_type: 'User',
@@ -938,11 +1436,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         const populatedMessage = await Message.findById(message._id)
             .populate({
                 path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: { path: 'icon_file' }
-                }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' },
             })
             .populate({
                 path: 'recipients',
@@ -956,7 +1451,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 populate: [
                     {
                         path: 'sender',
-                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } } 
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' },
                     },
                     { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
                 ]
@@ -975,45 +1471,73 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
+// Get replies to a specific message
 app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     try {
         const parentId = req.params.id;
-        const page  = Math.max(parseInt(req.query.page  || '1', 10), 1);
+        const page = Math.max(parseInt(req.query.page || '1', 10), 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
         const sortDir = req.query.sort === 'asc' ? 1 : -1;
 
-        // optional: ensure requester participates in the parent DM
-        const parent = await Message.findById(parentId).lean();
-        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
-        if (parent.context_type !== 'User') {
-        return res.status(400).json({ status: 'failed', message: 'only supports DM replies' });
-        }
-        // Very light permission: the requester must be either the DM peer (context == me or otherUser)
         const me = req.userId;
-        if (String(parent.context) !== String(me) && String(parent.context) !== String(await Message.findById(parentId).distinct('recipients.user'))) {
-        // If you need stricter checks, expand this to confirm the pair is {me, otherUser}
+
+        // Validate parent message
+        const parent = await Message.findById(parentId)
+            .populate({
+                path: 'context',
+                select: 'server',
+            }).lean();
+        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
+
+        // Fix: robust way to get context id whether populated or not
+        const contextId = parent.context?._id || parent.context;
+
+        if (parent.context_type === 'User') {
+            // DM: participants = sender + context (both User IDs)
+            const isParticipant =
+                String(parent.sender) === String(me) ||
+                String(contextId) === String(me);
+
+            if (!isParticipant) {
+                return res.status(403).json({ status: 'failed', message: 'forbidden: not in this DM' });
+            }
+        } else if (parent.context_type === 'Room') {
+            // Room: context = Room; we populated server on it
+            const serverId = parent.context?.server || null;
+            if (!serverId) {
+                return res.status(500).json({ status: 'failed', message: 'parent room missing server' });
+            }
+
+            const member = await Member.findOne({ user: me, server: serverId }).lean();
+            if (!member) {
+                return res.status(403).json({
+                    status: 'failed',
+                    message: 'forbidden: not a member of this room\'s server'
+                });
+            }
         }
 
         const replies = await Message.find({ reply_to: parentId })
-        .sort({ created_at: sortDir })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .populate({
-            path: 'sender',
-            populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
-        })
-        .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
-        .lean();
+            .sort({ created_at: sortDir })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .populate({
+                path: 'sender',
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
+            })
+            .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
+            .lean();
 
         const total = await Message.countDocuments({ reply_to: parentId });
 
         res.json({
-        status: 'success',
-        page,
-        limit,
-        total,
-        has_more: page * limit < total,
-        replies
+            status: 'success',
+            page,
+            limit,
+            total,
+            has_more: page * limit < total,
+            replies
         });
     } catch (e) {
         console.error(e);
@@ -1021,98 +1545,259 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     }
 });
 
+// ====================== Notifications ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
 
-// --- SOCKET LOGIC ---
+app.get('/api/v1/notifications', auth, async (req, res) => {
+    try {
+        const notifications = await Notification.find({ user: req.userId })
+            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' } })
+            .populate('location')
+            .sort({ created_at: -1 })
+            .lean();
+
+        res.json({ status: 'success', notifications });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to fetch notifications' });
+    }
+});
+
+app.post('/api/v1/notification/respond', auth, async (req, res) => {
+    try {
+        const { notificationId, accept } = req.body;
+        if (accept) {
+            const result = await Notification.deleteOne({ _id: notificationId });
+            if (result.deletedCount === 0) {
+                return res.status(404).json({ status: 'failed', message: 'Notification not found' });
+            }
+            return res.json({ status: 'success', message: 'Notification accepted and deleted' });
+        }
+    } catch (error) {
+        console.error('Error responding to notification:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });
+    }
+});
+
+// ====================== Friends ======================
+// const notificationSchema = new Schema({
+//     user: { type: ObjectId, ref: 'User', required: true },
+//     type: { enum: ['MENTION', 'FRIEND_REQUEST'], type: String, required: true },
+//     location: { type: ObjectId, ref: 'Message' },
+//     from: { type: ObjectId, ref: 'User', required: true },
+// });
+app.post('/api/v1/friend/add', auth, async (req, res) => {
+    try {
+        const { toUsername } = req.body;
+
+        // check if user exist
+        const recipient = await User.findOne({ username: toUsername }).lean();
+        if (!toUsername || !recipient) return res.status(404).json({ status: 'failed', message: 'User not found' });
+
+        // Prevent sending a request to yourself
+        if (recipient._id.toString() === req.userId.toString()) {
+            return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
+        }
+
+        // Prevent sending a request if already friends
+        if (recipient.friends?.some(id => id.toString() === req.userId.toString())) {
+            return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
+        }
+
+        //P revent duplicate friend requests
+        const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
+
+
+        const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
+        res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });
+
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to send friend request' });
+    }
+});
+
+app.post('/api/v1/friend/respond', auth, async (req, res) => {
+    try {
+        const { notificationId, accept } = req.body;
+        const notification = await Notification.findById(notificationId);
+        if (!notification) return res.status(404).json({ status: 'failed', message: 'Notification not found' });
+
+        if (notification.type === 'FRIEND_REQUEST' && String(notification.user) === String(req.userId)) {
+            if (accept) {
+                await User.updateOne(
+                    { _id: req.userId },
+                    { $addToSet: { friends: notification.from } }
+                );
+                await User.updateOne(
+                    { _id: notification.from },
+                    { $addToSet: { friends: req.userId } }
+                );
+                await Notification.deleteOne({ _id: notificationId });
+
+                return res.json({ status: 'success', message: 'Friend request accepted' });
+
+            } else {
+                // Decline: just delete the notification
+                await Notification.deleteOne({ _id: notificationId });
+                return res.json({ status: 'success', message: 'Friend request declined' });
+            }
+        } else {
+            return res.status(400).json({ status: 'failed', message: 'Invalid notification type or user' });
+        }
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to accept friend request' });
+    }
+});
+
+app.post('/api/v1/friend/remove', auth, async (req, res) => {
+    try {
+        const { friendId } = req.body;
+        const removedMe = await User.updateOne(
+            { _id: req.userId },
+            { $pull: { friends: friendId } }
+        );
+        const removeThem = await User.updateOne(
+            { _id: friendId },
+            { $pull: { friends: req.userId } }
+        );
+
+        if (removedMe.modifiedCount !== 1 && removeThem.modifiedCount !== 1) {
+            return res.status(404).json({ status: 'failed', message: 'Friend not found in your friend list' });
+        } else {
+            return res.json({ status: 'success', message: 'Friend removed' });
+        }
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.status(500).json({ status: 'failed', message: 'Failed to remove friend' });
+    }
+});
+
+// ====================== Socket Logic ======================
+
 io.on("connection", (socket) => {
     console.log("✅ New WebSocket connection:", socket.id);
 
     // Join room per user ID (from query or handshake)
     const userId = socket.handshake.query.userId;
-    if (userId) socket.join(userId);
+    if (userId) socket.join(userId.toString());
 
-// Listen for "send_message" event from client
-socket.on("send_message", async (msgData) => {
-    try {
-    const { from_id, to_id, context_type, content, message_type = "text", reply_to = null } = msgData;
-    if (!content || content.trim() === "") {
-        console.warn("Socket message error: empty content");
-        return;
-    }
+    // Listen for "send_message" event from client
+    socket.on("send_message", async (msgData) => {
+        try {
 
-    // 💾 Gets users and id to make sure the user exist
-    const currentUserMembers = await Member.find({ user: from_id });
-    const otherUserMemberIds = [];
-    if (context_type === "User") {
-        const otherUserMembers = await Member.find({ user: to_id });
-        otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
-    } else if (context_type === "Room") {
-        const room = await Room.findById(to_id).lean();
-        const memberRecords = await Member.find({ server: room?.server }).select('_id user');
-        memberRecords.forEach(member => {
-            if (member.user.toString() !== currentUserMembers[0].user.toString()) {
-            otherUserMemberIds.push(member._id);
+            const { from_id, to_id, context_type, content, message_type = "text", reply_to = null } = msgData;
+            if (!content || content.trim() === "") {
+                console.warn("Socket message error: empty content");
+                return;
             }
-        });
-    }
-    if (!currentUserMembers.length || !otherUserMemberIds.length) {
-        console.warn("Socket message error: member records not found");
-        return;
-    }
 
-    console.log('new message');
+            // 💾 Gets users and id to make sure the user exist
+            const currentUserMembers = await Member.find({ user: from_id });
+            const otherUserMemberIds = [];
+            const recipientUserIds = [];
 
-    // validate reply_to is part of the same DM FIX LATER
-    // if (reply_to) {
-    //     const parent = await Message.findById(reply_to).lean();
-    //     if (!parent || parent.context_type !== 'User') return;
-    //     // PLEASE FIX
-    //     const samePair = (
-    //     String(parent.context) === String(to_id) ||
-    //     String(parent.context) === String(from_id)
-    //     );
-    //     if (!samePair) return;
-    // }
+            if (context_type === "User") {
+                const otherUserMembers = await Member.find({ user: to_id });
+                otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
+                recipientUserIds.push(to_id.toString());
 
-    // create message in DB 
-    const message = await Message.create({
-        sender: currentUserMembers[0]._id,
-        recipients: otherUserMemberIds,
-        context: to_id,
-        context_type: context_type,
-        content: content.trim(),
-        message_type,
-        reply_to: reply_to || undefined,
-    });
+            } else if (context_type === "Room") {
+                const room = await Room.findById(to_id).lean();
+                const memberRecords = await Member.find({ server: room?.server }).select('_id user');
+                memberRecords.forEach(member => {
+                    if (member.user.toString() !== currentUserMembers[0].user.toString()) {
+                        otherUserMemberIds.push(member._id);
+                        recipientUserIds.push(member.user.toString());
+                    }
+                });
+            }
+            if (!currentUserMembers.length && !otherUserMemberIds.length) {
+                console.warn("Socket message error: member records not found");
+                return;
+            }
 
-    const populatedMessage = await Message.findById(message._id)
-        .populate({
-            path: "sender",
-            populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } }
-        })
-        .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })
-        .populate({
-            path: "reply_to",
-            populate: [
-                { path: "sender", populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } } },
-                { path: "recipients", populate: { path: "user", select: "username display_name" } }
-            ]
-        })
-        .lean();
+            console.log('new message');
 
-        // Emit the message to both sender and recipient
-        io.to(from_id).emit("receive_message", populatedMessage);
-        //emmit to all recipient member ids
-        for (const recipientId of otherUserMemberIds) {
-            io.to(recipientId.toString()).emit("receive_message", populatedMessage);
-        }
+            // validate reply_to is part of the same DM FIX LATER
+            // if (reply_to) {
+            //     const parent = await Message.findById(reply_to).lean();
+            //     if (!parent || parent.context_type !== 'User') return;
+            //     // PLEASE FIX
+            //     const samePair = (
+            //     String(parent.context) === String(to_id) ||
+            //     String(parent.context) === String(from_id)
+            //     );
+            //     if (!samePair) return;
+            // }
 
+            // create message in DB 
+            const message = await Message.create({
+                sender: from_id,
+                recipients: otherUserMemberIds,
+                context: to_id,
+                context_type: context_type,
+                content: content.trim(),
+                message_type,
+                reply_to: reply_to || undefined,
+            });
+
+            const populatedMessage = await Message.findById(message._id)
+                .populate({
+                    path: "sender",
+                    select: "username display_name icon_file", 
+                    populate: { path: 'icon_file' }
+                })
+                .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })
+                .populate({
+                    path: "reply_to",
+                    populate: [
+                        { path: "sender", select: "username display_name icon_file", populate: { path: 'icon_file' } },
+                        { path: "recipients", populate: { path: "user", select: "username display_name" } }
+                    ]
+                })
+                .lean();
+
+            // Emit the message to both sender and recipient
+            io.to(from_id).emit("receive_message", populatedMessage);
+            //emmit to all recipient member ids
+
+            recipientUserIds.forEach((uid) => {
+                io.to(uid).emit("receive_message", populatedMessage);
+            });
+
+            // for (const recipientId of otherUserMemberIds) {
+            //     io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+            // }
+
+            // if mentiond, create notification
+            const mentionRegex = /@([\w]+)/g;
+            let match;
+            const mentionedUsernames = new Set();
+
+            while ((match = mentionRegex.exec(content)) !== null) {
+                mentionedUsernames.add(match[1]);
+            }
+            for (const username of mentionedUsernames) {
+                const mentionedUser = await User.findOne({ username }).lean();
+                if (mentionedUser && String(mentionedUser._id) !== String(from_id)) {
+                    const result = await Notification.create({ user: mentionedUser._id, type: 'MENTION', location: message._id, from: from_id });
+                }
+            }
             console.log("📨 Message delivered via WS:", content);
         } catch (err) {
             console.error("Socket message error:", err);
         }
     });
 
-socket.on("disconnect", () => {
+    socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });
