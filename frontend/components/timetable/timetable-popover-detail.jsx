@@ -90,10 +90,8 @@ export default function TimeTablePopoverDetail({
                     </button>
 
                     <Dialog open={openDelete} onOpenChange={setOpenDelete}>
-                        <DialogTrigger>
-                            <button className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
-                                <TrashIcon className="size-[18px]"/>
-                            </button>
+                        <DialogTrigger className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
+                            <TrashIcon className="size-[18px]"/>
                         </DialogTrigger>
                         <DialogContent className="w-[256px]">
                             <DialogHeader>

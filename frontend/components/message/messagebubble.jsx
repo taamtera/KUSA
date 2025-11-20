@@ -215,8 +215,8 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                         <p>This message was unsent.</p>
                     ) : (
                         <div className="flex-col">
-                            {message.edited_count > 0 && (<div className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50" /></div>)}
-                            <p>{highlightMentions(message.content, currentUsername)}</p>
+                            {message.edited_count > 0 && (<div className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50 mb-1" /></div>)}
+                            <p className="">{highlightMentions(message.content, currentUsername)}</p>
                         </div>
                     )}
                 </div>
