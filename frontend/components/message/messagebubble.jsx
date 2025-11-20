@@ -50,7 +50,6 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         } catch (error) {
             setError("Fail to edited message")
         } finally {
-            message.content = editedContent
             onEdit(null)
         }
     }
@@ -87,6 +86,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     }
 
     const handleCancel = () => {
+        setEditedContent(message.content || "")
         onEdit(null)
     }
 
@@ -101,13 +101,17 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
     }
 
     useEffect(() => {
-        if (isEditing && textareaRef.current) {
-            resizeTextarea(textareaRef.current)
+        if (isEditing) {
+            setEditedContent(message.content || "");
 
-            // Optional: focus & move cursor to end
-            const el = textareaRef.current
-            el.focus()
-            el.selectionStart = el.selectionEnd = el.value.length
+            if (textareaRef.current) {
+                resizeTextarea(textareaRef.current)
+
+                // Optional: focus & move cursor to end
+                const el = textareaRef.current
+                el.focus()
+                el.selectionStart = el.selectionEnd = el.value.length
+            }
         }
     }, [isEditing, message.content])
 
@@ -176,7 +180,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                                 {message.reply_to?.sender?.display_name || message.reply_to?.sender?.username || "Unknown"}
                             </div>
                             <div className="text-xs truncate">
-                                { !isParentUnsent ? message.reply_to?.content || "—" : "This message was unsent."}
+                                {!isParentUnsent ? message.reply_to?.content || "—" : "This message was unsent."}
                             </div>
                         </div>
                     </button>
@@ -211,7 +215,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                         <p>This message was unsent.</p>
                     ) : (
                         <div className="flex-col">
-                            {message.edited_count > 0 && (<p className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50"/></p>)}
+                            {message.edited_count > 0 && (<div className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50" /></div>)}
                             <p>{highlightMentions(message.content, currentUsername)}</p>
                         </div>
                     )}

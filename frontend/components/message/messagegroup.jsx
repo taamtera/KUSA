@@ -4,7 +4,7 @@ import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 import FriendProfile from "@/components/friend-profile";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo, isRooms }) {
   const senderName = fromCurrentUser
@@ -20,9 +20,8 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
 
   return (
     <div
-      className={`flex ${
-        fromCurrentUser ? "justify-end" : "justify-start"
-      } items-start space-x-2`}
+      className={`flex ${fromCurrentUser ? "justify-end" : "justify-start"
+        } items-start space-x-2`}
     >
 
       {!fromCurrentUser && (
@@ -35,8 +34,8 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
 
       {/* Left side (other user) */}
       {!fromCurrentUser && (
-        <div className="flex items-start space-x-2" onClick={(e) => {e.stopPropagation(); setOpenProfile(true);}}>
-          <Avatar className="w-10 h-10 shrink-0">
+        <div className="flex items-start space-x-2">
+          <Avatar className="w-10 h-10 shrink-0" onClick={(e) => { e.stopPropagation(); setOpenProfile(true); }}>
             <AvatarImage src={senderAvatar} />
             <AvatarFallback>{getAvatarFallback(senderName)}</AvatarFallback>
           </Avatar>
@@ -85,7 +84,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
                 onOpenThread={onOpenThread}
                 onEdit={onEdit}
                 editingTo={editingTo}
-                // onUnsend={onUnsend}
+              // onUnsend={onUnsend}
               />
             ))}
           </div>

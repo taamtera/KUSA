@@ -392,7 +392,9 @@ app.get('/api/v1/users/:id', async (req, res) => {
             .lean();
 
         if (!user) return res.status(404).json({ message: 'user not found' });
-        res.json({ status: 'success', user });
+
+        const { password_hash, __v, ...safeUser } = user;
+        res.json({ status: 'success', user: safeUser });
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'failed to fetch user' });
