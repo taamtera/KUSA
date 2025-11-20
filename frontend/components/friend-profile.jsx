@@ -19,7 +19,7 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
     return (
         <div className="relative">
             {/* Banner + avatar + close button in a relative wrapper */}
-            <div className="relative">
+            <div className="relative p-1">
                 <Image
                     src={pbanner}
                     alt="Profile Banner"
@@ -30,7 +30,7 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
                 <Avatar
                     className="
                         size-[48px]
-                        absolute left-2 top-[72px]
+                        absolute left-[16px] top-[72px]
                         outline outline-4 outline-white
                     "
                 >
@@ -69,7 +69,7 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
             </div>
 
             {/* Content below (add padding-top to avoid overlapping text) */}
-            <div className="flex items-start px-[16px] pb-[16px] pt-[32px]">
+            <div className="flex items-start px-[16px] pb-[16px] pt-[24px]">
                 <div className="flex flex-col text-sm">
                     <p className="text-lg font-bold">
                         {friendInfo?.display_name}
