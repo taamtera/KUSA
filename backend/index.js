@@ -923,17 +923,34 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
 
         await msg.save();
 
-        // --- Optional WebSocket broadcast ---
-        /*
         if (io) {
-          if (msg.context_type === "User") {
-            io.to(msg.sender.user._id.toString()).emit("message_edited", msg);
-            io.to(msg.context._id.toString()).emit("message_edited", msg);
-          } else if (msg.context_type === "Room") {
-            io.to(msg.context._id.toString()).emit("message_edited", msg);
-          }
+            const payload = {
+                _id: msg._id.toString(),
+                content: msg.content,
+                edited_count: msg.edited_count,
+                edited_at: msg.edited_at,
+                context_type: msg.context_type,
+                context: msg.context._id ? msg.context._id.toString() : msg.context.toString(),
+            };
+
+            if (msg.context_type === "User") {
+                // DM: notify both users (sender + other)
+                const otherUserId = payload.context; // context is the other user in DM
+                io.to(senderUserId).emit("message_edited", payload);
+                if (otherUserId && otherUserId !== senderUserId) {
+                    io.to(otherUserId).emit("message_edited", payload);
+                }
+            } else if (msg.context_type === "Room") {
+                // Room: notify all users in that server
+                const members = await Member.find({ server: msg.context.server }).select("user");
+                members.forEach((m) => {
+                    const uid = m.user?.toString();
+                    if (uid) {
+                        io.to(uid).emit("message_edited", payload);
+                    }
+                });
+            }
         }
-        */
 
         return res.json({ status: "success", message: msg });
     } catch (err) {
@@ -946,6 +963,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
     }
 });
 
+// unsend message
 app.patch('/api/v1/messages/:id/unsend', auth, async (req, res) => {
     try {
         const { id } = req.params;
