@@ -11,7 +11,7 @@ export default function MessageReply({ replyingTo, onCancel}) {
             <div className="text-3xl px-3">↰</div>
             <div className="flex-1 w-[16px]">
                 <div className="text-sm text-gray-500 font-medium">
-                    Replying to {replyingTo.sender?.user?.username || "user"}
+                    Replying to {replyingTo.sender?.display_name || replyingTo.sender?.username || "user"}
                 </div>
                 <div className="text-sm text-gray-600 truncate w-auto">
                     {replyingTo.content}

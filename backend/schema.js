@@ -27,7 +27,19 @@ const fileSchema = new Schema(
 const userSchema = new Schema(
     {
         username: { type: String, required: true, unique: true, trim: true },
-        display_name: { type: String, default: function () { return this.username } },
+        display_name: {
+            type: String,
+            default: function () {
+                if (typeof this.username === "string") {
+                    // first 50 chars of username
+                    return this.username.slice(0, 50);
+                }
+                return undefined;
+            },
+            maxlength: 50,
+            trim: true,
+        },
+
         email: { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
         role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
@@ -110,7 +122,7 @@ roomSchema.index({ server: 1, title: 1 }, { unique: true });
  * ---------------------------*/
 const messageSchema = new Schema(
     {
-        sender: { type: ObjectId, ref: 'Member', required: true },
+        sender: { type: ObjectId, ref: 'User', required: true },
         recipients: [{ type: ObjectId, ref: 'Member' }],
         context: {
             type: ObjectId,

@@ -110,8 +110,8 @@ export default function TimeTablePopoverDetail({
                         </DialogContent>
                     </Dialog>
                 </div>
-                <PopoverClose className="">
-                    <X className="p-2 cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full size-[35px]" />
+                <PopoverClose className="p-2 cursor-pointer text-gray-500 hover:bg-gray-300/30 rounded-full">
+                    <X className="size-[20px]" />
                 </PopoverClose>
             </div>
 
