@@ -162,7 +162,7 @@ body {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-all;
+  word-break: break-words;
   -webkit-line-clamp: 2; /* max lines when slot is tall enough */
 }
 

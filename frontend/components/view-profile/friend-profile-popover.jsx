@@ -42,34 +42,34 @@ export default function FriendProfile({ otherUserInfo, closeProfile }) {
                     </AvatarFallback>
                 </Avatar>
 
-                <div className="absolute top-[80px] right-[16px]">
+                <div className="absolute top-[104px] right-[16px]">
                     <div className="flex gap-2">
                         <Button
                             onClick={closeProfile}
                             className="
-                                w-[36px]
+                                size-[28px]
                                 outline-none
-                                rounded-[14px]
+                                rounded-[10px]
                                 bg-gray-100 border border-gray-700 hover:bg-gray-700 
-                                text-gray-900 hover:text-white
+                                text-md text-gray-900 hover:text-white
                             "
                         >
-                            <UserPlus className="size-[16px]" />
+                            <UserPlus className="size-[14px]" />
                         </Button>
                         <Dialog>
                             <DialogTrigger
                                 className="
-                                    px-4
-                                    rounded-[14px] 
+                                    px-2
+                                    rounded-[10px] 
                                     bg-gray-100 border border-gray-700 hover:bg-gray-700
-                                    text-gray-900 hover:text-white
+                                    text-[14px] text-gray-900 hover:text-white
                                 "
                             >
                                 View Full Profile
                             </DialogTrigger>
                             <DialogContent
                                 closeButton={false}
-                                className="w-[720px] max-w-[90vw] p-0"
+                                className="w-[840px] max-w-[90vw] max-h-[60vh] p-0 flex flex-col"
                             >
 
                                 <OtherUserFullProfile
