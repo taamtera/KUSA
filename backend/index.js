@@ -401,6 +401,33 @@ app.get('/api/v1/users/:id', async (req, res) => {
     }
 });
 
+// Find user
+app.get('/api/v1/user/find/:q', async (req, res) => {
+    try {
+        const q = (req.params.q || req.query.q || req.query.input || '').trim();
+        if (!q) return res.status(400).json({ status: 'failed', message: 'missing query parameter q or input' });
+
+        // email detection
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q);
+
+        const filter = isEmail ? { email: q.toLowerCase() } : { username: q };
+
+        const user = await User.findOne(filter)
+            .select('+created_at +updated_at') // return some useful metadata if present
+            .populate('icon_file')
+            .populate('banner_file')
+            .lean();
+
+        if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
+
+        const { password_hash, __v, ...safeUser } = user;
+        return res.json({ status: 'success', user: safeUser });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to find user' });
+    }
+});
+
 // ===================== USERS LIST ======================
 // GET /api/v1/users?q=alice&page=1&limit=20&sort=-created_at
 app.get('/api/v1/users', async (req, res) => {

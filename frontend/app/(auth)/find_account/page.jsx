@@ -11,35 +11,26 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+// import { Label } from "@/components/ui/label"
 import { useState } from "react";
 
 export default function CardDemo() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [inputUser, setInputUser] = useState("");
+    const [found, setFoundUser] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        console.log("Email:", email);
-        console.log("Password:", password);
-
         try {
-            const response = await fetch("http://localhost:3001/api/v1/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email, password }),
+            const response = await fetch(`http://localhost:3001/api/v1/user/find/${inputUser}`, {
+                method: "GET",
             });
 
-            const data = await response.json();
-            console.log(data);
+            // const data = await response.json();
+            // console.log(data);
 
             if (response.ok) {
-                console.log("Redirecting to /chats");
-                window.location.href = "/chats";
+                window.location.href = "/recover";
             } else {
                 alert("❌ " + data.message);
             }
@@ -70,13 +61,11 @@ export default function CardDemo() {
                     <form>
                         <div className="flex flex-col gap-6">
                             <div className="grid gap-2">
-                                {/* <Label htmlFor="email">Email</Label> */}
                                 <Input
                                     id="email"
                                     type="email"
                                     placeholder="Username or Email address"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => setInputUser(e.target.value)}
                                     required
                                 />
                             </div>
@@ -92,6 +81,11 @@ export default function CardDemo() {
                         Continue
                     </Button>
                 </CardFooter>
+                {/* {!found && (
+                    <div>
+                        amogus
+                    </div>
+                )} */}
             </Card>
         </div>
     )
