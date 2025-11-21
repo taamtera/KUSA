@@ -6,16 +6,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
+    DialogTrigger,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogClose
 } from "@/components/ui/dialog";
-import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
 import Image from 'next/image';
 import pbanner from "@/components/img/pbanner.jpg";
+import OtherUserFullProfile from "@/components/view-profile/friend-full-profile";
 
-export default function FriendProfile({ open, onOpenChange, friendInfo, closeProfile }) {
+export default function FriendProfile({ otherUserInfo, closeProfile }) {
+
     return (
         <div className="relative">
             {/* Banner + avatar + close button in a relative wrapper */}
@@ -34,9 +36,9 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
                         outline outline-4 outline-white
                     "
                 >
-                    <AvatarImage src={friendInfo?.icon_file?.storage_key} />
+                    <AvatarImage src={otherUserInfo?.icon_file?.storage_key} />
                     <AvatarFallback>
-                        {friendInfo?.username?.[0]?.toUpperCase() || "U"}
+                        {otherUserInfo?.username?.[0]?.toUpperCase() || "U"}
                     </AvatarFallback>
                 </Avatar>
 
@@ -54,15 +56,29 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
                         >
                             <UserPlus className="size-[16px]" />
                         </Button>
-                        <Button
-                            className="
-                                rounded-[14px] 
-                                bg-gray-100 border border-gray-700 hover:bg-gray-700
-                                text-gray-900 hover:text-white
-                            "
-                        >
-                            View Full Profile
-                        </Button>
+                        <Dialog>
+                            <DialogTrigger
+                                className="
+                                    px-4
+                                    rounded-[14px] 
+                                    bg-gray-100 border border-gray-700 hover:bg-gray-700
+                                    text-gray-900 hover:text-white
+                                "
+                            >
+                                View Full Profile
+                            </DialogTrigger>
+                            <DialogContent
+                                closeButton={false}
+                                className="w-[720px] max-w-[90vw] p-0"
+                            >
+
+                                <OtherUserFullProfile
+                                    otherUserInfo={otherUserInfo}
+                                />
+                                
+                            </DialogContent>
+                        </Dialog>
+
                     </div>
                 </div>
 
@@ -72,19 +88,19 @@ export default function FriendProfile({ open, onOpenChange, friendInfo, closePro
             <div className="flex items-start px-[16px] pb-[16px] pt-[24px]">
                 <div className="flex flex-col text-sm">
                     <p className="text-lg font-bold">
-                        {friendInfo?.display_name}
+                        {otherUserInfo?.display_name}
                     </p>
                     <div className="flex flex-row">
                         <p className="text-sm text-gray-500">
-                            {friendInfo?.username}
+                            {otherUserInfo?.username}
                         </p>
                         <span className="mx-1 text-gray-400">•</span>
                         <p className="text-sm text-gray-500">
-                            {friendInfo?.pronouns}
+                            {otherUserInfo?.pronouns}
                         </p>
                     </div>
                     <p className="slot-card-title text-sm mt-2 text-gray-700 whitespace-pre-wrap">
-                        {friendInfo?.bio}
+                        {otherUserInfo?.bio}
                     </p>
                 </div>
             </div>
