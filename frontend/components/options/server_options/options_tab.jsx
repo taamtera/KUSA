@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import Cropper from "react-easy-crop";
+// import Cropper from "react-easy-crop";
 
 export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   const router = useRouter();
@@ -273,7 +273,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
             </div>
           ) : (
             <div className="relative h-64 w-full bg-black/20">
-              <Cropper
+              {/* <Cropper
                 image={selectedImage}
                 crop={crop}
                 zoom={zoom}
@@ -283,7 +283,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
                 onCropComplete={(croppedArea, croppedPixels) => {
                   setCroppedAreaPixels(croppedPixels);
                 }}
-              />
+              /> */}
             </div>
           )}
 

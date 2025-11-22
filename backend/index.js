@@ -2129,7 +2129,7 @@ app.post('/api/v1/send-email/reset-password', async (req, res) => {
                                             <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0f1724;">Reset your
                                                 password</h1>
                                             <p style="margin:0;font-size:15px;line-height:1.5;color:#475569;">
-                                                Hi ${user.display_name},<br>
+                                                Hi ${user.username},<br>
                                                 We received a request to reset the password for your KUSA account. Click the
                                                 button below to choose a new password.
                                             </p>
