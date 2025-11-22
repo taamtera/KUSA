@@ -18,6 +18,7 @@ const path = require("path");
 const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
+
 app.use(cors({
     origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     credentials: true, // allow sending/receiving cookies
@@ -1214,6 +1215,20 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     }
 });
 
+// GET /api/v1/servers/banned
+app.get('/api/v1/servers/banned', async (req, res) => {
+    const { serverId } = req.query;
+
+    const server = await Server.findById(serverId)
+        .populate('banned_users', 'username display_name icon_file');
+
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    res.json(server.banned_users);
+});
+
 // Get server by Id
 app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     try {
@@ -1228,6 +1243,88 @@ app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+// Update server icon
+app.put("/api/v1/servers/:serverId/icon", auth, upload.single("icon"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const server = await Server.findById(req.params.serverId);
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    const fileDoc = await File.create({
+      storage_key: req.file.filename,
+      byte_size: req.file.size,
+      mime_type: req.file.mimetype,
+      original_name: req.file.originalname
+    });
+
+    server.icon_file = fileDoc._id;
+    await server.save();
+
+    res.status(200).json({ message: "Icon updated", file: fileDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/api/v1/files/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Path where Multer stores files (modify if using another folder)
+    const filePath = path.join(__dirname, "uploads", file.storage_key);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Stored file missing" });
+    }
+
+    // Send file with the correct MIME type
+    res.setHeader("Content-Type", file.mime_type);
+    res.setHeader("Content-Length", file.byte_size);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("File download error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+// Change server name
+app.put('/api/v1/servers/:serverId/name', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { newName } = req.body;
+        const requester = req.userId;
+
+        if (!newName || newName.trim().length === 0) {
+            return res.status(400).json({ message: "New name required." });
+        }
+
+        // Check permission
+        const member = await Member.findOne({ server: serverId, user: requester });
+        if (!member || (member.role !== "OWNER" && member.role !== "MODERATOR")) {
+            return res.status(403).json({ message: "No permission to change server name." });
+        }
+
+        // Update server name
+        await Server.findByIdAndUpdate(serverId, { server_name: newName.trim() });
+
+        return res.status(200).json({ message: "Server name updated successfully." });
+
+    } catch (error) {
+        console.error("Change name error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -1266,6 +1363,11 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             return res.status(404).json({ message: 'Server not found.' });
         }
 
+        // if user is banned
+        if (server.banned_users.includes(userId)) {
+            return res.status(403).json({ message: 'You are banned from this server.' });
+        }
+
         // Check membership
         let member = await Member.findOne({ user: userId, server: serverId });
         if (!member) {
@@ -1289,6 +1391,151 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
         console.error('Error joining server:', error);
         return res.status(500).json({ message: 'Internal server error.' });
     }
+});
+
+// Set role for a member
+app.post('/api/v1/servers/set-role', auth, async (req, res) => {
+    try {
+        const { serverId, userId, role } = req.body;
+        const requester = req.userId;
+        if (!serverId || !userId || !role) {
+            return res.status(400).json({ message: "Missing serverId, userId, or role" });
+        }
+        // Check permissions (only OWNER can set roles)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || requesterMember.role !== 'OWNER') {
+            return res.status(403).json({ message: "No permission to set roles" });
+        }
+        // Update member role
+        const updatedMember = await Member.findOneAndUpdate(
+            { user: userId, server: serverId },
+            { role: role },
+            { new: true }
+        );
+        if (!updatedMember) {
+            return res.status(404).json({ message: "Member not found in server" });
+        }
+        return res.status(200).json({ message: "Role updated successfully", member: updatedMember });
+    } catch (error) {
+        console.error("Set role error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Kick user from server
+app.post('/api/v1/servers/kick', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        // Check permissions (only OWNER or MODERATOR can kick)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to kick users" });
+        }
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User kicked successfully" });
+    } catch (error) {
+        console.error("Kick error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Leave server
+app.post('/api/v1/servers/leave', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!serverId) {
+            return res.status(400).json({ message: "Missing serverId" });
+        }
+
+        // Find membership
+        const member = await Member.findOne({ server: serverId, user: userId });
+        if (!member) {
+            return res.status(400).json({ message: "You are not a member of this server." });
+        }
+
+        // If leaving member is OWNER → ensure there is another owner
+        if (member.role === "OWNER") {
+            const totalOwners = await Member.countDocuments({
+                server: serverId,
+                role: "OWNER"
+            });
+
+            if (totalOwners <= 1) {
+                return res.status(403).json({
+                    message: "You are the only owner. Promote another owner before leaving."
+                });
+            }
+        }
+
+        // Remove the membership
+        await Member.deleteOne({ server: serverId, user: userId });
+
+        return res.status(200).json({ message: "You left the server." });
+
+    } catch (error) {
+        console.error("Leave error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Ban user
+app.post('/api/v1/servers/ban', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to ban users" });
+        }
+
+        // Add to banned list (if not already)
+        await Server.findByIdAndUpdate(serverId, {
+            $addToSet: { banned_users: userId }
+        });
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User banned successfully" });
+    } catch (error) {
+        console.error("Ban error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// POST /api/v1/servers/unban
+app.post('/api/v1/servers/unban', async (req, res) => {
+    const { serverId, userId } = req.body;
+
+    const server = await Server.findById(serverId);
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    // Remove user from banned_users
+    server.banned_users = server.banned_users.filter(
+        id => id.toString() !== userId
+    );
+
+    await server.save();
+
+    res.json({ message: "User unbanned." });
 });
 
 // DELETE SERVER

@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "browser-image-compression": "^2.0.2",
+    "canvas-to-blob": "^1.0.0",
+    "cookie-parser": "^1.4.7",
+    "multer": "^2.0.2",
+    "react-easy-crop": "^5.5.3"
+  }
+}
