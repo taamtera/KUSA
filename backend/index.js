@@ -8,13 +8,16 @@ const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
-
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const cookieParser = require("cookie-parser");
 const app = express();
+
+app.use(cookieParser());
 app.use(cors({
     origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     credentials: true, // allow sending/receiving cookies
 }));
-
 app.use(express.json());
 app.use(cookiesParser());
 
@@ -34,6 +37,7 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
 const path = require('path');
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // config (env)
 const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
@@ -966,6 +970,60 @@ app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
         return res.status(500).json({ message: "Internal server error." });
     }
 });
+
+// Update server icon
+app.put("/api/v1/servers/:serverId/icon", auth, upload.single("icon"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const server = await Server.findById(req.params.serverId);
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    const fileDoc = await File.create({
+      storage_key: req.file.filename,
+      byte_size: req.file.size,
+      mime_type: req.file.mimetype,
+      original_name: req.file.originalname
+    });
+
+    server.icon_file = fileDoc._id;
+    await server.save();
+
+    res.status(200).json({ message: "Icon updated", file: fileDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/api/v1/files/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Path where Multer stores files (modify if using another folder)
+    const filePath = path.join(__dirname, "uploads", file.storage_key);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Stored file missing" });
+    }
+
+    // Send file with the correct MIME type
+    res.setHeader("Content-Type", file.mime_type);
+    res.setHeader("Content-Length", file.byte_size);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("File download error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 // Change server name
 app.put('/api/v1/servers/:serverId/name', auth, async (req, res) => {

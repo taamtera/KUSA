@@ -10,13 +10,72 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import Cropper from "react-easy-crop";
 
 export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   const router = useRouter();
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
   const [inviteLink, setInviteLink] = useState("");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
+
+  async function getCroppedImage(imageSrc, cropPixels) {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = cropPixels.width;
+    canvas.height = cropPixels.height;
+
+    ctx.drawImage(
+      image,
+      cropPixels.x,
+      cropPixels.y,
+      cropPixels.width,
+      cropPixels.height,
+      0,
+      0,
+      cropPixels.width,
+      cropPixels.height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg");
+    });
+  }
+
+  const handleUploadCroppedImage = async () => {
+    const blob = await getCroppedImage(selectedImage, croppedAreaPixels);
+
+    const formData = new FormData();
+    formData.append("icon", blob, "icon.jpg");
+
+    const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/icon`, {
+      method: "PUT",
+      credentials: "include",
+      body: formData,
+    });
+
+    if (res.ok) {
+      setProfileDialogOpen(false);
+      router.refresh(); // Refresh UI
+    }
+  };
+
+  function createImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = (err) => reject(err);
+    });
+  }
+
 
   async function handleChangeServerName() {
     try {
@@ -134,7 +193,13 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
       <div className="flex flex-col items-center space-y-2">
         <Avatar className="h-16 w-16">
           <AvatarImage
-            src={server?.icon_file ? `/api/v1/files/${server.icon_file._id}` : undefined}
+            src={
+              server?.icon_file
+                ? `http://localhost:3001/api/v1/files/${
+                    server.icon_file._id || server.icon_file
+                  }`
+                : undefined
+            }
           />
           <AvatarFallback>{server?.server_name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
@@ -143,10 +208,15 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
 
       {/* Owner/Admin Actions */}
       {isOwnerOrAdmin && (
-        <Button variant="outline" className="w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setProfileDialogOpen(true)}
+        >
           Change Server Profile
         </Button>
       )}
+
 
       {isOwnerOrAdmin && (
         <Button
@@ -192,6 +262,57 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change server profile dialouge */}
+      <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Server Icon</DialogTitle>
+            <DialogDescription>Upload and crop a square image.</DialogDescription>
+          </DialogHeader>
+
+          {!selectedImage ? (
+            <div className="flex flex-col items-center space-y-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedImage(URL.createObjectURL(file));
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="relative h-64 w-full bg-black/20">
+              <Cropper
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(croppedArea, croppedPixels) => {
+                  setCroppedAreaPixels(croppedPixels);
+                }}
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedImage(null)}>
+              Cancel
+            </Button>
+            {selectedImage && (
+              <Button onClick={handleUploadCroppedImage}>
+                Save
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       
       {/* Change server name dialouge. */}
       <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
