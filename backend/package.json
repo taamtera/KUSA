@@ -19,7 +19,7 @@
     "mathjax-full": "^3.2.1",
     "mathjax-react": "^2.0.1",
     "mongoose": "^8.17.0",
-    "nodemailer": "^7.0.6",
+    "nodemailer": "^7.0.10",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "socket.io": "^4.8.1"

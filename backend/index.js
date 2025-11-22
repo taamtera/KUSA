@@ -4,10 +4,12 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const crypto = require("crypto");
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors({
@@ -214,6 +216,45 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
 });
 
 
+// change Password via resetting token
+app.post('/api/v1/account/reset-password-via-token', async (req, res) => {
+    try {
+        const { token, password } = req.body; // Remove 'await'
+        
+        if (!token) {
+            return res.status(400).json({ message: "Token required" });
+        }
+
+        // console.log("Received token:", token);
+        // console.log("Received password:", password);
+        
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Token invalid or expired" });
+        }
+
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(password, ROUNDS);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        return res.json({ status: 'success', message: 'Password updated' });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
+    }
+});
+
 // Login
 app.post('/api/v1/login', async (req, res) => {
     try {
@@ -392,10 +433,39 @@ app.get('/api/v1/users/:id', async (req, res) => {
             .lean();
 
         if (!user) return res.status(404).json({ message: 'user not found' });
-        res.json({ status: 'success', user });
+
+        const { password_hash, __v, ...safeUser } = user;
+        res.json({ status: 'success', user: safeUser });
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'failed to fetch user' });
+    }
+});
+
+// Find user
+app.get('/api/v1/user/find/:q', async (req, res) => {
+    try {
+        const q = (req.params.q || '').trim();
+        if (!q) return res.status(400).json({ status: 'failed', message: 'missing query parameter q or input' });
+
+        // email detection
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q);
+
+        const filter = isEmail ? { email: q.toLowerCase() } : { username: q };
+
+        const user = await User.findOne(filter)
+            .select('+created_at +updated_at') // return some useful metadata if present
+            .populate('icon_file')
+            .populate('banner_file')
+            .lean();
+
+        if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
+
+        const { password_hash, __v, ...safeUser } = user;
+        return res.json({ status: 'success', user: safeUser });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to find user' });
     }
 });
 
@@ -665,13 +735,6 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
         // Sort direction
         const sortDir = req.query.sort === 'desc' ? -1 : 1; // Default: newest first
 
-        // Find all member IDs for both users
-        const currentUserMembers = await Member.find({ user: currentUserId }).select('_id');
-        const otherUserMembers = await Member.find({ user: otherUserId }).select('_id');
-
-        const currentUserMemberIds = currentUserMembers.map(m => m._id);
-        const otherUserMemberIds = otherUserMembers.map(m => m._id);
-
         // Find direct messages between the two users
         const messages = await Message.find({
             context_type: 'User',
@@ -679,23 +742,20 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
                 // Messages from current user to other user
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 // Messages from other user to current user
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         })
             .populate({
                 path: 'sender',
+                select: 'username display_name icon_file',
                 populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: {
-                        path: 'icon_file'
-                    }
+                    path: 'icon_file',
                 }
             })
             .populate({
@@ -710,7 +770,8 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
                 populate: [
                     {
                         path: 'sender',
-                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
                     },
                     { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
                 ]
@@ -733,11 +794,11 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             $or: [
                 {
                     context: otherUserId,
-                    sender: { $in: currentUserMemberIds }
+                    sender: currentUserId
                 },
                 {
                     context: currentUserId,
-                    sender: { $in: otherUserMemberIds }
+                    sender: otherUserId
                 }
             ]
         });
@@ -792,11 +853,8 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         })
             .populate({
                 path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: { path: 'icon_file' }
-                }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' },
             })
             .populate({
                 path: 'recipients',
@@ -805,7 +863,17 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
                     select: 'username display_name'
                 }
             })
-            .populate('reply_to')
+            .populate({
+                path: 'reply_to',
+                populate: [
+                    {
+                        path: 'sender',
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' }
+                    },
+                    { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
+                ]
+            })
             .populate({
                 path: 'context',
                 select: 'title server',
@@ -878,7 +946,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
         let msg = await Message.findById(id)
             .populate({
                 path: "sender",
-                populate: { path: "user", select: "_id username" },
+                select: "_id username",
             });
 
         if (!msg) {
@@ -893,7 +961,7 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
         }
 
         // --- Permission checks ---
-        const senderUserId = msg.sender.user._id.toString();
+        const senderUserId = msg.sender?._id.toString();
         const currentUserId = req.userId.toString();
         let canEdit = false;
 
@@ -925,17 +993,34 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
 
         await msg.save();
 
-        // --- Optional WebSocket broadcast ---
-        /*
         if (io) {
-          if (msg.context_type === "User") {
-            io.to(msg.sender.user._id.toString()).emit("message_edited", msg);
-            io.to(msg.context._id.toString()).emit("message_edited", msg);
-          } else if (msg.context_type === "Room") {
-            io.to(msg.context._id.toString()).emit("message_edited", msg);
-          }
+            const payload = {
+                _id: msg._id.toString(),
+                content: msg.content,
+                edited_count: msg.edited_count,
+                edited_at: msg.edited_at,
+                context_type: msg.context_type,
+                context: msg.context._id ? msg.context._id.toString() : msg.context.toString(),
+            };
+
+            if (msg.context_type === "User") {
+                // DM: notify both users (sender + other)
+                const otherUserId = payload.context; // context is the other user in DM
+                io.to(senderUserId).emit("message_edited", payload);
+                if (otherUserId && otherUserId !== senderUserId) {
+                    io.to(otherUserId).emit("message_edited", payload);
+                }
+            } else if (msg.context_type === "Room") {
+                // Room: notify all users in that server
+                const members = await Member.find({ server: msg.context.server }).select("user");
+                members.forEach((m) => {
+                    const uid = m.user?.toString();
+                    if (uid) {
+                        io.to(uid).emit("message_edited", payload);
+                    }
+                });
+            }
         }
-        */
 
         return res.json({ status: "success", message: msg });
     } catch (err) {
@@ -945,6 +1030,97 @@ app.patch("/api/v1/messages/:id", auth, async (req, res) => {
             message: "Failed to edit message",
             error: err.message,
         });
+    }
+});
+
+// unsend message
+app.patch('/api/v1/messages/:id/unsend', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!oid(id)) {
+            console.log("Invalid message ID:", id);
+            return res.status(400).json({ status: 'failed', message: 'invalid id' });
+        }
+
+        const message = await Message.findById(id)
+            .populate({
+                path: "sender",
+                select: "_id username",
+            });
+
+        if (!message || message.active === false) {
+            return res.status(404).json({
+                status: 'failed',
+                message: 'message not found or already inactive'
+            });
+        }
+
+        if (message.context_type === "Room") {
+            await message.populate({ path: "context", populate: { path: "server" } });
+        } else {
+            await message.populate("context");
+        }
+
+        const senderId = message.sender?._id?.toString();
+        const currentUserId = req.userId?.toString();
+
+        let canModerate = false;
+        if (message.context_type === "User") {
+            canModerate = senderId === currentUserId;
+        } else if (message.context_type === "Room") {
+            const member = await Member.findOne({
+                user: currentUserId,
+                server: message.context.server,
+            });
+
+            const userRole = member.role?.toUpperCase();
+            canModerate = senderId === currentUserId || ["OWNER", "MODERATOR"].includes(userRole);
+        }
+
+        if (!canModerate) {
+            return res.status(403).json({ status: 'failed', message: 'No permission to unsend this message' });
+        }
+
+        message.active = false;
+
+        await message.save();
+
+        // Notify via WebSocket
+        if (io) {
+            const payload = {
+                _id: message._id.toString(),
+                active: false,
+                content: message.content,
+                context_type: message.context_type,
+            };
+
+            if (message.context_type === "User") {
+                // DM: notify both users
+                const otherUserId = message.context._id.toString(); // populated above
+                io.to(senderId).emit("message_unsent", payload);
+                io.to(otherUserId).emit("message_unsent", payload);
+            } else if (message.context_type === "Room") {
+                // Room: notify every user in that server
+                const members = await Member.find({ server: message.context.server }).select("user");
+                members.forEach(m => {
+                    io.to(m.user.toString()).emit("message_unsent", payload);
+                });
+            }
+        }
+
+        return res.json({
+            status: 'success',
+            message: 'Message unsent',
+            data: {
+                _id: message._id,
+                active: message.active,
+                edited_count: message.edited_count,
+                content: message.content
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to unsend message' });
     }
 });
 
@@ -1301,7 +1477,6 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         if (!content || content.trim() === '') {
             return res.status(400).json({ status: 'failed', message: 'Message content cannot be empty' });
         }
-        const senderMemberId = currentUserMembers[0]._id; // Use first member record
 
         // Get current user's member IDs
         const currentUserMembers = await Member.find({ user: currentUserId });
@@ -1336,7 +1511,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 
         // Create the message
         const message = await Message.create({
-            sender: senderMemberId,
+            sender: currentUserId,
             recipients: otherUserMemberIds,
             context: otherUserId,
             context_type: 'User',
@@ -1349,11 +1524,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
         const populatedMessage = await Message.findById(message._id)
             .populate({
                 path: 'sender',
-                populate: {
-                    path: 'user',
-                    select: 'username display_name icon_file',
-                    populate: { path: 'icon_file' }
-                }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' },
             })
             .populate({
                 path: 'recipients',
@@ -1367,7 +1539,8 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
                 populate: [
                     {
                         path: 'sender',
-                        populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                        select: 'username display_name icon_file',
+                        populate: { path: 'icon_file' },
                     },
                     { path: 'recipients', populate: { path: 'user', select: 'username display_name' } }
                 ]
@@ -1386,7 +1559,7 @@ app.post('/api/v1/chats/:userId/messages', auth, async (req, res) => {
 });
 
 // GET /api/v1/messages/:id/replies?page=1&limit=20&sort=asc|desc
-// Get replies to a specific message (only for DMs)
+// Get replies to a specific message
 app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
     try {
         const parentId = req.params.id;
@@ -1394,16 +1567,42 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
         const sortDir = req.query.sort === 'asc' ? 1 : -1;
 
-        // optional: ensure requester participates in the parent DM
-        const parent = await Message.findById(parentId).lean();
-        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
-        if (parent.context_type !== 'User') {
-            return res.status(400).json({ status: 'failed', message: 'only supports DM replies' });
-        }
-        // Very light permission: the requester must be either the DM peer (context == me or otherUser)
         const me = req.userId;
-        if (String(parent.context) !== String(me) && String(parent.context) !== String(await Message.findById(parentId).distinct('recipients.user'))) {
-            // If you need stricter checks, expand this to confirm the pair is {me, otherUser}
+
+        // Validate parent message
+        const parent = await Message.findById(parentId)
+            .populate({
+                path: 'context',
+                select: 'server',
+            }).lean();
+        if (!parent) return res.status(404).json({ status: 'failed', message: 'parent message not found' });
+
+        // Fix: robust way to get context id whether populated or not
+        const contextId = parent.context?._id || parent.context;
+
+        if (parent.context_type === 'User') {
+            // DM: participants = sender + context (both User IDs)
+            const isParticipant =
+                String(parent.sender) === String(me) ||
+                String(contextId) === String(me);
+
+            if (!isParticipant) {
+                return res.status(403).json({ status: 'failed', message: 'forbidden: not in this DM' });
+            }
+        } else if (parent.context_type === 'Room') {
+            // Room: context = Room; we populated server on it
+            const serverId = parent.context?.server || null;
+            if (!serverId) {
+                return res.status(500).json({ status: 'failed', message: 'parent room missing server' });
+            }
+
+            const member = await Member.findOne({ user: me, server: serverId }).lean();
+            if (!member) {
+                return res.status(403).json({
+                    status: 'failed',
+                    message: 'forbidden: not a member of this room\'s server'
+                });
+            }
         }
 
         const replies = await Message.find({ reply_to: parentId })
@@ -1412,7 +1611,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
             .limit(limit)
             .populate({
                 path: 'sender',
-                populate: { path: 'user', select: 'username display_name icon_file', populate: { path: 'icon_file' } }
+                select: 'username display_name icon_file',
+                populate: { path: 'icon_file' }
             })
             .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
             .lean();
@@ -1444,7 +1644,7 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
 app.get('/api/v1/notifications', auth, async (req, res) => {
     try {
         const notifications = await Notification.find({ user: req.userId })
-            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' }})
+            .populate({ path: "from", select: "username display_name icon_file", populate: { path: 'icon_file' } })
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
@@ -1468,7 +1668,7 @@ app.post('/api/v1/notification/respond', auth, async (req, res) => {
         }
     } catch (error) {
         console.error('Error responding to notification:', error);
-        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });   
+        res.status(500).json({ status: 'failed', message: 'Failed to respond to notification' });
     }
 });
 
@@ -1489,18 +1689,18 @@ app.post('/api/v1/friend/add', auth, async (req, res) => {
 
         // Prevent sending a request to yourself
         if (recipient._id.toString() === req.userId.toString()) {
-        return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
+            return res.status(400).json({ status: 'failed', message: 'You cannot add yourself as a friend' });
         }
 
         // Prevent sending a request if already friends
         if (recipient.friends?.some(id => id.toString() === req.userId.toString())) {
-        return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
+            return res.status(400).json({ status: 'failed', message: 'User is already your friend' });
         }
 
         //P revent duplicate friend requests
         const friendRequest = await Notification.findOne({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         if (friendRequest) return res.status(200).json({ status: 'success', message: 'Friend request already sent' });
-        
+
 
         const newFriendRequest = await Notification.create({ user: recipient._id, type: 'FRIEND_REQUEST', from: req.userId });
         res.status(201).json({ status: 'success', message: 'Friend request sent', data: newFriendRequest });
@@ -1516,7 +1716,7 @@ app.post('/api/v1/friend/respond', auth, async (req, res) => {
         const { notificationId, accept } = req.body;
         const notification = await Notification.findById(notificationId);
         if (!notification) return res.status(404).json({ status: 'failed', message: 'Notification not found' });
-        
+
         if (notification.type === 'FRIEND_REQUEST' && String(notification.user) === String(req.userId)) {
             if (accept) {
                 await User.updateOne(
@@ -1568,6 +1768,206 @@ app.post('/api/v1/friend/remove', auth, async (req, res) => {
     }
 });
 
+app.post('/api/v1/send-email/reset-password', async (req, res) => {
+    try {
+        const { destinationEmail, subject } = req.body
+        // console.log(destinationEmail);
+        if (!destinationEmail || destinationEmail.trim() === "") {
+            return res.status(400).json({message: "Email is require"});
+        }
+
+        const user = await User.findOne({ email: destinationEmail });
+        if (!user) return res.status(400).json({ message: "User not found" });
+
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
+
+        await user.save();
+
+        const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: 'phongsiraphat@gmail.com',
+                pass: 'ozgc kqxc symd hblu'
+            }
+        });
+        const mailOptions = {
+            from: 'phongsiraphat@gmail.com',
+            to: destinationEmail,
+            subject,
+            // text: "idiot!" 
+            html: `<!doctype html>
+                <html lang="en">
+
+                <head>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width,initial-scale=1" />
+                    <title>Password reset</title>
+                    <style>
+                        /* The container div */
+                        .kusa-container {
+                            padding-top: 1rem;
+                            /* pt-4 */
+                            padding-left: 1rem;
+                            /* pl-4 */
+                            margin-bottom: 1.5rem;
+                            /* mb-6 */
+                        }
+
+                        /* The text div */
+                        .kusa-text {
+                            display: inline-block;
+
+                            font-size: 3rem;
+                            /* text-3xl */
+                            line-height: 3rem;
+                            /* text-3xl line-height */
+                            font-weight: 700;
+                            /* font-bold */
+
+                            /* Gradient Background Logic */
+                            /* Tailwind green-600 (#16a34a) to yellow-600 (#ca8a04) */
+                            background-image: linear-gradient(to right, #16a34a, #6e9f29);
+
+                            /* The magic that clips the background to the text */
+                            -webkit-background-clip: text;
+                            background-clip: text;
+
+                            /* Makes the text transparent so the background shows through */
+                            color: transparent;
+                        }
+                    </style>
+                </head>
+
+                <body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Helvetica,Arial,sans-serif;color:#333333;">
+                    <!-- Container -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                        style="max-width:680px;margin:40px auto 40px auto;">
+                        <tr>
+                            <td align="center" style="padding:20px 16px;">
+                                <!-- Card -->
+                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                                    style="background:#ffffff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);overflow:hidden;">
+                                    <!-- Header / Brand -->
+                                    <tr>
+                                        <td style="padding:24px 28px 8px 28px;text-align:left;">
+                                            <div class="kusa-container">
+                                                <div class="kusa-text">
+                                                    KUSA
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Hero / Message -->
+                                    <tr>
+                                        <td style="padding:12px 28px 8px 28px;">
+                                            <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0f1724;">Reset your
+                                                password</h1>
+                                            <p style="margin:0;font-size:15px;line-height:1.5;color:#475569;">
+                                                Hi ${user.display_name},<br>
+                                                We received a request to reset the password for your KUSA account. Click the
+                                                button below to choose a new password.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- CTA -->
+                                    <tr>
+                                        <td style="padding:18px 28px 18px 28px;">
+                                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                                <tr>
+                                                    <td>
+                                                        <!-- Button uses a full absolute URL in production -->
+                                                        <a href="${resetURL}" target="_blank" rel="noopener"
+                                                            style="display:inline-block;padding:12px 20px;border-radius:8px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">
+                                                            Reset password
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <p style="margin:14px 0 0 0;font-size:13px;color:#6b7280;line-height:1.45;">
+                                                This link will expire in 10 minutes. If you didn't request a password
+                                                reset, you can safely ignore this email or contact our support.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Fallback link -->
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                Can't click the button? Copy and paste this link into your browser:
+                                            </p>
+                                            <p style="word-break:break-all;margin:8px 0 0 0;font-size:13px;color:#0f1724;">
+                                                <a href="${resetURL}" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">${resetURL}</a>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                If you're not the person who make this requested.
+                                            </p>
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                We recommend that you manually change your password again at
+                                                <a href="http://localhost:3000/" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">
+                                                    http://localhost:3000/
+                                                </a>
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td style="padding:18px 28px 26px 28px;border-top:1px solid #f1f5f9;">
+                                            <p style="margin:0;font-size:12px;color:#9aa4b2;line-height:1.4;">
+                                                If you need help, reply to this email or contact <a href="mailto:phongsiraphat@gmail.com"
+                                                    style="color:#2563eb;text-decoration:underline;">phongsiraphat@gmail.com</a>.<br>
+                                                © 2025 KUSA. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <!-- End card -->
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Plain signature-style footer (very small) -->
+                    <div style="max-width:680px;margin:6px auto 20px auto;text-align:center;color:#98a2b3;font-size:12px;">
+                        <p style="margin:0;">This email was sent to ${user.email} because a password reset was requested for your
+                            account.</p>
+                    </div>
+                </body>
+
+                </html>`
+        };
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.error(error);
+            } else {
+                // console.log('Email.sent: ' + info.response);
+                return res.json({ status: 'success', message: 'Sending!' });
+            }
+        });
+    } catch (error) {
+        console.error("Error sending an email", error)
+        res.status(500).json({message: "Internal server error"})
+    }
+})
+
 // ====================== Socket Logic ======================
 
 io.on("connection", (socket) => {
@@ -1575,7 +1975,7 @@ io.on("connection", (socket) => {
 
     // Join room per user ID (from query or handshake)
     const userId = socket.handshake.query.userId;
-    if (userId) socket.join(userId);
+    if (userId) socket.join(userId.toString());
 
     // Listen for "send_message" event from client
     socket.on("send_message", async (msgData) => {
@@ -1590,15 +1990,20 @@ io.on("connection", (socket) => {
             // 💾 Gets users and id to make sure the user exist
             const currentUserMembers = await Member.find({ user: from_id });
             const otherUserMemberIds = [];
+            const recipientUserIds = [];
+
             if (context_type === "User") {
                 const otherUserMembers = await Member.find({ user: to_id });
                 otherUserMemberIds.push(...otherUserMembers.map((m) => m._id));
+                recipientUserIds.push(to_id.toString());
+
             } else if (context_type === "Room") {
                 const room = await Room.findById(to_id).lean();
                 const memberRecords = await Member.find({ server: room?.server }).select('_id user');
                 memberRecords.forEach(member => {
                     if (member.user.toString() !== currentUserMembers[0].user.toString()) {
                         otherUserMemberIds.push(member._id);
+                        recipientUserIds.push(member.user.toString());
                     }
                 });
             }
@@ -1623,7 +2028,7 @@ io.on("connection", (socket) => {
 
             // create message in DB 
             const message = await Message.create({
-                sender: currentUserMembers[0]._id,
+                sender: from_id,
                 recipients: otherUserMemberIds,
                 context: to_id,
                 context_type: context_type,
@@ -1635,13 +2040,14 @@ io.on("connection", (socket) => {
             const populatedMessage = await Message.findById(message._id)
                 .populate({
                     path: "sender",
-                    populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } }
+                    select: "username display_name icon_file",
+                    populate: { path: 'icon_file' }
                 })
                 .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })
                 .populate({
                     path: "reply_to",
                     populate: [
-                        { path: "sender", populate: { path: "user", select: "username display_name icon_file", populate: { path: 'icon_file' } } },
+                        { path: "sender", select: "username display_name icon_file", populate: { path: 'icon_file' } },
                         { path: "recipients", populate: { path: "user", select: "username display_name" } }
                     ]
                 })
@@ -1650,9 +2056,14 @@ io.on("connection", (socket) => {
             // Emit the message to both sender and recipient
             io.to(from_id).emit("receive_message", populatedMessage);
             //emmit to all recipient member ids
-            for (const recipientId of otherUserMemberIds) {
-                io.to(recipientId.toString()).emit("receive_message", populatedMessage);
-            }
+
+            recipientUserIds.forEach((uid) => {
+                io.to(uid).emit("receive_message", populatedMessage);
+            });
+
+            // for (const recipientId of otherUserMemberIds) {
+            //     io.to(recipientId.toString()).emit("receive_message", populatedMessage);
+            // }
 
             // if mentiond, create notification
             const mentionRegex = /@([\w]+)/g;
@@ -1674,7 +2085,7 @@ io.on("connection", (socket) => {
         }
     });
 
-        socket.on("disconnect", () => {
+    socket.on("disconnect", () => {
         console.log("❌ WebSocket disconnected:", socket.id);
     });
 });
