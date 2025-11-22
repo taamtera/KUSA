@@ -7,7 +7,7 @@ import TimeTableGrid from "@/components/timetable/timetablegrid";
 import Image from "next/image";
 import pbanner from "@/components/img/pbanner.jpg";
 
-export default function OtherUserFullProfile({ otherUserInfo, isFriend, handleAddFriend }) {
+export default function OtherUserFullProfile({ otherUserInfo, isFriend, handleAddFriend, isPendingRequest, loading }) {
     const birthday = otherUserInfo?.birthday ? new Date(otherUserInfo.birthday) : null;
     const formattedBirthday = birthday
         ? birthday.toLocaleDateString("en-GB")
@@ -48,9 +48,13 @@ export default function OtherUserFullProfile({ otherUserInfo, isFriend, handleAd
                 <div className="relative flex-1 px-6">
                     {!isFriend && (<Button
                         onClick={handleAddFriend}
-                        className="absolute right-8 -top-6 h-[36px] outline-none rounded-[10px] bg-gray-100 border border-gray-700 hover:bg-gray-700 text-md text-gray-900 hover:text-white"
+                        disabled={loading || isPendingRequest}
+                        className={`
+                            absolute right-8 -top-6 h-[36px] 
+                            outline-none rounded-[10px] 
+                            ${isPendingRequest ? "bg-yellow-100 text-yellow-900 bg-yellow-100 border border-yellow-700" : "hover:bg-gray-700 text-gray-900 hover:text-white bg-gray-100 border border-gray-700"}`}
                     >
-                        <UserPlus className="size-[18px]" /> Add Friend
+                        <UserPlus className="size-[18px]" /> { isPendingRequest ? "Pending" : "Add Friend"}
                     </Button>)}
 
                     <h2 className="text-2xl font-bold break-words">

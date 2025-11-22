@@ -7,7 +7,8 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/compone
 import FriendProfile from "@/components/view-profile/friend-profile-popover";
 import { useState, useEffect } from "react";
 import { useOtherUserProfile } from "../../lib/use-friend-profile";
-import { useUser } from "@/context/UserContext"
+import { useUser } from "@/context/UserContext";
+import { sendFriendRequest } from "@/lib/use-send-add-friend";
 
 export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo, isRooms }) {
   const senderName = fromCurrentUser
@@ -32,6 +33,34 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
     if (openProfile) openProfile(sender);
   }
 
+  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [isPendingRequest, setIsPendingRequest] = useState(false);
+
+  const handleAddFriend = async () => {
+    if (!otherUserInfo?.username) return;
+    if (isPendingRequest || isFriend) return; // safety guard
+
+    setLoading(true);
+    try {
+      const data = await sendFriendRequest(otherUserInfo.username);
+      setMessage(data?.message || null);
+
+      if (
+        data?.status === "success" &&
+        (data.message === "Friend request sent" ||
+          data.message === "Friend request already sent")
+      ) {
+        setIsPendingRequest(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to send friend request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       className={`flex ${fromCurrentUser ? "justify-end" : "justify-start"
@@ -55,6 +84,9 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
                 otherUserInfo={otherUserInfo}
                 closeProfile={closeProfile}
                 isFriend={isFriend}
+                loading={loading}
+                handleAddFriend={handleAddFriend}
+                isPendingRequest={isPendingRequest}
               />
             </PopoverContent>
           </Popover>
