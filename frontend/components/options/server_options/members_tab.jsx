@@ -1,28 +1,20 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Ellipsis } from "lucide-react";
-import { useMemo } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getAvatarFallback, formatDividerTime } from "@/components/utils"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Search, Ellipsis } from "lucide-react"
+import { useMemo } from "react"
 
 export default function MembersTab({ otherUser, user, query, setQuery, isOwnerOrAdmin }) {
-
     const results = useMemo(() => {
-        if (!query.trim()) return otherUser;
-        return otherUser.filter((member) =>
-            member.user.username.toLowerCase().includes(query.toLowerCase()) ||
-            member.user.display_name.toLowerCase().includes(query.toLowerCase())
-        );
-    }, [query, otherUser]);
+        if (!query.trim()) return otherUser
+        return otherUser.filter((member) => member.user.username.toLowerCase().includes(query.toLowerCase()) || member.user.display_name.toLowerCase().includes(query.toLowerCase()))
+    }, [query, otherUser])
 
     return (
         <div className="space-y-4">
-
             <div className="relative flex items-center">
-                <Input
-                    placeholder="Search members..."
-                    className="pr-10"
-                    onChange={(e) => setQuery(e.target.value)}
-                />
+                <Input placeholder="Search members..." className="pr-10" onChange={(e) => setQuery(e.target.value)} />
                 <Search className="absolute right-3 h-5 w-5 text-gray-500" />
             </div>
 
@@ -33,11 +25,10 @@ export default function MembersTab({ otherUser, user, query, setQuery, isOwnerOr
                     {results.map((member) => (
                         <div key={member._id} className="p-2 border-b border-gray-200">
                             <div className="flex items-center justify-between w-full">
-
                                 <div className="flex items-center space-x-3">
                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage src={member.user.icon_file ? `/api/v1/files/${member.user.icon_file._id}` : undefined}/>
-                                        <AvatarFallback>{member.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                                        <AvatarImage src={`data:${server.icon_file?.mime_type};base64,${server.icon_file?.base64}`} />
+                                        <AvatarFallback>{getAvatarFallback(server?.server_name)}</AvatarFallback>
                                     </Avatar>
 
                                     <div>

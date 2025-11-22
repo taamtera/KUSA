@@ -10,6 +10,7 @@ const Socket_Server = require("socket.io");
 const http = require('http');
 const multer = require("multer");
 const uploadFile = require("./utils/uploadFile");
+const populateFileBase64 = require("./utils/populateFileBase64");
 const path = require("path");
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -279,8 +280,8 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
             })
         if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
         const userObject = user.toObject ? user.toObject() : user;
+        populateFileBase64(userObject);
 
-        // Explicitly remove password_hash and any other sensitive fields
         const { password_hash, __v, ...safeUserData } = userObject;
         return res.status(200).json({ status: 'success', user: safeUserData });
     } catch (error) {
@@ -388,6 +389,8 @@ app.get('/api/v1/users/:id', async (req, res) => {
             .populate('banner_file')
             .lean();
 
+        populateFileBase64(user);
+
         if (!user) return res.status(404).json({ message: 'user not found' });
         res.json({ status: 'success', user });
     } catch (e) {
@@ -425,6 +428,8 @@ app.get('/api/v1/users', async (req, res) => {
             cursor,
             User.countDocuments(filter)
         ]);
+        
+        items.forEach(u => populateFileBase64(u));
 
         res.json({
             status: 'success',
@@ -715,6 +720,8 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             .limit(limit)
             .lean();
 
+        messages.forEach(msg => populateFileBase64(msg));
+
         // Get total count for pagination
         const total = await Message.countDocuments({
             context_type: 'User',
@@ -814,9 +821,11 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
+        messages.forEach(msg => populateFileBase64(msg));
 
         // Add server data
-        const server = await Server.findById(room.server._id)
+        const server = await Server.findById(room.server._id).populate('icon_file').lean();
+        if (server) populateFileBase64(server);
         const roomName = room.title;
 
         // add members of the room's server
@@ -827,6 +836,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
                 populate: { path: 'icon_file' }
             })
             .lean();
+        members.forEach(m => populateFileBase64(m));
 
         // Count total messages in this room
         const total = await Message.countDocuments({
@@ -1093,6 +1103,8 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         const servers = await Server.find({ _id: { $in: memberServerIds } })
             .populate('icon_file')
             .lean();
+
+        servers.forEach(s => populateFileBase64(s));
 
         // find rooms for each server
         for (let server of servers) {
@@ -1525,6 +1537,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
             })
             .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
             .lean();
+        
+        replies.forEach(r => populateFileBase64(r));
 
         const total = await Message.countDocuments({ reply_to: parentId });
 
@@ -1557,6 +1571,8 @@ app.get('/api/v1/notifications', auth, async (req, res) => {
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
+        
+        notifications.forEach(n => populateFileBase64(n));
 
         res.json({ status: 'success', notifications });
     } catch (error) {
@@ -1678,10 +1694,8 @@ app.post('/api/v1/friend/remove', auth, async (req, res) => {
 });
 
 // ====================== Files ======================
-app.get("/storage/:filename", (req, res) => {
-    const filePath = path.join(__dirname, "storage", req.params.filename);
-    res.sendFile(filePath);
-});
+
+app.use("/storage", express.static(path.join(__dirname, "storage")));
 
 app.post("/upload/:type", upload.single("file"), async (req, res) => {
     try {
