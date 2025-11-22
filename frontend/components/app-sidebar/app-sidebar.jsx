@@ -53,7 +53,7 @@ export function AppSidebar() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={handleFooterClick}>
                         <Avatar className="h-8 w-8">
-                            <AvatarImage src={`data:${user.icon_file.mime_type};base64,${user.icon_file.base64}`} />
+                            <AvatarImage src={`data:${user.icon_file?.mime_type};base64,${user.icon_file?.base64}`} />
                             <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
