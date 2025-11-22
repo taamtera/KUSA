@@ -262,13 +262,9 @@ app.post('/api/v1/login', async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ status: "failed", message: "Email and password are required" });
         }
-        // admin bypass remove before production
-        if (email == "admin" && password == "admin") {
-            return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
-        }
 
-        // Find user by email
-        const user = await User.findOne({ email }).select('+password_hash');
+        // Find user by email or username
+        const user = await User.findOne({ $or: [{ email }, { username: email }] }).select('+password_hash');
 
         // Check if user exists
         if (!user) {

@@ -28,13 +28,12 @@ export default function ProfilePage() {
       <div className="relative w-full h-48 bg-gray-300">
         <Image
           src={`data:${user.banner_file?.mime_type};base64,${user.banner_file?.base64}`}
-          alt="Profile Banner"
           fill
           className="object-cover"
         />
         <div className="absolute -bottom-12 left-0 w-full px-8 flex items-center justify-between">
           <Avatar className="w-24 h-24 border-4 border-white">
-            <AvatarImage src={`data:${user.icon_file.mime_type};base64,${user.icon_file.base64}`}/>
+            <AvatarImage src={`data:${user.icon_file?.mime_type};base64,${user.icon_file?.base64}`}/>
             <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
           </Avatar>
           <Button
