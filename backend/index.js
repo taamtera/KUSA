@@ -141,6 +141,10 @@ app.post('/api/v1/login/register', async (req, res) => {
         if (!password) missing.push("password");
         if (!password_confirmation) missing.push("password_confirmation");
 
+        if (password.length < 8 || password_confirmation.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
         if (missing.length > 0) {
             return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
         }
@@ -223,6 +227,10 @@ app.post('/api/v1/account/reset-password-via-token', async (req, res) => {
             return res.status(400).json({ message: "Token required" });
         }
 
+        if (password.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
         // console.log("Received token:", token);
         // console.log("Received password:", password);
         
@@ -262,9 +270,9 @@ app.post('/api/v1/login', async (req, res) => {
             return res.status(400).json({ status: "failed", message: "Email and password are required" });
         }
         // admin bypass remove before production
-        if (email == "admin" && password == "admin") {
-            return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
-        }
+        // if (email == "admin" && password == "admin") {
+        //     return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
+        // }
 
         // Find user by email
         const user = await User.findOne({ email }).select('+password_hash');

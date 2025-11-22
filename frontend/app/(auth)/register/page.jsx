@@ -29,6 +29,11 @@ export default function CardDemo() {
         setIsError(false);
 
         try {
+            if (password.length < 8 || password_confirmation.length < 8) {
+                setIsError(true);
+                setMessage("Password must be at least 8 characters.");
+                return;
+            }
             const response = await fetch("http://localhost:3001/api/v1/login/register", {
                 method: "POST",
                 headers: {

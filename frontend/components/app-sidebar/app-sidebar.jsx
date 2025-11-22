@@ -57,7 +57,7 @@ export function AppSidebar() {
                             <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                            <span className="text-sm font-medium">Your Name</span>
+                            <span className="text-sm font-medium">{user?.display_name}</span>
                             <span className="text-xs text-muted-foreground">@{user?.username}</span>
                         </div>
                     </div>
