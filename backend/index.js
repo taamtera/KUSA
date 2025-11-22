@@ -10,13 +10,18 @@ const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
 const nodemailer = require('nodemailer');
+const multer = require("multer");
+const uploadFile = require("./utils/uploadFile");
+const populateFileBase64 = require("./utils/populateFileBase64");
+const path = require("path");
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 app.use(cors({
     origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     credentials: true, // allow sending/receiving cookies
 }));
-
 app.use(express.json());
 app.use(cookiesParser());
 
@@ -35,7 +40,6 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
-const path = require('path');
 
 // config (env)
 const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
@@ -52,12 +56,6 @@ const asInt = (v, d) => {
 };
 
 const norm = v => (typeof v === 'string' && v.trim() === '' ? null : v);
-
-function isSelfOrAdmin(reqUserId, targetUserDoc) {
-    if (!targetUserDoc) return false;
-    if (targetUserDoc._id?.toString() === reqUserId) return true;
-    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
-}
 
 // Auth middleware
 function auth(req, res, next) {
@@ -323,8 +321,8 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
             })
         if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
         const userObject = user.toObject ? user.toObject() : user;
+        populateFileBase64(userObject);
 
-        // Explicitly remove password_hash and any other sensitive fields
         const { password_hash, __v, ...safeUserData } = userObject;
         return res.status(200).json({ status: 'success', user: safeUserData });
     } catch (error) {
@@ -432,6 +430,8 @@ app.get('/api/v1/users/:id', async (req, res) => {
             .populate('banner_file')
             .lean();
 
+        populateFileBase64(user);
+
         if (!user) return res.status(404).json({ message: 'user not found' });
 
         const { password_hash, __v, ...safeUser } = user;
@@ -498,6 +498,8 @@ app.get('/api/v1/users', async (req, res) => {
             cursor,
             User.countDocuments(filter)
         ]);
+        
+        items.forEach(u => populateFileBase64(u));
 
         res.json({
             status: 'success',
@@ -788,6 +790,8 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             .limit(limit)
             .lean();
 
+        messages.forEach(msg => populateFileBase64(msg));
+
         // Get total count for pagination
         const total = await Message.countDocuments({
             context_type: 'User',
@@ -887,9 +891,11 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
+        messages.forEach(msg => populateFileBase64(msg));
 
         // Add server data
-        const server = await Server.findById(room.server._id)
+        const server = await Server.findById(room.server._id).populate('icon_file').lean();
+        if (server) populateFileBase64(server);
         const roomName = room.title;
 
         // add members of the room's server
@@ -900,6 +906,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
                 populate: { path: 'icon_file' }
             })
             .lean();
+        members.forEach(m => populateFileBase64(m));
 
         // Count total messages in this room
         const total = await Message.countDocuments({
@@ -1184,6 +1191,8 @@ app.get('/api/v1/servers', auth, async (req, res) => {
         const servers = await Server.find({ _id: { $in: memberServerIds } })
             .populate('icon_file')
             .lean();
+
+        servers.forEach(s => populateFileBase64(s));
 
         // find rooms for each server
         for (let server of servers) {
@@ -1616,6 +1625,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
             })
             .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
             .lean();
+        
+        replies.forEach(r => populateFileBase64(r));
 
         const total = await Message.countDocuments({ reply_to: parentId });
 
@@ -1648,6 +1659,8 @@ app.get('/api/v1/notifications', auth, async (req, res) => {
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
+        
+        notifications.forEach(n => populateFileBase64(n));
 
         res.json({ status: 'success', notifications });
     } catch (error) {
@@ -1967,6 +1980,30 @@ app.post('/api/v1/send-email/reset-password', async (req, res) => {
         res.status(500).json({message: "Internal server error"})
     }
 })
+
+// ====================== Files ======================
+
+app.use("/storage", express.static(path.join(__dirname, "storage")));
+
+app.post("/upload/:type", upload.single("file"), async (req, res) => {
+    try {
+        const type = req.params.type;
+
+        const allowed = ["pfp", "banner", "server_icon", "attachment"];
+        if (!allowed.includes(type)) {
+            return res.status(400).json({ error: "Invalid upload type" });
+        }
+
+        const file = await uploadFile(req.file, type, req.body);
+
+        res.json({
+            message: `${type} uploaded successfully`,
+            file
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ====================== Socket Logic ======================
 

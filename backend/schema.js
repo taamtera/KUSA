@@ -1,4 +1,3 @@
-const e = require('express');
 const mongoose = require('mongoose');
 const { Schema, models, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -8,10 +7,10 @@ const ObjectId = Schema.Types.ObjectId;
  * ---------------------------*/
 const fileSchema = new Schema(
     {
-        storage_key: { type: String, required: true, unique: true, trim: true },
-        original_name: { type: String, required: true, trim: true },
-        mime_type: { type: String, required: true, trim: true },
-        byte_size: { type: Number, required: true, min: 0 },
+        storage_key: { type: String, default: null, unique: true, trim: true },
+        original_name: { type: String, default: null, trim: true },
+        mime_type: { type: String, default: null, trim: true },
+        byte_size: { type: Number, default: 0, min: 0 },
         is_external: {
             type: Boolean,
             default: false,
