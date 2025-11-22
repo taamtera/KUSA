@@ -116,7 +116,7 @@ export default function TimeTablePopoverDetail({
             {/* Information session */}
             <div className="flex flex-col mt-[3px] px-2 overflow-y-auto max-h-[40vh]">
                 <div className="flex gap-2">
-                    <div className="w-[12px] rounded-[8px]"
+                    <div className="min-w-[12px]  rounded-[8px]"
                         style={{ backgroundColor: slotColor }}
                     >
                     </div>
