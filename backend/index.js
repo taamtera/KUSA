@@ -37,7 +37,6 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
-const path = require('path');
 
 // config (env)
 const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
