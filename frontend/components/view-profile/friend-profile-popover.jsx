@@ -16,8 +16,20 @@ import {
 import Image from 'next/image';
 import pbanner from "@/components/img/pbanner.jpg";
 import OtherUserFullProfile from "@/components/view-profile/friend-full-profile";
+import { sendFriendRequest } from "@/lib/use-send-add-friend";
 
 export default function FriendProfile({ otherUserInfo, closeProfile }) {
+
+    const [message, setMessage] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleAddFriend = async () => {
+        setLoading(true);
+        const data = await sendFriendRequest(otherUserInfo?.username);
+        setMessage(data.message);
+        setLoading(false);
+    };
+
 
     return (
         <div className="relative">
@@ -46,7 +58,7 @@ export default function FriendProfile({ otherUserInfo, closeProfile }) {
                 <div className="absolute top-[104px] right-[16px]">
                     <div className="flex gap-2">
                         <Button
-                            onClick={closeProfile}
+                            onClick={handleAddFriend}
                             className="
                                 size-[28px]
                                 outline-none

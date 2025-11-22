@@ -15,7 +15,7 @@ import DMsOptions from "@/components/options/dms_options";
 import { Search } from "lucide-react"
 import MessageReply from "@/components/message/messagereply";
 import MessageThread from "@/components/message/messagethread";
-import { useMessageThread } from "@/components/message/use-message-thread";
+import { useMessageThread } from "@/lib/use-message-thread";
 // import MessageEdit from "@/components/message/messageedit";
 
 

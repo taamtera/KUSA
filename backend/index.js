@@ -680,7 +680,7 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
         })
             .populate({
                 path: 'sender',
-                select: 'username display_name icon_file',
+                select: 'username display_name icon_file friends',
                 populate: {
                     path: 'icon_file',
                 }
@@ -780,7 +780,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
         })
             .populate({
                 path: 'sender',
-                select: 'username display_name icon_file',
+                select: 'username display_name icon_file friends',
                 populate: { path: 'icon_file' },
             })
             .populate({

@@ -3,8 +3,9 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserPlus} from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useState } from "react";
+import { sendFriendRequest } from "@/lib/use-send-add-friend";
 
 export function AddFriendDialog() {
   const [open, setOpen] = useState(false);
@@ -12,26 +13,10 @@ export function AddFriendDialog() {
   const [username, setUsername] = useState("");
 
   const handleSearch = async () => {
-    if (username.trim()) {
-      try {
-        const response = await fetch(`http://localhost:3001/api/v1/friend/add`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ toUsername: username }),
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-          setMessage(`${data.message}`);
-        } else {
-          setMessage(`${data.message}`);
-        }
-      } catch (error) {
-        console.error('Error sending friend request:', error);
-      }
-    }
+    if (!username.trim()) return;
+
+    const data = await sendFriendRequest(username);
+    setMessage(data.message);
   };
 
   const handleClose = () => {
@@ -51,7 +36,7 @@ export function AddFriendDialog() {
           <div className="flex items-center justify-between">
             <DialogTitle>Add Friend</DialogTitle>
             <DialogClose asChild>
-              <button 
+              <button
                 onClick={handleClose}
                 className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100"
               >
@@ -73,7 +58,7 @@ export function AddFriendDialog() {
           <div className={`text-sm ${message?.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
             {message && message}
           </div>
-          <Button 
+          <Button
             onClick={handleSearch}
             disabled={!username.trim()}
             className="w-full"

@@ -6,7 +6,7 @@ import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils"
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
 import FriendProfile from "@/components/view-profile/friend-profile-popover";
 import { useState, useEffect } from "react";
-import { useOtherUserProfile } from "../view-profile/use-friend-profile";
+import { useOtherUserProfile } from "../../lib/use-friend-profile";
 
 export default function MessageGroup({ sender, messages, fromCurrentUser, onReply, onOpenThread, onEdit, editingTo, isRooms }) {
   const senderName = fromCurrentUser
