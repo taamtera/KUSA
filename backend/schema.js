@@ -124,7 +124,7 @@ roomSchema.index({ server: 1, title: 1 }, { unique: true });
 const messageSchema = new Schema(
     {
         sender: { type: ObjectId, ref: 'User', required: true },
-        recipients: [{ type: ObjectId, ref: 'Member' }],
+        recipients: [{ type: ObjectId, ref: 'User' }],
         context: {
             type: ObjectId,
             required: true,
@@ -253,5 +253,9 @@ const Attachment = models.Attachment || model('Attachment', attachmentSchema);
 const Reaction = models.Reaction || model('Reaction', reactionSchema);
 const TimeSlot = models.TimeSlot || model('TimeSlot', timeSlotSchema);
 const Notification = models.Notification || model('Notification', notificationSchema);
+
+// Backwards-compat alias: some code may request the model using a lowercase name
+// (e.g. mongoose.model('user')). Ensure that both 'User' and 'user' resolve.
+if (!models.user && models.User) models.user = models.User;
 
 module.exports = { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification };

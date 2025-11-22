@@ -175,6 +175,8 @@ export default function Chat() {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/dms/${otherUserId}/messages?page=1&limit=50`, { credentials: "include" })
                 const data = await response.json()
 
+                console.log("Fetched messages:", data)
+
                 if (data.status === "success") {
                     setMessages(data.messages)
 
@@ -298,7 +300,7 @@ export default function Chat() {
             <div className="bg-white p-2 border-b flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                     <Avatar>
-                        <AvatarImage src={`data:${otherUser.icon_file?.mime_type};base64,${otherUser.icon_file?.base64}`} />
+                        <AvatarImage src={`data:${otherUser?.icon_file?.mime_type};base64,${otherUser?.icon_file?.base64}`} />
                         <AvatarFallback>{getAvatarFallback(otherUser?.server_name)}</AvatarFallback>
                     </Avatar>
                     <div>

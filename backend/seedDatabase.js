@@ -205,7 +205,7 @@ const [alice, bob, cara] = await User.create([
         // Messages & Attachments
     const m1 = await Message.create({
         sender: alice._id,
-        recipients: [aliceHub._id, bobHub._id, caraHub._id], // Add recipients for room messages
+        recipients: [alice._id, bob._id, cara._id], // Add recipients for room messages
         context: roomGeneral._id,
         context_type: 'Room',
         content: 'Welcome to **General Hub**! 📌 Please check the announcement channel.',
@@ -214,7 +214,7 @@ const [alice, bob, cara] = await User.create([
     
     const m2 = await Message.create({
         sender: bob._id,
-        recipients: [aliceHub._id, bobHub._id, caraHub._id],
+        recipients: [alice._id, bob._id, cara._id],
         context: roomGeneral._id,
         context_type: 'Room',
         reply_to: m1._id,
@@ -231,7 +231,7 @@ const [alice, bob, cara] = await User.create([
     // Direct messages (1-on-1) - Alice to Bob
     const dm1 = await Message.create({
         sender: alice._id,
-        recipients: [bobHub._id],
+        recipients: [bob._id],
         context: bob._id,  // Bob's User ID (not member ID)
         context_type: 'User',
         content: 'Hey Bob, quick question about the API keys.',
@@ -241,7 +241,7 @@ const [alice, bob, cara] = await User.create([
     // Group direct message - Bob to Alice & Cara
     const gdm1 = await Message.create({
         sender: bob._id,
-        recipients: [aliceHub._id, caraHub._id],
+        recipients: [alice._id, cara._id],
         context: alice._id,  // Can use any user ID as context, or create a group DM room
         context_type: 'User',
         content: 'Team—design handoff at 3 PM. Can you both review the Figma?',
@@ -251,7 +251,7 @@ const [alice, bob, cara] = await User.create([
     // Dev room message
     await Message.create({
         sender: bob._id,
-        recipients: [bobDev._id], // Add appropriate recipients
+        recipients: [bob._id], // Add appropriate recipients
         context: roomDevChat._id,
         context_type: 'Room',
         content: 'Heads up: staging deploy at 17:00 UTC+7. Ping me if you see issues.',
@@ -261,7 +261,7 @@ const [alice, bob, cara] = await User.create([
     // Private messages between Alice and everyone else
     const aliceToBobDM = await Message.create({
         sender: alice._id,
-        recipients: [bobHub._id],
+        recipients: [bob._id],
         context: bob._id,  // Bob's User ID
         context_type: 'User',
         content: 'Hey Bob, are we still meeting tomorrow?',
@@ -270,7 +270,7 @@ const [alice, bob, cara] = await User.create([
     
     const aliceToCaraDM = await Message.create({
         sender: alice._id,
-        recipients: [caraHub._id],
+        recipients: [cara._id],
         context: cara._id,  // Cara's User ID
         context_type: 'User',
         content: 'Hi Cara, I loved your design mockups!',
@@ -280,7 +280,7 @@ const [alice, bob, cara] = await User.create([
     // Responses to Alice's DMs
     const bobToAliceDM = await Message.create({
         sender: bob._id,
-        recipients: [aliceHub._id],
+        recipients: [alice._id],
         context: alice._id,  // Alice's User ID
         context_type: 'User',
         content: 'Yes, meeting is still on for 2 PM!',
@@ -289,7 +289,7 @@ const [alice, bob, cara] = await User.create([
     
     const caraToAliceDM = await Message.create({
         sender: cara._id,
-        recipients: [aliceHub._id],
+        recipients: [alice._id],
         context: alice._id,  // Alice's User ID
         context_type: 'User',
         content: 'Thanks Alice! Working on the final revisions now.',

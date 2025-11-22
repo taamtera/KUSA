@@ -33,7 +33,7 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
     }, [query, members]);
 
     async function handleSetRole(targetUserId, newRole) {
-        const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/set-role', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/set-role`, {
             credentials: "include",
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -53,7 +53,7 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
     async function handleKick(targetUserId) {
         if (!confirm(`Are you sure you want to kick this user?`)) return;
 
-        const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/kick', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/kick`, {
             credentials: "include",
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
 
     async function handleBan(targetUserId) {
         if (!confirm(`Are you sure you want to ban this user?`)) return;
-        const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/ban', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/ban`, {
             credentials: "include",
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,7 +92,7 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
     }
 
     async function handleUnban(userId) {
-        const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/unban', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/unban`, {
             credentials: "include",
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
