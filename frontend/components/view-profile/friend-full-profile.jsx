@@ -1,12 +1,13 @@
 "use client"
 
-import { Baby, BookOpen, CalendarDays } from "lucide-react";
+import { Baby, BookOpen, CalendarDays, Mail, Phone, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button"
 import TimeTableGrid from "@/components/timetable/timetablegrid";
 import Image from "next/image";
 import pbanner from "@/components/img/pbanner.jpg";
 
-export default function OtherUserFullProfile({ otherUserInfo }) {
+export default function OtherUserFullProfile({ otherUserInfo, isFriend, handleAddFriend }) {
     const birthday = otherUserInfo?.birthday ? new Date(otherUserInfo.birthday) : null;
     const formattedBirthday = birthday
         ? birthday.toLocaleDateString("en-GB")
@@ -30,20 +31,28 @@ export default function OtherUserFullProfile({ otherUserInfo }) {
 
                     <Avatar
                         className="
-              size-[72px]
-              absolute left-4 bottom-0 translate-y-1/3
-              outline outline-4 outline-white
-            "
+                            size-[72px]
+                            absolute left-4 bottom-0 translate-y-1/3
+                            outline outline-4 outline-white
+                            "
                     >
                         <AvatarImage src={otherUserInfo?.icon_file?.storage_key} />
                         <AvatarFallback>
                             {otherUserInfo?.username?.[0]?.toUpperCase() || "U"}
                         </AvatarFallback>
                     </Avatar>
+
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 px-6">
+                <div className="relative flex-1 px-6">
+                    {!isFriend && (<Button
+                        onClick={handleAddFriend}
+                        className="absolute right-8 -top-6 h-[36px] outline-none rounded-[10px] bg-gray-100 border border-gray-700 hover:bg-gray-700 text-md text-gray-900 hover:text-white"
+                    >
+                        <UserPlus className="size-[18px]" /> Add Friend
+                    </Button>)}
+
                     <h2 className="text-2xl font-bold break-words">
                         {otherUserInfo?.display_name || otherUserInfo?.username || "User"}
                     </h2>
@@ -60,6 +69,16 @@ export default function OtherUserFullProfile({ otherUserInfo }) {
                                 </p>
                             </>
                         )}
+                    </div>
+
+                    <div className="flex flex-col">
+                        {otherUserInfo?.email && (<p className="inline-flex items-center mb-2 text-sm text-gray-800 whitespace-pre-wrap break-words">
+                            <Mail className="size-[16px] mr-2"/>{otherUserInfo?.email}
+                        </p>)}
+
+                        {otherUserInfo?.phone && (<p className="inline-flex items-center mb-2 text-sm text-gray-800 whitespace-pre-wrap break-words">
+                            <Phone className="size-[16px] mr-2"/>{otherUserInfo?.phone}
+                        </p>)}
                     </div>
 
                     <p className="mb-2 text-sm text-gray-800 whitespace-pre-wrap break-words">

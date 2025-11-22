@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import { X, UserPlus } from "lucide-react";
+import { X, UserPlus, HandFist } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,17 +18,36 @@ import pbanner from "@/components/img/pbanner.jpg";
 import OtherUserFullProfile from "@/components/view-profile/friend-full-profile";
 import { sendFriendRequest } from "@/lib/use-send-add-friend";
 
-export default function FriendProfile({ otherUserInfo, closeProfile }) {
+export default function FriendProfile({ otherUserInfo, closeProfile, isFriend }) {
 
     const [message, setMessage] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isPendingRequest, setIsPendingRequest] = useState(false);
 
     const handleAddFriend = async () => {
+        if (!otherUserInfo?.username) return;
+        if (isPendingRequest || isFriend) return; // safety guard
+
         setLoading(true);
-        const data = await sendFriendRequest(otherUserInfo?.username);
-        setMessage(data.message);
-        setLoading(false);
+        try {
+            const data = await sendFriendRequest(otherUserInfo.username);
+            setMessage(data?.message || null);
+
+            if (
+                data?.status === "success" &&
+                (data.message === "Friend request sent" ||
+                    data.message === "Friend request already sent")
+            ) {
+                setIsPendingRequest(true);
+            }
+        } catch (err) {
+            console.error(err);
+            setMessage("Failed to send friend request");
+        } finally {
+            setLoading(false);
+        }
     };
+
 
 
     return (
@@ -57,23 +76,38 @@ export default function FriendProfile({ otherUserInfo, closeProfile }) {
 
                 <div className="absolute top-[104px] right-[16px]">
                     <div className="flex gap-2">
-                        <Button
-                            onClick={handleAddFriend}
-                            className="
-                                size-[28px]
-                                outline-none
-                                rounded-[10px]
-                                bg-gray-100 border border-gray-700 hover:bg-gray-700 
-                                text-md text-gray-900 hover:text-white
-                            "
-                        >
-                            <UserPlus className="size-[14px]" />
-                        </Button>
+                        {!isFriend && (
+                            <Button
+                                onClick={handleAddFriend}
+                                disabled={loading || isPendingRequest}
+                                className={`
+                                    size-[28px]
+                                    outline-none
+                                    rounded-[10px]
+                                    bg-gray-100 border border-gray-700
+                                    ${isPendingRequest ? "cursor-default opacity-70" : "hover:bg-gray-700 text-gray-900 hover:text-white"}
+                                `}
+                                title={
+                                    isPendingRequest
+                                        ? "Friend request pending"
+                                        : "Add friend"
+                                }
+                            >
+                                {isPendingRequest ? (
+                                    // Pending icon / indicator
+                                    <HandFist className="size-[14px]" />
+                                ) : (
+                                    <UserPlus className="size-[14px]" />
+                                )}
+                            </Button>
+                        )}
+
                         <Dialog>
                             <DialogTrigger>
                                 <div
                                     // onClick={() => setPopoverProfile(false)}
                                     className="
+                                    flex items-center
                                     px-2 h-[28px]
                                     rounded-[10px] 
                                     bg-gray-100 border border-gray-700 hover:bg-gray-700
@@ -88,6 +122,8 @@ export default function FriendProfile({ otherUserInfo, closeProfile }) {
                             >
                                 <OtherUserFullProfile
                                     otherUserInfo={otherUserInfo}
+                                    isFriend={isFriend}
+                                    handleAddFriend={handleAddFriend}
                                 />
 
                             </DialogContent>
