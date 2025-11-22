@@ -34,6 +34,11 @@ export default function ResetPassword() {
 
         try {
             console.log("Sending request with token:", token);
+
+            if (password.length < 8) {
+                setError("New password must be at least 8 characters.");
+                return;
+            }
             
             const response = await fetch("http://localhost:3001/api/v1/account/reset-password-via-token", {
                 method: "POST",

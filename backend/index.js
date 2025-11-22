@@ -142,6 +142,10 @@ app.post('/api/v1/login/register', async (req, res) => {
         if (!password) missing.push("password");
         if (!password_confirmation) missing.push("password_confirmation");
 
+        if (password.length < 8 || password_confirmation.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
         if (missing.length > 0) {
             return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
         }
@@ -222,6 +226,10 @@ app.post('/api/v1/account/reset-password-via-token', async (req, res) => {
         
         if (!token) {
             return res.status(400).json({ message: "Token required" });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
         }
 
         // console.log("Received token:", token);
