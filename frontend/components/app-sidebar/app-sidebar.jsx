@@ -30,10 +30,10 @@ export function AppSidebar() {
                 {/* Tabs */}
                 <Tabs className="w-full" defaultValue="private">
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="private" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
+                        <TabsTrigger value="private" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200 cursor-pointer">
                             Private
                         </TabsTrigger>
-                        <TabsTrigger value="servers" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
+                        <TabsTrigger value="servers" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200 cursor-pointer">
                             Servers
                         </TabsTrigger>
                     </TabsList>
@@ -42,7 +42,7 @@ export function AppSidebar() {
                         <DMsTab user={user} />
                     </TabsContent>
 
-                    <TabsContent value="servers" className="mt-4">
+                    <TabsContent value="servers" className="mt-4 ">
                         <ServersTab user={user} />
                     </TabsContent>
                 </Tabs>
