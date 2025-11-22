@@ -47,6 +47,7 @@ export function useMessageThread() {
         threadParent,
         threadReplies,
         threadLoading,
+        setThreadOpen,
         setThreadReplies,
         setThreadParent,
         openThread,

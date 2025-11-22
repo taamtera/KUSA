@@ -44,6 +44,7 @@ export default function Chat() {
     threadLoading,
     setThreadReplies,
     setThreadParent,
+    setThreadOpen,
     openThread,
     closeThread,
   } = useMessageThread();
@@ -417,6 +418,8 @@ export default function Chat() {
       {/* Thread Modal */}
       {threadOpen && (
         <MessageThread
+          threadOpen={threadOpen}
+          onthreadOpen={setThreadOpen}
           threadParent={threadParent}
           threadLoading={threadLoading}
           threadReplies={threadReplies}

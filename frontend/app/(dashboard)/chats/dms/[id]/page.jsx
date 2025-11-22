@@ -42,6 +42,7 @@ export default function Chat() {
     threadParent,
     threadReplies,
     threadLoading,
+    setThreadOpen,
     setThreadReplies,
     setThreadParent,
     openThread,
@@ -440,6 +441,8 @@ export default function Chat() {
       {/* Thread Modal */}
       {threadOpen && (
         <MessageThread
+          threadOpen={threadOpen}
+          onthreadOpen={setThreadOpen}
           threadParent={threadParent}
           threadLoading={threadLoading}
           threadReplies={threadReplies}
