@@ -4,10 +4,12 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const crypto = require("crypto");
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors({
@@ -214,6 +216,45 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
 });
 
 
+// change Password via resetting token
+app.post('/api/v1/account/reset-password-via-token', async (req, res) => {
+    try {
+        const { token, password } = req.body; // Remove 'await'
+        
+        if (!token) {
+            return res.status(400).json({ message: "Token required" });
+        }
+
+        // console.log("Received token:", token);
+        // console.log("Received password:", password);
+        
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Token invalid or expired" });
+        }
+
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(password, ROUNDS);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        return res.json({ status: 'success', message: 'Password updated' });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
+    }
+});
+
 // Login
 app.post('/api/v1/login', async (req, res) => {
     try {
@@ -404,7 +445,7 @@ app.get('/api/v1/users/:id', async (req, res) => {
 // Find user
 app.get('/api/v1/user/find/:q', async (req, res) => {
     try {
-        const q = (req.params.q || req.query.q || req.query.input || '').trim();
+        const q = (req.params.q || '').trim();
         if (!q) return res.status(400).json({ status: 'failed', message: 'missing query parameter q or input' });
 
         // email detection
@@ -1727,6 +1768,206 @@ app.post('/api/v1/friend/remove', auth, async (req, res) => {
     }
 });
 
+app.post('/api/v1/send-email/reset-password', async (req, res) => {
+    try {
+        const { destinationEmail, subject } = req.body
+        // console.log(destinationEmail);
+        if (!destinationEmail || destinationEmail.trim() === "") {
+            return res.status(400).json({message: "Email is require"});
+        }
+
+        const user = await User.findOne({ email: destinationEmail });
+        if (!user) return res.status(400).json({ message: "User not found" });
+
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
+
+        await user.save();
+
+        const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: 'phongsiraphat@gmail.com',
+                pass: 'ozgc kqxc symd hblu'
+            }
+        });
+        const mailOptions = {
+            from: 'phongsiraphat@gmail.com',
+            to: destinationEmail,
+            subject,
+            // text: "idiot!" 
+            html: `<!doctype html>
+                <html lang="en">
+
+                <head>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width,initial-scale=1" />
+                    <title>Password reset</title>
+                    <style>
+                        /* The container div */
+                        .kusa-container {
+                            padding-top: 1rem;
+                            /* pt-4 */
+                            padding-left: 1rem;
+                            /* pl-4 */
+                            margin-bottom: 1.5rem;
+                            /* mb-6 */
+                        }
+
+                        /* The text div */
+                        .kusa-text {
+                            display: inline-block;
+
+                            font-size: 3rem;
+                            /* text-3xl */
+                            line-height: 3rem;
+                            /* text-3xl line-height */
+                            font-weight: 700;
+                            /* font-bold */
+
+                            /* Gradient Background Logic */
+                            /* Tailwind green-600 (#16a34a) to yellow-600 (#ca8a04) */
+                            background-image: linear-gradient(to right, #16a34a, #6e9f29);
+
+                            /* The magic that clips the background to the text */
+                            -webkit-background-clip: text;
+                            background-clip: text;
+
+                            /* Makes the text transparent so the background shows through */
+                            color: transparent;
+                        }
+                    </style>
+                </head>
+
+                <body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Helvetica,Arial,sans-serif;color:#333333;">
+                    <!-- Container -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                        style="max-width:680px;margin:40px auto 40px auto;">
+                        <tr>
+                            <td align="center" style="padding:20px 16px;">
+                                <!-- Card -->
+                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                                    style="background:#ffffff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);overflow:hidden;">
+                                    <!-- Header / Brand -->
+                                    <tr>
+                                        <td style="padding:24px 28px 8px 28px;text-align:left;">
+                                            <div class="kusa-container">
+                                                <div class="kusa-text">
+                                                    KUSA
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Hero / Message -->
+                                    <tr>
+                                        <td style="padding:12px 28px 8px 28px;">
+                                            <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0f1724;">Reset your
+                                                password</h1>
+                                            <p style="margin:0;font-size:15px;line-height:1.5;color:#475569;">
+                                                Hi ${user.display_name},<br>
+                                                We received a request to reset the password for your KUSA account. Click the
+                                                button below to choose a new password.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- CTA -->
+                                    <tr>
+                                        <td style="padding:18px 28px 18px 28px;">
+                                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                                <tr>
+                                                    <td>
+                                                        <!-- Button uses a full absolute URL in production -->
+                                                        <a href="${resetURL}" target="_blank" rel="noopener"
+                                                            style="display:inline-block;padding:12px 20px;border-radius:8px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">
+                                                            Reset password
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <p style="margin:14px 0 0 0;font-size:13px;color:#6b7280;line-height:1.45;">
+                                                This link will expire in 10 minutes. If you didn't request a password
+                                                reset, you can safely ignore this email or contact our support.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Fallback link -->
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                Can't click the button? Copy and paste this link into your browser:
+                                            </p>
+                                            <p style="word-break:break-all;margin:8px 0 0 0;font-size:13px;color:#0f1724;">
+                                                <a href="${resetURL}" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">${resetURL}</a>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                If you're not the person who make this requested.
+                                            </p>
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                We recommend that you manually change your password again at
+                                                <a href="http://localhost:3000/" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">
+                                                    http://localhost:3000/
+                                                </a>
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td style="padding:18px 28px 26px 28px;border-top:1px solid #f1f5f9;">
+                                            <p style="margin:0;font-size:12px;color:#9aa4b2;line-height:1.4;">
+                                                If you need help, reply to this email or contact <a href="mailto:phongsiraphat@gmail.com"
+                                                    style="color:#2563eb;text-decoration:underline;">phongsiraphat@gmail.com</a>.<br>
+                                                © 2025 KUSA. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <!-- End card -->
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Plain signature-style footer (very small) -->
+                    <div style="max-width:680px;margin:6px auto 20px auto;text-align:center;color:#98a2b3;font-size:12px;">
+                        <p style="margin:0;">This email was sent to ${user.email} because a password reset was requested for your
+                            account.</p>
+                    </div>
+                </body>
+
+                </html>`
+        };
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.error(error);
+            } else {
+                // console.log('Email.sent: ' + info.response);
+                return res.json({ status: 'success', message: 'Sending!' });
+            }
+        });
+    } catch (error) {
+        console.error("Error sending an email", error)
+        res.status(500).json({message: "Internal server error"})
+    }
+})
+
 // ====================== Socket Logic ======================
 
 io.on("connection", (socket) => {
@@ -1799,7 +2040,7 @@ io.on("connection", (socket) => {
             const populatedMessage = await Message.findById(message._id)
                 .populate({
                     path: "sender",
-                    select: "username display_name icon_file", 
+                    select: "username display_name icon_file",
                     populate: { path: 'icon_file' }
                 })
                 .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })

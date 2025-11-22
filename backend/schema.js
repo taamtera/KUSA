@@ -43,6 +43,8 @@ const userSchema = new Schema(
         email: { type: String, required: true, unique: true, trim: true, lowercase: true },
         password_hash: { type: String, required: true, select: false },
         role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+        resetPasswordToken: { type: String },
+        resetPasswordExpires: { type: Date },
 
         // Profile images
         icon_file: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
