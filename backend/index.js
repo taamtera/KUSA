@@ -562,12 +562,8 @@ app.get('/api/v1/users/:userId/timetable', optionalAuth, async (req, res) => {
         const filter = { owner: userId };
         if (day) filter.day = day;
 
-        const PUBLIC_FIELDS = 'title day start_min end_min location color';
-        const projection = isOwner ? undefined : PUBLIC_FIELDS;
-
         // temporary sort: by day order + start_min (see §2 for stable day-order)
         const slots = await TimeSlot.find(filter)
-            .select(projection)
             .sort({ start_min: 1 }) // we'll reorder by day below
             .lean();
 
@@ -577,7 +573,6 @@ app.get('/api/v1/users/:userId/timetable', optionalAuth, async (req, res) => {
 
         res.json({
             status: 'success',
-            owner: { _id: user._id, username: user.username, visibility: user.timetable_visibility },
             slots
         });
     } catch (e) {

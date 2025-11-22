@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, UserPlus } from "lucide-react";
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,25 +58,26 @@ export default function FriendProfile({ otherUserInfo, closeProfile }) {
                             <UserPlus className="size-[14px]" />
                         </Button>
                         <Dialog>
-                            <DialogTrigger
-                                className="
-                                    px-2
+                            <DialogTrigger>
+                                <div
+                                    // onClick={() => setPopoverProfile(false)}
+                                    className="
+                                    px-2 h-[28px]
                                     rounded-[10px] 
                                     bg-gray-100 border border-gray-700 hover:bg-gray-700
                                     text-[14px] text-gray-900 hover:text-white
-                                "
-                            >
-                                View Full Profile
+                                ">
+                                    View Full Profile
+                                </div>
                             </DialogTrigger>
                             <DialogContent
                                 closeButton={false}
-                                className="w-[840px] max-w-[90vw] max-h-[60vh] p-0 flex flex-col"
+                                className="w-[840px] max-w-[90vw] max-h-[80vh] p-1 pb-4 flex flex-col overflow-y-auto"
                             >
-
                                 <OtherUserFullProfile
                                     otherUserInfo={otherUserInfo}
                                 />
-                                
+
                             </DialogContent>
                         </Dialog>
 

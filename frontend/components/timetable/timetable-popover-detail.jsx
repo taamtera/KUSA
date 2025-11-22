@@ -10,6 +10,7 @@ import { pad2, formatLongDay } from "./time-utils";
 
 export default function TimeTablePopoverDetail({
     title,
+    fromViewProfile,
     description,
     location,
     slotColor,
@@ -74,7 +75,6 @@ export default function TimeTablePopoverDetail({
         }
     };
 
-
     return (
         <div className="relative w-full">
 
@@ -82,17 +82,17 @@ export default function TimeTablePopoverDetail({
             <div className="flex justify-end items-center gap-4 pb-2">
                 <div className="flex gap-2">
 
-                    <button 
+                    {!fromViewProfile && (<button 
                         onClick={onEdit}
                         className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]"
                     >
                     <PencilIcon className="size-[16px]"/>
-                    </button>
+                    </button>)}
 
                     <Dialog open={openDelete} onOpenChange={setOpenDelete}>
-                        <DialogTrigger className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
+                        {!fromViewProfile && (<DialogTrigger className="flex justify-center items-center cursor-pointer text-gray-500 hover:bg-gray-100 hover:rounded-full size-[30px]">
                             <TrashIcon className="size-[18px]"/>
-                        </DialogTrigger>
+                        </DialogTrigger>)}
                         <DialogContent className="w-[256px]">
                             <DialogHeader>
                                 <DialogTitle>Delete Time Slot</DialogTitle>
@@ -114,7 +114,7 @@ export default function TimeTablePopoverDetail({
             </div>
 
             {/* Information session */}
-            <div className="flex flex-col mt-[3px] px-2 overflow-auto max-h-[40vh]">
+            <div className="flex flex-col mt-[3px] px-2 overflow-y-auto max-h-[40vh]">
                 <div className="flex gap-2">
                     <div className="w-[12px] rounded-[8px]"
                         style={{ backgroundColor: slotColor }}
@@ -132,7 +132,7 @@ export default function TimeTablePopoverDetail({
                     {CapitalizedDay} {hour_start}:{min_start} - {hour_end}:{min_end}
                 </h2>
                 {hasLocation && (
-                    <div className="py-2 flex items-center gap-2">
+                    <div className="py-2 flex items-start gap-2">
                         <div>
                             <MapPin className="text-gray-500 size-[15px]" />
                         </div>

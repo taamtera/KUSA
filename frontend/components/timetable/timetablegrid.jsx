@@ -16,7 +16,7 @@ import {
   pad2,
 } from "./time-utils";
 
-export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) {
+export default function TimeTableGrid({ propUserId, onEditSlot, fromViewProfile }) {
 
   const minutesPerColumn = MINUTES_PER_COLUMN;
   const colsPerDay = COLS_PER_DAY;
@@ -26,7 +26,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
   const columnsPerHour = 60 / minutesPerColumn; // 4 when 15 minutes, 2 when 30, 1 when 60
   const hoursPerDay = 24;
 
-  const timeLabels = Array.from({ length: hoursPerDay }, (_, h) => `${pad2(h)}`); 
+  const timeLabels = Array.from({ length: hoursPerDay }, (_, h) => `${pad2(h)}`);
 
   // const [slots, setSlots] = useState([]);
   const { user } = useUser();
@@ -125,7 +125,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                   gridRow: 1,
                 }}
               >
-                <div className="w-full">
+                <div className={`${fromViewProfile ? "text-[12px]" : "text-[16px]"} w-full`}>
                   {label}
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
               className="sticky left-0 z-30 border-r border-gray-200 bg-white dark:border-gray-200/5 dark:bg-gray-800 flex items-center justify-center px-[4px] h-[10vh] max-h-[48px] min-h-[72px]"
               style={{ gridColumn: 1, gridRow: dayRows[h_index] + 1 }}
             >
-              <div className="text-[16px] font-medium text-gray-500 uppercase text-center w-full">
+              <div className={`${fromViewProfile ? "text-[12px]" : "text-[16px]"} font-medium text-gray-500 uppercase text-center w-full`}>
                 {day}
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
                 )}
                 {slot.location && (
                   <span className="flex items-center pl-0.5 pr-2 text-[12px] text-white dark:text-fuchsia-100">
-                    <MapPin className="size-[16px]" /> <p className="overflow-hidden truncate">{slot.location}</p>
+                    <MapPin className="size-[16px]" /> <p className="overflow-hidden max-w-[calc(100%-16px)] truncate">{slot.location}</p>
                   </span>
                 )}
               </PopoverTrigger>
@@ -199,10 +199,15 @@ export default function TimeTableGrid({ propUserId, onEditSlot, onDeleteSlot }) 
               <PopoverContent
                 side="bottom"
                 align="center"
+                onWheel={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 className="relative z-50 w-[500px] max-w-[50vw] min-w-[256px] max-h-[80vh] p-2 rounded-[8px] bg-white transparent shadow-[0_0px_15px_-3px] shadow-gray-400">
-                <div className="flex flex-col h-auto">
+                <div className="flex flex-col max-h-[80vh]">
                   <TimeTablePopoverDetail
                     title={slot.title}
+                    fromViewProfile={fromViewProfile}
                     description={slot.description}
                     location={slot.location}
                     slotColor={slot.color}
