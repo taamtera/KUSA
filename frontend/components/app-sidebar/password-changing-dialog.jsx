@@ -76,7 +76,7 @@ export function PasswordChangingDialog({ openDialog, setOpenDialog }) {
     return (
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger>
-                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 cursor-pointer">Change password</button>
+                <div className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 cursor-pointer">Change password</div>
             </DialogTrigger>
             <DialogContent className="max-w-sm bg-white text-black">
                 <DialogHeader>

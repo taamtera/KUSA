@@ -2236,16 +2236,20 @@ app.post('/api/v1/send-email/reset-password', async (req, res) => {
 
 app.use("/storage", express.static(path.join(__dirname, "storage")));
 
-app.post("/upload/:type", upload.single("file"), async (req, res) => {
+app.post("/upload", upload.single("file"), async (req, res) => {
     try {
-        const type = req.params.type;
+        const type = req.body.type;
+        const id = req.body.id;
 
         const allowed = ["pfp", "banner", "server_icon", "attachment"];
         if (!allowed.includes(type)) {
             return res.status(400).json({ error: "Invalid upload type" });
         }
+        if (!id || id.trim() === "") {
+            return res.status(400).json({ error: "ID is required" });
+        }
 
-        const file = await uploadFile(req.file, type, req.body);
+        const file = await uploadFile(req.file, type, id);
 
         res.json({
             message: `${type} uploaded successfully`,
