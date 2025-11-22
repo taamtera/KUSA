@@ -24,16 +24,16 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* KUSA logo */}
                 <div className="pt-4 pl-4 mb-6">
-                    <div className="text-3xl font-bold bg-linear-to-r from-green-600 to-yellow-600 bg-clip-text text-transparent">KUSA</div>
+                    <div className="text-3xl font-bold bg-linear-to-r from-green-600 to-50% to-yellow-400 bg-clip-text text-transparent">KUSA</div>
                 </div>
 
                 {/* Tabs */}
                 <Tabs className="w-full" defaultValue="private">
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="private" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
+                        <TabsTrigger value="private" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200 cursor-pointer">
                             Private
                         </TabsTrigger>
-                        <TabsTrigger value="servers" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200">
+                        <TabsTrigger value="servers" className="data-[state=active]:text-white data-[state=active]:bg-gray-900 hover:bg-gray-200 cursor-pointer">
                             Servers
                         </TabsTrigger>
                     </TabsList>
@@ -42,7 +42,7 @@ export function AppSidebar() {
                         <DMsTab user={user} />
                     </TabsContent>
 
-                    <TabsContent value="servers" className="mt-4">
+                    <TabsContent value="servers" className="mt-4 ">
                         <ServersTab user={user} />
                     </TabsContent>
                 </Tabs>

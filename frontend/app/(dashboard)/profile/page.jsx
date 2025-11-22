@@ -25,7 +25,7 @@ export default function ProfilePage() {
   return (
     <div >
       {/* Banner Section */}
-      <div className="relative w-full h-48 bg-gray-300">
+      <div className="relative w-full aspect-[4/1] bg-gray-300">
         <Image
           src={`data:${user.banner_file?.mime_type};base64,${user.banner_file?.base64}`}
           fill

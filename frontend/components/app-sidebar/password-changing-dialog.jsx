@@ -76,7 +76,7 @@ export function PasswordChangingDialog({ openDialog, setOpenDialog }) {
     return (
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger>
-                <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 cursor-pointer">Change password</button>
+                <div className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 cursor-pointer">Change password</div>
             </DialogTrigger>
             <DialogContent className="max-w-sm bg-white text-black">
                 <DialogHeader>
@@ -86,7 +86,7 @@ export function PasswordChangingDialog({ openDialog, setOpenDialog }) {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-4">
                     <label className="text-sm text-gray-700">Current password</label>
-                    <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+                    <Input type="password" onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
 
                     <label className="text-sm text-gray-700">New password</label>
                     <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />

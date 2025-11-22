@@ -40,7 +40,7 @@ export function AccountSettingsDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="p-2 rounded hover:bg-gray-200">
+        <button className="p-2 rounded hover:bg-gray-200 cursor-pointer">
           <Settings className="h-5 w-5 text-gray-600" />
         </button>
       </DialogTrigger>

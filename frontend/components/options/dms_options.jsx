@@ -45,7 +45,7 @@ export default function DMsOptions({ open, onOpenChange, otherUserId }) {
                 </DialogHeader>
 
                 <div className="space-y-4 mt-2">
-                    <Button variant="destructive" className="w-full" disabled={loading} onClick={handleUnfriend}>
+                    <Button variant="destructive" className="w-full cursor-pointer" disabled={loading} onClick={handleUnfriend}>
                         {loading ? "Removing..." : "Unfriend"}
                     </Button>
 
