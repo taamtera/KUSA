@@ -43,8 +43,26 @@ export default function CardDemo() {
       
       if (response.ok) {
         // set cookies
-        console.log("Redirecting to /chats");
-        // window.location.href = "/chats";
+        console.log("setting and Redirecting to /chats");
+        const refresh_token = data.refreshToken;
+        const access_token = data.accessToken;
+
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString(); // 7 days
+        try {
+          // Prefer SameSite=None; Secure for cross-site cookies, but Secure requires HTTPS.
+          if (window.location.protocol === "https:") {
+            document.cookie = `access_token=${encodeURIComponent(access_token)}; expires=${expires}; path=/; SameSite=None; Secure`;
+            document.cookie = `refresh_token=${encodeURIComponent(refresh_token)}; expires=${expires}; path=/; SameSite=None; Secure`;
+          } else {
+            document.cookie = `access_token=${encodeURIComponent(access_token)}; expires=${expires}; path=/; SameSite=Lax`;
+            document.cookie = `refresh_token=${encodeURIComponent(refresh_token)}; expires=${expires}; path=/; SameSite=Lax`;
+          }
+          console.log("Test cookie set:", document.cookie);
+        } catch (err) {
+          console.error("Failed to set cookie:", err);
+        }
+        // redirect to chats after setting cookie
+        window.location.href = "/chats";
       } else {
         alert("❌ " + data.message);
       }

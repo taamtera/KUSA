@@ -43,7 +43,7 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
 
 // config (env)
-const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
+const ACCESS_TTL = process.env.ACCESS_TTL || '2d';
 const REFRESH_TTL = process.env.REFRESH_TTL || '90d';
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
@@ -95,7 +95,7 @@ app.get('/', async (req, res) => {
 
 console.log(process.env.NODE_ENV === "production");
 const baseCookie = {
-    Partitioned: true,
+    partitioned: true,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",           // must be true in prod
     sameSite: "none",
@@ -118,6 +118,7 @@ function parseTtlToMs(ttl) {
 }
 
 function setAuthCookies(res, accessToken, refreshToken) {
+    console.log("Setting auth cookies");
     res.cookie('access_token', accessToken, { ...baseCookie, maxAge: parseTtlToMs(ACCESS_TTL) });
     res.cookie('refresh_token', refreshToken, { ...baseCookie, maxAge: parseTtlToMs(REFRESH_TTL) });
 }
@@ -309,6 +310,8 @@ app.post('/api/v1/login', async (req, res) => {
                 access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)),
                 refresh_expires_at: epochMsPlus(parseTtlToMs(REFRESH_TTL)),
             },
+            accessToken: accessToken,
+            refreshToken: refreshToken,
         });
     } catch (err) {
         console.error(err);
