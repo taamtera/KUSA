@@ -8,13 +8,17 @@ const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
+const multer = require("multer");
+const uploadFile = require("./utils/uploadFile");
+const path = require("path");
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 app.use(cors({
     origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     credentials: true, // allow sending/receiving cookies
 }));
-
 app.use(express.json());
 app.use(cookiesParser());
 
@@ -50,12 +54,6 @@ const asInt = (v, d) => {
 };
 
 const norm = v => (typeof v === 'string' && v.trim() === '' ? null : v);
-
-function isSelfOrAdmin(reqUserId, targetUserDoc) {
-    if (!targetUserDoc) return false;
-    if (targetUserDoc._id?.toString() === reqUserId) return true;
-    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
-}
 
 // Auth middleware
 function auth(req, res, next) {
@@ -1677,6 +1675,32 @@ app.post('/api/v1/friend/remove', auth, async (req, res) => {
     } catch (error) {
         console.error('Error removing friend:', error);
         res.status(500).json({ status: 'failed', message: 'Failed to remove friend' });
+    }
+});
+
+// ====================== Files ======================
+app.get("/storage/:filename", (req, res) => {
+    const filePath = path.join(__dirname, "storage", req.params.filename);
+    res.sendFile(filePath);
+});
+
+app.post("/upload/:type", upload.single("file"), async (req, res) => {
+    try {
+        const type = req.params.type;
+
+        const allowed = ["pfp", "banner", "server_icon", "attachment"];
+        if (!allowed.includes(type)) {
+            return res.status(400).json({ error: "Invalid upload type" });
+        }
+
+        const file = await uploadFile(req.file, type, req.body);
+
+        res.json({
+            message: `${type} uploaded successfully`,
+            file
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
