@@ -195,9 +195,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
           <AvatarImage
             src={
               server?.icon_file
-                ? `http://localhost:3001/api/v1/files/${
-                    server.icon_file._id || server.icon_file
-                  }`
+                ? `http://localhost:3001/api/v1/files/${server.icon_file}`
                 : undefined
             }
           />
