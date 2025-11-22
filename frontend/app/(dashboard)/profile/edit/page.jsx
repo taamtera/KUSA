@@ -73,6 +73,7 @@ export default function EditProfilePage() {
                 <Image
                     src={`data:${user.banner_file?.mime_type};base64,${user.banner_file?.base64}`}
                     fill
+                    alt="./banner.png"
                     className="object-cover"
                 />
                 <div className="absolute -bottom-12 left-0 w-full px-8 flex items-center justify-between">

@@ -40,7 +40,7 @@ const userSchema = new Schema(
         },
 
         email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-        password_hash: { type: String, required: true, select: false },
+        password_hash: { type: String, required: true,   },
         role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
         resetPasswordToken: { type: String },
         resetPasswordExpires: { type: Date },
