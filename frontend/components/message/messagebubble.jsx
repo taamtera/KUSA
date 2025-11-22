@@ -145,14 +145,14 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                 if (isMe) {
                     // rainbow gradient mention for current user
                     return (
-                        <span className="font-semibold bg-gradient-to-r from-red-400 via-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                        <span key={'mention_me' + i} className="font-semibold bg-gradient-to-r from-red-400 via-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
                             @{part}
                         </span>
                     )
                 } else {
                     // normal mention style for others
                     return (
-                        <span key={i} className="text-cyan-600 font-medium">
+                        <span key={'mention_other' + i} className="text-cyan-600 font-medium">
                             @{part}
                         </span>
                     )

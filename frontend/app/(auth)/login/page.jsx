@@ -20,9 +20,6 @@ export default function CardDemo() {
 
   const handleSubmit = async (e) => {
   e.preventDefault();
-
-  console.log("Email:", email);
-  console.log("Password:", password);
     
     try {
       const response = await fetch("http://localhost:3001/api/v1/login", {
@@ -63,7 +60,7 @@ export default function CardDemo() {
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Enter your email or username below to login to your account
           </CardDescription>
           <CardAction>
             <Button
@@ -79,7 +76,7 @@ export default function CardDemo() {
           <form>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email/Username</Label>
                 <Input
                   id="email"
                   type="email"
@@ -93,7 +90,7 @@ export default function CardDemo() {
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
                   <a
-                    href="#"
+                    href="/find_account"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-gray-500"
                   >
                     Forgot your password?

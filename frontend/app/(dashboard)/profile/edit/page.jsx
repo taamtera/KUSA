@@ -2,14 +2,16 @@
 
 import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getAvatarFallback, formatDividerTime } from "@/components/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/context/UserContext"
+import Image from 'next/image';
 
 export default function EditProfilePage() {
-    const { user, setUser } = useUser();
+    const { user, setUser } = useUser()
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
     const router = useRouter()
@@ -38,7 +40,7 @@ export default function EditProfilePage() {
                 body: JSON.stringify(profile),
             })
 
-			console.log("Response status:", res)
+            console.log("Response status:", res)
 
             console.log("Saving profile:", profile)
 
@@ -48,8 +50,7 @@ export default function EditProfilePage() {
             setError("Failed to save profile")
         } finally {
             setLoading(false)
-			setUser({ ...user, ...profile }) // Update user context with new profile data
-
+            setUser({ ...user, ...profile }) // Update user context with new profile data
         }
     }
 
@@ -69,10 +70,15 @@ export default function EditProfilePage() {
         <div className="w-full">
             {/* Banner Section */}
             <div className="relative w-full h-48 bg-gray-300">
-                <img src="/images/profile-banner.png" alt="Profile Banner" className="w-full h-full object-cover" />
+                <Image
+                    src={`data:${user.banner_file?.mime_type};base64,${user.banner_file?.base64}`}
+                    fill
+                    alt="./banner.png"
+                    className="object-cover"
+                />
                 <div className="absolute -bottom-12 left-0 w-full px-8 flex items-center justify-between">
                     <Avatar className="w-24 h-24 border-4 border-white">
-                        <AvatarImage src={user.icon_file?.storage_key} />
+                        <AvatarImage src={`data:${user.icon_file?.mime_type};base64,${user.icon_file?.base64}`} />
                         <AvatarFallback>{user.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="flex gap-2">

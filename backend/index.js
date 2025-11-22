@@ -4,17 +4,25 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const crypto = require("crypto");
 const jwt = require('jsonwebtoken');
 const cookiesParser = require('cookie-parser');
 const Socket_Server = require("socket.io");
 const http = require('http');
+const nodemailer = require('nodemailer');
+const multer = require("multer");
+const uploadFile = require("./utils/uploadFile");
+const populateFileBase64 = require("./utils/populateFileBase64");
+const path = require("path");
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
+
 app.use(cors({
     origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     credentials: true, // allow sending/receiving cookies
 }));
-
 app.use(express.json());
 app.use(cookiesParser());
 
@@ -33,7 +41,6 @@ const RESET_SEEDED_DATA = process.env.RESET_SEEDED_DATA || 'true';
 
 // Models
 const { User, File, Server, Member, Room, Message, Attachment, Reaction, TimeSlot, Notification } = require('./schema.js');
-const path = require('path');
 
 // config (env)
 const ACCESS_TTL = process.env.ACCESS_TTL || '1d';
@@ -50,12 +57,6 @@ const asInt = (v, d) => {
 };
 
 const norm = v => (typeof v === 'string' && v.trim() === '' ? null : v);
-
-function isSelfOrAdmin(reqUserId, targetUserDoc) {
-    if (!targetUserDoc) return false;
-    if (targetUserDoc._id?.toString() === reqUserId) return true;
-    return (targetUserDoc.role === 'ADMIN') ? false : (req.role === 'ADMIN');
-}
 
 // Auth middleware
 function auth(req, res, next) {
@@ -141,6 +142,10 @@ app.post('/api/v1/login/register', async (req, res) => {
         if (!password) missing.push("password");
         if (!password_confirmation) missing.push("password_confirmation");
 
+        if (password.length < 8 || password_confirmation.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
         if (missing.length > 0) {
             return res.status(400).send(`Missing required fields: ${missing.join(", ")}`);
         }
@@ -214,6 +219,49 @@ app.post('/api/v1/account/change-password', auth, async (req, res) => {
 });
 
 
+// change Password via resetting token
+app.post('/api/v1/account/reset-password-via-token', async (req, res) => {
+    try {
+        const { token, password } = req.body; // Remove 'await'
+        
+        if (!token) {
+            return res.status(400).json({ message: "Token required" });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ status: "failed", message: "Password must be at least 8 characters" });
+        }
+
+        // console.log("Received token:", token);
+        // console.log("Received password:", password);
+        
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Token invalid or expired" });
+        }
+
+        const ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 10;
+        user.password_hash = await bcrypt.hash(password, ROUNDS);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        return res.json({ status: 'success', message: 'Password updated' });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: "failed", message: "Unable to change password" });
+    }
+});
+
 // Login
 app.post('/api/v1/login', async (req, res) => {
     try {
@@ -222,13 +270,9 @@ app.post('/api/v1/login', async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ status: "failed", message: "Email and password are required" });
         }
-        // admin bypass remove before production
-        if (email == "admin" && password == "admin") {
-            return res.status(200).json({ status: "success", message: "Admin login successful", user: { username: "admin", role: "ADMIN" } });
-        }
 
-        // Find user by email
-        const user = await User.findOne({ email }).select('+password_hash');
+        // Find user by email or username
+        const user = await User.findOne({ $or: [{ email }, { username: email }] }).select('+password_hash');
 
         // Check if user exists
         if (!user) {
@@ -282,8 +326,8 @@ app.get('/api/v1/auth/me', auth, async (req, res) => {
             })
         if (!user) return res.status(404).json({ status: 'failed', message: 'User not found' });
         const userObject = user.toObject ? user.toObject() : user;
+        populateFileBase64(userObject);
 
-        // Explicitly remove password_hash and any other sensitive fields
         const { password_hash, __v, ...safeUserData } = userObject;
         return res.status(200).json({ status: 'success', user: safeUserData });
     } catch (error) {
@@ -391,6 +435,8 @@ app.get('/api/v1/users/:id', async (req, res) => {
             .populate('banner_file')
             .lean();
 
+        populateFileBase64(user);
+
         if (!user) return res.status(404).json({ message: 'user not found' });
 
         const { password_hash, __v, ...safeUser } = user;
@@ -398,6 +444,33 @@ app.get('/api/v1/users/:id', async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'failed to fetch user' });
+    }
+});
+
+// Find user
+app.get('/api/v1/user/find/:q', async (req, res) => {
+    try {
+        const q = (req.params.q || '').trim();
+        if (!q) return res.status(400).json({ status: 'failed', message: 'missing query parameter q or input' });
+
+        // email detection
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q);
+
+        const filter = isEmail ? { email: q.toLowerCase() } : { username: q };
+
+        const user = await User.findOne(filter)
+            .select('+created_at +updated_at') // return some useful metadata if present
+            .populate('icon_file')
+            .populate('banner_file')
+            .lean();
+
+        if (!user) return res.status(404).json({ status: 'failed', message: 'user not found' });
+
+        const { password_hash, __v, ...safeUser } = user;
+        return res.json({ status: 'success', user: safeUser });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ status: 'failed', message: 'failed to find user' });
     }
 });
 
@@ -430,6 +503,8 @@ app.get('/api/v1/users', async (req, res) => {
             cursor,
             User.countDocuments(filter)
         ]);
+        
+        items.forEach(u => populateFileBase64(u));
 
         res.json({
             status: 'success',
@@ -715,6 +790,8 @@ app.get('/api/v1/chats/dms/:userId/messages', auth, async (req, res) => {
             .limit(limit)
             .lean();
 
+        messages.forEach(msg => populateFileBase64(msg));
+
         // Get total count for pagination
         const total = await Message.countDocuments({
             context_type: 'User',
@@ -814,9 +891,11 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
+        messages.forEach(msg => populateFileBase64(msg));
 
         // Add server data
-        const server = await Server.findById(room.server._id)
+        const server = await Server.findById(room.server._id).populate('icon_file').lean();
+        if (server) populateFileBase64(server);
         const roomName = room.title;
 
         // add members of the room's server
@@ -827,6 +906,7 @@ app.get('/api/v1/chats/rooms/:roomId/messages', auth, async (req, res) => {
                 populate: { path: 'icon_file' }
             })
             .lean();
+        members.forEach(m => populateFileBase64(m));
 
         // Count total messages in this room
         const total = await Message.countDocuments({
@@ -1112,6 +1192,8 @@ app.get('/api/v1/servers', auth, async (req, res) => {
             .populate('icon_file')
             .lean();
 
+        servers.forEach(s => populateFileBase64(s));
+
         // find rooms for each server
         for (let server of servers) {
             // Ensure rooms are returned in the defined "order" field
@@ -1132,6 +1214,20 @@ app.get('/api/v1/servers', auth, async (req, res) => {
     }
 });
 
+// GET /api/v1/servers/banned
+app.get('/api/v1/servers/banned', async (req, res) => {
+    const { serverId } = req.query;
+
+    const server = await Server.findById(serverId)
+        .populate('banned_users', 'username display_name icon_file');
+
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    res.json(server.banned_users);
+});
+
 // Get server by Id
 app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     try {
@@ -1146,6 +1242,88 @@ app.get('/api/v1/servers/:serverId', auth, async (req, res) => {
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+// Update server icon
+app.put("/api/v1/servers/:serverId/icon", auth, upload.single("icon"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const server = await Server.findById(req.params.serverId);
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    const fileDoc = await File.create({
+      storage_key: req.file.filename,
+      byte_size: req.file.size,
+      mime_type: req.file.mimetype,
+      original_name: req.file.originalname
+    });
+
+    server.icon_file = fileDoc._id;
+    await server.save();
+
+    res.status(200).json({ message: "Icon updated", file: fileDoc });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/api/v1/files/:fileId", async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Path where Multer stores files (modify if using another folder)
+    const filePath = path.join(__dirname, "uploads", file.storage_key);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Stored file missing" });
+    }
+
+    // Send file with the correct MIME type
+    res.setHeader("Content-Type", file.mime_type);
+    res.setHeader("Content-Length", file.byte_size);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("File download error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+// Change server name
+app.put('/api/v1/servers/:serverId/name', auth, async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { newName } = req.body;
+        const requester = req.userId;
+
+        if (!newName || newName.trim().length === 0) {
+            return res.status(400).json({ message: "New name required." });
+        }
+
+        // Check permission
+        const member = await Member.findOne({ server: serverId, user: requester });
+        if (!member || (member.role !== "OWNER" && member.role !== "MODERATOR")) {
+            return res.status(403).json({ message: "No permission to change server name." });
+        }
+
+        // Update server name
+        await Server.findByIdAndUpdate(serverId, { server_name: newName.trim() });
+
+        return res.status(200).json({ message: "Server name updated successfully." });
+
+    } catch (error) {
+        console.error("Change name error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -1184,6 +1362,11 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
             return res.status(404).json({ message: 'Server not found.' });
         }
 
+        // if user is banned
+        if (server.banned_users.includes(userId)) {
+            return res.status(403).json({ message: 'You are banned from this server.' });
+        }
+
         // Check membership
         let member = await Member.findOne({ user: userId, server: serverId });
         if (!member) {
@@ -1207,6 +1390,151 @@ app.post('/api/v1/servers/join', auth, async (req, res) => {
         console.error('Error joining server:', error);
         return res.status(500).json({ message: 'Internal server error.' });
     }
+});
+
+// Set role for a member
+app.post('/api/v1/servers/set-role', auth, async (req, res) => {
+    try {
+        const { serverId, userId, role } = req.body;
+        const requester = req.userId;
+        if (!serverId || !userId || !role) {
+            return res.status(400).json({ message: "Missing serverId, userId, or role" });
+        }
+        // Check permissions (only OWNER can set roles)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || requesterMember.role !== 'OWNER') {
+            return res.status(403).json({ message: "No permission to set roles" });
+        }
+        // Update member role
+        const updatedMember = await Member.findOneAndUpdate(
+            { user: userId, server: serverId },
+            { role: role },
+            { new: true }
+        );
+        if (!updatedMember) {
+            return res.status(404).json({ message: "Member not found in server" });
+        }
+        return res.status(200).json({ message: "Role updated successfully", member: updatedMember });
+    } catch (error) {
+        console.error("Set role error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Kick user from server
+app.post('/api/v1/servers/kick', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        // Check permissions (only OWNER or MODERATOR can kick)
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to kick users" });
+        }
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User kicked successfully" });
+    } catch (error) {
+        console.error("Kick error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Leave server
+app.post('/api/v1/servers/leave', auth, async (req, res) => {
+    try {
+        const { serverId } = req.body;
+        const userId = req.userId;
+
+        if (!serverId) {
+            return res.status(400).json({ message: "Missing serverId" });
+        }
+
+        // Find membership
+        const member = await Member.findOne({ server: serverId, user: userId });
+        if (!member) {
+            return res.status(400).json({ message: "You are not a member of this server." });
+        }
+
+        // If leaving member is OWNER → ensure there is another owner
+        if (member.role === "OWNER") {
+            const totalOwners = await Member.countDocuments({
+                server: serverId,
+                role: "OWNER"
+            });
+
+            if (totalOwners <= 1) {
+                return res.status(403).json({
+                    message: "You are the only owner. Promote another owner before leaving."
+                });
+            }
+        }
+
+        // Remove the membership
+        await Member.deleteOne({ server: serverId, user: userId });
+
+        return res.status(200).json({ message: "You left the server." });
+
+    } catch (error) {
+        console.error("Leave error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Ban user
+app.post('/api/v1/servers/ban', auth, async (req, res) => {
+    try {
+        const { serverId, userId } = req.body;
+        const requester = req.userId;
+
+        if (!serverId || !userId) {
+            return res.status(400).json({ message: "Missing serverId or userId" });
+        }
+
+        const requesterMember = await Member.findOne({ server: serverId, user: requester });
+        if (!requesterMember || (requesterMember.role !== 'OWNER' && requesterMember.role !== 'MODERATOR')) {
+            return res.status(403).json({ message: "No permission to ban users" });
+        }
+
+        // Add to banned list (if not already)
+        await Server.findByIdAndUpdate(serverId, {
+            $addToSet: { banned_users: userId }
+        });
+
+        // Remove membership
+        await Member.deleteOne({ user: userId, server: serverId });
+
+        return res.status(200).json({ message: "User banned successfully" });
+    } catch (error) {
+        console.error("Ban error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// POST /api/v1/servers/unban
+app.post('/api/v1/servers/unban', async (req, res) => {
+    const { serverId, userId } = req.body;
+
+    const server = await Server.findById(serverId);
+    if (!server) {
+        return res.status(404).json({ message: "Server not found" });
+    }
+
+    // Remove user from banned_users
+    server.banned_users = server.banned_users.filter(
+        id => id.toString() !== userId
+    );
+
+    await server.save();
+
+    res.json({ message: "User unbanned." });
 });
 
 // DELETE SERVER
@@ -1543,6 +1871,8 @@ app.get('/api/v1/messages/:id/replies', auth, async (req, res) => {
             })
             .populate({ path: 'recipients', populate: { path: 'user', select: 'username display_name' } })
             .lean();
+        
+        replies.forEach(r => populateFileBase64(r));
 
         const total = await Message.countDocuments({ reply_to: parentId });
 
@@ -1575,6 +1905,8 @@ app.get('/api/v1/notifications', auth, async (req, res) => {
             .populate('location')
             .sort({ created_at: -1 })
             .lean();
+        
+        notifications.forEach(n => populateFileBase64(n));
 
         res.json({ status: 'success', notifications });
     } catch (error) {
@@ -1695,6 +2027,230 @@ app.post('/api/v1/friend/remove', auth, async (req, res) => {
     }
 });
 
+app.post('/api/v1/send-email/reset-password', async (req, res) => {
+    try {
+        const { destinationEmail, subject } = req.body
+        // console.log(destinationEmail);
+        if (!destinationEmail || destinationEmail.trim() === "") {
+            return res.status(400).json({message: "Email is require"});
+        }
+
+        const user = await User.findOne({ email: destinationEmail });
+        if (!user) return res.status(400).json({ message: "User not found" });
+
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
+
+        await user.save();
+
+        const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: 'phongsiraphat@gmail.com',
+                pass: 'ozgc kqxc symd hblu'
+            }
+        });
+        const mailOptions = {
+            from: 'phongsiraphat@gmail.com',
+            to: destinationEmail,
+            subject,
+            // text: "idiot!" 
+            html: `<!doctype html>
+                <html lang="en">
+
+                <head>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width,initial-scale=1" />
+                    <title>Password reset</title>
+                    <style>
+                        /* The container div */
+                        .kusa-container {
+                            padding-top: 1rem;
+                            /* pt-4 */
+                            padding-left: 1rem;
+                            /* pl-4 */
+                            margin-bottom: 1.5rem;
+                            /* mb-6 */
+                        }
+
+                        /* The text div */
+                        .kusa-text {
+                            display: inline-block;
+
+                            font-size: 3rem;
+                            /* text-3xl */
+                            line-height: 3rem;
+                            /* text-3xl line-height */
+                            font-weight: 700;
+                            /* font-bold */
+
+                            /* Gradient Background Logic */
+                            /* Tailwind green-600 (#16a34a) to yellow-600 (#ca8a04) */
+                            background-image: linear-gradient(to right, #16a34a, #6e9f29);
+
+                            /* The magic that clips the background to the text */
+                            -webkit-background-clip: text;
+                            background-clip: text;
+
+                            /* Makes the text transparent so the background shows through */
+                            color: transparent;
+                        }
+                    </style>
+                </head>
+
+                <body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Helvetica,Arial,sans-serif;color:#333333;">
+                    <!-- Container -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                        style="max-width:680px;margin:40px auto 40px auto;">
+                        <tr>
+                            <td align="center" style="padding:20px 16px;">
+                                <!-- Card -->
+                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                                    style="background:#ffffff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);overflow:hidden;">
+                                    <!-- Header / Brand -->
+                                    <tr>
+                                        <td style="padding:24px 28px 8px 28px;text-align:left;">
+                                            <div class="kusa-container">
+                                                <div class="kusa-text">
+                                                    KUSA
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Hero / Message -->
+                                    <tr>
+                                        <td style="padding:12px 28px 8px 28px;">
+                                            <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0f1724;">Reset your
+                                                password</h1>
+                                            <p style="margin:0;font-size:15px;line-height:1.5;color:#475569;">
+                                                Hi ${user.username},<br>
+                                                We received a request to reset the password for your KUSA account. Click the
+                                                button below to choose a new password.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- CTA -->
+                                    <tr>
+                                        <td style="padding:18px 28px 18px 28px;">
+                                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                                <tr>
+                                                    <td>
+                                                        <!-- Button uses a full absolute URL in production -->
+                                                        <a href="${resetURL}" target="_blank" rel="noopener"
+                                                            style="display:inline-block;padding:12px 20px;border-radius:8px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">
+                                                            Reset password
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <p style="margin:14px 0 0 0;font-size:13px;color:#6b7280;line-height:1.45;">
+                                                This link will expire in 10 minutes. If you didn't request a password
+                                                reset, you can safely ignore this email or contact our support.
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Fallback link -->
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                Can't click the button? Copy and paste this link into your browser:
+                                            </p>
+                                            <p style="word-break:break-all;margin:8px 0 0 0;font-size:13px;color:#0f1724;">
+                                                <a href="${resetURL}" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">${resetURL}</a>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:0 28px 20px 28px;">
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                If you're not the person who make this requested.
+                                            </p>
+                                            <p style="margin:0;font-size:13px;color:#6b7280;">
+                                                We recommend that you manually change your password again at
+                                                <a href="http://localhost:3000/" target="_blank" rel="noopener"
+                                                    style="color:#2563eb;text-decoration:underline;">
+                                                    http://localhost:3000/
+                                                </a>
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td style="padding:18px 28px 26px 28px;border-top:1px solid #f1f5f9;">
+                                            <p style="margin:0;font-size:12px;color:#9aa4b2;line-height:1.4;">
+                                                If you need help, reply to this email or contact <a href="mailto:phongsiraphat@gmail.com"
+                                                    style="color:#2563eb;text-decoration:underline;">phongsiraphat@gmail.com</a>.<br>
+                                                © 2025 KUSA. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <!-- End card -->
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Plain signature-style footer (very small) -->
+                    <div style="max-width:680px;margin:6px auto 20px auto;text-align:center;color:#98a2b3;font-size:12px;">
+                        <p style="margin:0;">This email was sent to ${user.email} because a password reset was requested for your
+                            account.</p>
+                    </div>
+                </body>
+
+                </html>`
+        };
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.error(error);
+            } else {
+                // console.log('Email.sent: ' + info.response);
+                return res.json({ status: 'success', message: 'Sending!' });
+            }
+        });
+    } catch (error) {
+        console.error("Error sending an email", error)
+        res.status(500).json({message: "Internal server error"})
+    }
+})
+
+// ====================== Files ======================
+
+app.use("/storage", express.static(path.join(__dirname, "storage")));
+
+app.post("/upload/:type", upload.single("file"), async (req, res) => {
+    try {
+        const type = req.params.type;
+
+        const allowed = ["pfp", "banner", "server_icon", "attachment"];
+        if (!allowed.includes(type)) {
+            return res.status(400).json({ error: "Invalid upload type" });
+        }
+
+        const file = await uploadFile(req.file, type, req.body);
+
+        res.json({
+            message: `${type} uploaded successfully`,
+            file
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ====================== Socket Logic ======================
 
 io.on("connection", (socket) => {
@@ -1767,7 +2323,7 @@ io.on("connection", (socket) => {
             const populatedMessage = await Message.findById(message._id)
                 .populate({
                     path: "sender",
-                    select: "username display_name icon_file", 
+                    select: "username display_name icon_file",
                     populate: { path: 'icon_file' }
                 })
                 .populate({ path: "recipients", populate: { path: "user", select: "username display_name" } })

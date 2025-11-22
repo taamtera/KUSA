@@ -110,17 +110,17 @@ async function InitializeDatabaseStructures(RESET_SEEDED_DATA) {
     
         // ---------- 4) Recreate the seed data ----------
         // Files
-        const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, fWelcomeDoc] = await File.create([
-            // { storage_key: 'uploads/avatars/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
-            // { storage_key: 'uploads/avatars/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
-            // { storage_key: 'uploads/avatars/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
-            { storage_key: 'https://github.com/shadcn.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-            { storage_key: 'https://github.com/vercel.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-            { storage_key: 'https://github.com/nextjs.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
-            { storage_key: 'uploads/icons/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
-            { storage_key: 'uploads/icons/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
-            { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
-    
+        const [fAliceAva, fBobAva, fCaraAva, fHubIcon, fDevIcon, pBanner] = await File.create([
+            { storage_key: 'storage/alice.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456 },
+            { storage_key: 'storage/bob.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456 },
+            { storage_key: 'storage/cara.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456 },
+            // { storage_key: 'https://github.com/shadcn.png', original_name: 'alice.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
+            // { storage_key: 'https://github.com/vercel.png', original_name: 'bob.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
+            // { storage_key: 'https://github.com/nextjs.png', original_name: 'cara.png', mime_type: 'image/png', byte_size: 123456, is_external: true },
+            { storage_key: 'storage/hub.png', original_name: 'hub.png', mime_type: 'image/png', byte_size: 12345 },
+            { storage_key: 'storage/dev.png', original_name: 'dev.png', mime_type: 'image/png', byte_size: 12345 },
+            // { storage_key: 'uploads/docs/welcome.pdf', original_name: 'welcome.pdf', mime_type: 'application/pdf', byte_size: 54321 },
+            { storage_key: 'storage/pbanner.webp', original_name: 'pbanner.webp', mime_type: 'image/webp', byte_size: 123456 },
         ]);
     
         // Users (password_hash placeholders)
@@ -138,7 +138,7 @@ const [alice, bob, cara] = await User.create([
         email: "alice@example.com",
         password_hash: aliceHash,
         icon_file: fAliceAva._id,
-        banner_file: fHubIcon._id,
+        banner_file: pBanner._id,
         role: "USER",
         bio: "Product manager focused on collaboration and growth.",
         major: "Business Management",
@@ -151,7 +151,7 @@ const [alice, bob, cara] = await User.create([
         email: "bob@example.com",
         password_hash: bobHash,
         icon_file: fBobAva._id,
-        banner_file: fDevIcon._id,
+        banner_file: pBanner._id,
         role: "USER",
         bio: "Backend developer who loves clean APIs and strong coffee.",
         major: "Computer Engineering",
@@ -164,7 +164,7 @@ const [alice, bob, cara] = await User.create([
         email: "cara@example.com",
         password_hash: caraHash,
         icon_file: fCaraAva._id,
-        banner_file: fHubIcon._id,
+        banner_file: pBanner._id,
         role: "USER",
         bio: "Designer passionate about creating accessible, beautiful interfaces.",
         major: "Design and Communication",
@@ -182,14 +182,14 @@ const [alice, bob, cara] = await User.create([
     
         // Servers
         const [hub, dev] = await Server.create([
-            { server_name: 'General Hub' },
-            { server_name: 'Dev Corner' },
+            { server_name: 'General Hub', icon_file: fHubIcon._id },
+            { server_name: 'Dev Corner', icon_file: fDevIcon._id },
         ]);
     
         // Rooms
         const [roomGeneral, roomAnnouncements, roomDevChat] = await Room.create([
-            { title: 'general', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 1 },
-            { title: 'announcements', icon_file: fHubIcon._id, server: hub._id, room_type: 'TEXT', order: 0 },
+            { title: 'general', server: hub._id, room_type: 'TEXT', order: 1 },
+            { title: 'announcements', server: hub._id, room_type: 'TEXT', order: 0 },
             { title: 'dev-chat', icon_file: fDevIcon._id, server: dev._id, room_type: 'TEXT', order: 0 },
         ]);
     
@@ -222,11 +222,11 @@ const [alice, bob, cara] = await User.create([
         message_type: 'text',
     });
     
-    await Attachment.create({
-        message: m2._id,
-        file: fWelcomeDoc._id,
-        position: 1,
-    });
+    // await Attachment.create({
+    //     message: m2._id,
+    //     file: fWelcomeDoc._id,
+    //     position: 1,
+    // });
     
     // Direct messages (1-on-1) - Alice to Bob
     const dm1 = await Message.create({

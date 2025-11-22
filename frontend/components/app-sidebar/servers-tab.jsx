@@ -33,7 +33,9 @@ export function ServersTab({ user }) {
     <SidebarGroup>
       <SidebarGroupContent>
         <SidebarMenu>
-          {servers.map((server) => (<ServerCard server={server}  />))}
+          {servers.map((server) => (
+            <ServerCard key={server.id ?? server._id ?? server.uuid} server={server} />
+          ))}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

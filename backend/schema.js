@@ -1,4 +1,3 @@
-const e = require('express');
 const mongoose = require('mongoose');
 const { Schema, models, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -8,10 +7,10 @@ const ObjectId = Schema.Types.ObjectId;
  * ---------------------------*/
 const fileSchema = new Schema(
     {
-        storage_key: { type: String, required: true, unique: true, trim: true },
-        original_name: { type: String, required: true, trim: true },
-        mime_type: { type: String, required: true, trim: true },
-        byte_size: { type: Number, required: true, min: 0 },
+        storage_key: { type: String, default: null, unique: true, trim: true },
+        original_name: { type: String, default: null, trim: true },
+        mime_type: { type: String, default: null, trim: true },
+        byte_size: { type: Number, default: 0, min: 0 },
         is_external: {
             type: Boolean,
             default: false,
@@ -41,8 +40,10 @@ const userSchema = new Schema(
         },
 
         email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-        password_hash: { type: String, required: true, select: false },
+        password_hash: { type: String, required: true,   },
         role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+        resetPasswordToken: { type: String },
+        resetPasswordExpires: { type: Date },
 
         // Profile images
         icon_file: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },

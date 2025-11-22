@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import MessageBubble from "./messagebubble";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -58,54 +58,43 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
               {senderName}
             </span>)}
 
-            {/* Individual bubble widths */}
-            <div className="flex flex-col items-start space-y-1">
-              {messages.map((message) => (
-                <MessageBubble
-                  key={message._id}
-                  message={message}
-                  fromCurrentUser={fromCurrentUser}
-                  onReply={onReply}
-                  onOpenThread={onOpenThread}
-                  onEdit={onEdit}
-                />
-              ))}
-            </div>
+                        {/* Individual bubble widths */}
+                        <div className="flex flex-col items-start space-y-1">
+                            {messages.map((message) => (
+                                <MessageBubble key={message._id} message={message} fromCurrentUser={fromCurrentUser} onReply={onReply} onOpenThread={onOpenThread} onEdit={onEdit} />
+                            ))}
+                        </div>
 
-            <p className="text-[12px] mt-1 opacity-75">
-              {formatTime(messages[messages.length - 1]?.created_at)}
-            </p>
-          </div>
-        </div>
-      )}
+                        <p className="text-[12px] mt-1 opacity-75">{formatTime(messages[messages.length - 1]?.created_at)}</p>
+                    </div>
+                </div>
+            )}
 
-      {/* Right side (current user) */}
-      {fromCurrentUser && (
-        <div className="flex flex-col items-end">
-          {/* <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+            {/* Right side (current user) */}
+            {fromCurrentUser && (
+                <div className="flex flex-col items-end">
+                    {/* <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
             You
           </span> */}
 
-          <div className="flex flex-col items-end space-y-1">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message._id}
-                message={message}
-                fromCurrentUser={fromCurrentUser}
-                onReply={onReply}
-                onOpenThread={onOpenThread}
-                onEdit={onEdit}
-                editingTo={editingTo}
-              // onUnsend={onUnsend}
-              />
-            ))}
-          </div>
+                    <div className="flex flex-col items-end space-y-1">
+                        {messages.map((message) => (
+                            <MessageBubble
+                                key={message._id}
+                                message={message}
+                                fromCurrentUser={fromCurrentUser}
+                                onReply={onReply}
+                                onOpenThread={onOpenThread}
+                                onEdit={onEdit}
+                                editingTo={editingTo}
+                                // onUnsend={onUnsend}
+                            />
+                        ))}
+                    </div>
 
-          <p className="text-[12px] mt-1 opacity-75">
-            {formatTime(messages[messages.length - 1]?.created_at)}
-          </p>
+                    <p className="text-[12px] mt-1 opacity-75">{formatTime(messages[messages.length - 1]?.created_at)}</p>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    )
 }
