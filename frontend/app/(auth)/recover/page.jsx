@@ -26,7 +26,7 @@ export default function CardDemo() {
         e.preventDefault();
         
         try {
-            const response = await fetch("http://localhost:3001/api/v1/send-email/reset-password", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/send-email/reset-password`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

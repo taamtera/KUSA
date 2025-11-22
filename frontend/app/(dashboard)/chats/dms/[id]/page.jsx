@@ -42,7 +42,7 @@ export default function Chat() {
     useEffect(() => {
         if (!user?._id) return
 
-        socketRef.current = io("http://localhost:3001", {
+        socketRef.current = io(`${process.env.NEXT_PUBLIC_API_URL}`, {
             query: { userId: user._id },
             withCredentials: true,
             transports: ["websocket"],
@@ -172,7 +172,7 @@ export default function Chat() {
         const fetchMessages = async () => {
             try {
                 setLoading(true)
-                const response = await fetch(`http://localhost:3001/api/v1/chats/dms/${otherUserId}/messages?page=1&limit=50`, { credentials: "include" })
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/dms/${otherUserId}/messages?page=1&limit=50`, { credentials: "include" })
                 const data = await response.json()
 
                 if (data.status === "success") {
@@ -202,7 +202,7 @@ export default function Chat() {
         const fetchOtherUser = async () => {
             if (!otherUser && otherUserId) {
                 try {
-                    const response = await fetch(`http://localhost:3001/api/v1/users/${otherUserId}`)
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/${otherUserId}`)
                     const data = await response.json()
                     if (data.status === "success") setOtherUser(data.user)
                 } catch (error) {

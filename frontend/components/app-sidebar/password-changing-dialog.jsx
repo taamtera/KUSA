@@ -46,7 +46,7 @@ export function PasswordChangingDialog({ openDialog, setOpenDialog }) {
 
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:3001/api/v1/account/change-password", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/account/change-password`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },

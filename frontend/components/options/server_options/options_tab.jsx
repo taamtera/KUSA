@@ -55,7 +55,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
     const formData = new FormData();
     formData.append("icon", blob, "icon.jpg");
 
-    const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}/icon`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/${server._id}/icon`, {
       method: "PUT",
       credentials: "include",
       body: formData,
@@ -80,7 +80,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   async function handleChangeServerName() {
     try {
       const res = await fetch(
-        `http://localhost:3001/api/v1/servers/${server._id}/name`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/${server._id}/name`,
         {
           method: "PUT",
           credentials: "include",
@@ -112,7 +112,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
     if (!confirm("Are you sure you want to leave this server?")) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/v1/servers/leave`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/leave`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   async function handleDeleteServer() {
     if (!confirm("Are you sure? This will delete everything forever.")) return;
 
-    const res = await fetch(`http://localhost:3001/api/v1/servers/${server._id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/${server._id}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -160,7 +160,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
   const handleInviteClick = async () => {
     try {
       const res = await fetch(
-        `http://localhost:3001/api/v1/servers/${server._id}/invite`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/${server._id}/invite`,
         {
           method: "POST",
           credentials: "include",
@@ -195,7 +195,7 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
           <AvatarImage
             src={
               server?.icon_file
-                ? `http://localhost:3001/api/v1/files/${server.icon_file}`
+                ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1/files/${server.icon_file}`
                 : undefined
             }
           />

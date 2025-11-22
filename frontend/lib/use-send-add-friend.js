@@ -4,7 +4,7 @@ export async function sendFriendRequest(toUsername) {
   }
 
   try {
-    const res = await fetch("http://localhost:3001/api/v1/friend/add", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/friend/add`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

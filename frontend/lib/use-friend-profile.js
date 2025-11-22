@@ -18,7 +18,7 @@ export function useOtherUserProfile() {
             setLoading(true);
             setError("");
 
-            const res = await fetch(`http://localhost:3001/api/v1/users/${user._id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/${user._id}`, {
                 method: "GET",
                 headers: {
                     "Accept": "application/json",

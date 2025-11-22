@@ -7,7 +7,7 @@ export function UserProvider({ children, initialUser }) {
 	const [user, setUser] = useState(initialUser)
 
 	const refreshUser = useCallback(async () => {
-		const res = await fetch("http://localhost:3001/api/v1/auth/me", {
+		const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
 			credentials: "include"
 		})
 

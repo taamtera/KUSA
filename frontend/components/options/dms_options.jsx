@@ -14,7 +14,7 @@ export default function DMsOptions({ open, onOpenChange, otherUserId }) {
         setMessage("")
 
         try {
-            const res = await fetch("http://localhost:3001/api/v1/friend/remove", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/friend/remove`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },

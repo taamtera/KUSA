@@ -20,7 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 
 app.use(cors({
-    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+    origin: process.env.FRONTEND_ORIGIN || true,
     credentials: true, // allow sending/receiving cookies
 }));
 app.use(express.json());
@@ -29,7 +29,7 @@ app.use(cookiesParser());
 const chat_server = http.createServer(app);
 const io = new Socket_Server.Server(chat_server, {
     cors: {
-        origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+        origin: process.env.FRONTEND_ORIGIN || true,
         credentials: true,
     },
 });
@@ -93,12 +93,15 @@ app.get('/', async (req, res) => {
     res.send(data);
 });
 
+console.log(process.env.NODE_ENV === "production");
 const baseCookie = {
-    httpOnly: true,                         // JS can’t read it (safer)
-    sameSite: 'lax',                        // helps prevent CSRF; OK for SPA + API
-    secure: false,                          // HTTPS required in prod
-    path: '/',                              // available under root
+    Partitioned: true,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",           // must be true in prod
+    sameSite: "none",
+    path: "/",
 };
+
 
 function signAccess(payload) { return jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: ACCESS_TTL }); }
 function signRefresh(payload) { return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: REFRESH_TTL }); }
@@ -305,7 +308,7 @@ app.post('/api/v1/login', async (req, res) => {
             session: {
                 access_expires_at: epochMsPlus(parseTtlToMs(ACCESS_TTL)),
                 refresh_expires_at: epochMsPlus(parseTtlToMs(REFRESH_TTL)),
-            }
+            },
         });
     } catch (err) {
         console.error(err);

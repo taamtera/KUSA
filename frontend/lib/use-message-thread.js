@@ -19,7 +19,7 @@ export function useMessageThread() {
             setThreadParent(parentMsg);
 
             const res = await fetch(
-                `http://localhost:3001/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/messages/${parentMsg._id}/replies?page=1&limit=50&sort=asc`,
                 { credentials: "include" }
             );
             const data = await res.json();

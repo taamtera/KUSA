@@ -18,7 +18,7 @@ export default function JoinPage({ params }) {
     useEffect(() => {
         const fetchServer = async () => {
             try {
-                const res = await fetch(`http://localhost:3001/api/v1/servers/${id}`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/${id}`, {
                     credentials: "include"
                 });
 
@@ -41,7 +41,7 @@ export default function JoinPage({ params }) {
         setError(null);
 
         try {
-            const res = await fetch("http://localhost:3001/api/v1/servers/join", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/servers/join`, {
                 method: "POST",
                 credentials: "include",
                 headers: {

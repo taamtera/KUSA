@@ -124,7 +124,7 @@ export default function ProfilePage({ user }) {
 
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:3001/api/v1/timetable/${selectSlot.id}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/timetable/${selectSlot.id}`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -162,7 +162,7 @@ export default function ProfilePage({ user }) {
         setIsError(false);
 
         try {
-            const response = await fetch("http://localhost:3001/api/v1/timetable",
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/timetable`,
                 {
                     method: "POST",
                     headers: {

@@ -18,7 +18,7 @@ export default function useTimetable(userId) {
 
         (async () => {
             try {
-                const res = await fetch(`http://localhost:3001/api/v1/users/${userId}/timetable`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/${userId}/timetable`, {
                     credentials: "include",
                     signal: controller.signal,
                 });

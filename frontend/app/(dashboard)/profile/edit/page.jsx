@@ -67,7 +67,7 @@ export default function EditProfilePage() {
                 form.append("id", user._id)
                 form.append("type", "banner")
 
-                await fetch("http://localhost:3001/upload", {
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
                     method: "POST",
                     credentials: "include",
                     body: form,
@@ -81,7 +81,7 @@ export default function EditProfilePage() {
                 form.append("id", user._id)
                 form.append("type", "pfp")
 
-                await fetch("http://localhost:3001/upload", {
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
                     method: "POST",
                     credentials: "include",
                     body: form,
@@ -89,7 +89,7 @@ export default function EditProfilePage() {
             }
 
             // Save profile text fields
-            await fetch("http://localhost:3001/api/v1/auth/me", {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
                 method: "PATCH",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },

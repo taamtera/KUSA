@@ -34,7 +34,7 @@ export default function CardDemo() {
                 setMessage("Password must be at least 8 characters.");
                 return;
             }
-            const response = await fetch("http://localhost:3001/api/v1/login/register", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/login/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

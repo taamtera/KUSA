@@ -14,6 +14,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react";
 
+const cookieHeader = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+}
+
 export default function CardDemo() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +29,7 @@ export default function CardDemo() {
   e.preventDefault();
     
     try {
-      const response = await fetch("http://localhost:3001/api/v1/login", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -35,8 +42,9 @@ export default function CardDemo() {
       console.log(data);
       
       if (response.ok) {
+        // set cookies
         console.log("Redirecting to /chats");
-        window.location.href = "/chats";
+        // window.location.href = "/chats";
       } else {
         alert("❌ " + data.message);
       }

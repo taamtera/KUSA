@@ -25,7 +25,7 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
         setRooms(reordered)
 
         // Update backend order
-        await fetch(`http://localhost:3001/api/v1/rooms/${active.id}`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/rooms/${active.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -36,7 +36,7 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
     // Inline rename
     const handleRename = async (roomId, newName) => {
         setRooms((prev) => prev.map((r) => (r._id === roomId ? { ...r, title: newName } : r)))
-        await fetch(`http://localhost:3001/api/v1/rooms/${roomId}`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/rooms/${roomId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -49,7 +49,7 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
         if (rooms.length === 1) return // disable delete for last room
 
         try {
-            const res = await fetch(`http://localhost:3001/api/v1/rooms/${roomId}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/rooms/${roomId}`, {
                 method: "DELETE",
                 credentials: "include",
             })
@@ -71,7 +71,7 @@ export default function RoomsTab({ server, allServers, isOwnerOrAdmin }) {
 
     const addRoom = async () => {
         setLoading(true)
-        const res = await fetch(`http://localhost:3001/api/v1/rooms`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/rooms`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

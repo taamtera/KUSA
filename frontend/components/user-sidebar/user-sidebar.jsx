@@ -13,7 +13,7 @@ export function UserSidebar() {
   useEffect(() => {
     async function fetchNotifications() {
       try {
-        const res = await fetch("http://localhost:3001/api/v1/notifications", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/notifications`, {
           credentials: "include",
         })
         const data = await res.json()

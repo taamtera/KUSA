@@ -7,9 +7,11 @@ import { UserSidebar } from "@/components/user-sidebar"
 
 export default async function Layout({ children }) {
   const cookieStore = cookies(); // 🧩 Access incoming cookies
-  const cookieHeader = cookieStore.toString(); // Convert to string header
+  const cookieHeader = cookies().toString(); // Convert to string header
+  console.log("🍪 Incoming cookies:", cookieHeader);
 
-  const res = await fetch("http://localhost:3001/api/v1/auth/me", {
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
     headers: {
       Cookie: cookieHeader,
     },

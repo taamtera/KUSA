@@ -51,7 +51,7 @@ export default function TimeTablePopoverDetail({
         if (!slotId) return;
 
         try {
-            const res = await fetch(`http://localhost:3001/api/v1/timetable/${slotId}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/timetable/${slotId}`, {
                 method: "DELETE",
                 credentials: "include",
             });

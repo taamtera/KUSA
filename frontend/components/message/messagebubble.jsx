@@ -40,7 +40,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
 
     const handleSave = async () => {
         try {
-            const res = await fetch(`http://localhost:3001/api/v1/messages/${message._id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/messages/${message._id}`, {
                 method: "PATCH",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
@@ -119,7 +119,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         // setMessages(prev => prev.map(m => m._id === message._id ? { ...m, active: false} : m));
 
         try {
-            const res = await fetch(`http://localhost:3001/api/v1/messages/${message._id}/unsend`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/messages/${message._id}/unsend`, {
                 method: "PATCH",
                 credentials: "include",
             });

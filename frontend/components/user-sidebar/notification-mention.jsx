@@ -8,7 +8,7 @@ export function NotificationMention({ notif, onRemove }) {
 
     async function handleClick(accept) {
         try {
-            await fetch("http://localhost:3001/api/v1/notification/respond", {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/notification/respond`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
