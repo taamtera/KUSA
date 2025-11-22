@@ -209,17 +209,6 @@ export default function OptionsTab({ server, isOwnerOrAdmin, isOwner }) {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => setProfileDialogOpen(true)}
-        >
-          Change Server Profile
-        </Button>
-      )}
-
-
-      {isOwnerOrAdmin && (
-        <Button
-          variant="outline"
-          className="w-full"
           onClick={() => setNameDialogOpen(true)}
         >
           Change Server Name

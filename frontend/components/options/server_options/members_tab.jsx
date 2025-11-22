@@ -168,7 +168,6 @@ export default function MembersTab({ server, otherUser, user, query, setQuery, i
                                     </DropdownMenuTrigger>
 
                                     <DropdownMenuContent className="w-40">
-                                        <DropdownMenuItem>View Profile</DropdownMenuItem>
                                         <DropdownMenuItem
                                             onClick={() => handleSendFriendRequest(member.user.username)}
                                         >
