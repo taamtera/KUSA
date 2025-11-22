@@ -13,6 +13,9 @@ import { io } from "socket.io-client";
 import SearchChatDialog from "@/components/message/searchchatdialog";
 import ServerOptions from "@/components/options/server_options";
 import { Search } from "lucide-react"
+import MessageReply from "@/components/message/messagereply";
+import MessageThread from "@/components/message/messagethread";
+import { useMessageThread } from "@/components/message/use-message-thread";
 
 
 export default function Chat() {
@@ -30,6 +33,19 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Message Thread State and Handlers
+  const {
+    threadOpen,
+    threadParent,
+    threadReplies,
+    threadLoading,
+    setThreadReplies,
+    setThreadParent,
+    openThread,
+    closeThread,
+  } = useMessageThread();
 
   // WebSocket setup
   useEffect(() => {
@@ -50,12 +66,54 @@ export default function Chat() {
     socket.on("receive_message", (msg) => {
       // only update if the message belongs to this chat
       const isRelevant =
-        msg.sender?.user?._id === roomId || msg.context === roomId;
+        msg.sender?._id === roomId || msg.context === roomId;
       if (isRelevant) {
         messages.find((m) => m._id === msg._id);
         console.log("📩 New message received:", msg);
         setMessages((prev) => [...prev, msg]);
       }
+    });
+
+    socket.on("message_unsent", (payload) => {
+      // 1) update main message list + any embedded reply_to that points to this message
+      setMessages((prev) =>
+        prev.map((m) => {
+          let updated = m;
+
+          // If this *is* the message being unsent
+          if (m._id === payload._id) {
+            updated = { ...updated, active: false, content: payload.content };
+          }
+
+          // If this message is a reply and its parent (reply_to) was unsent
+          if (m.reply_to && m.reply_to._id === payload._id) {
+            updated = {
+              ...updated,
+              reply_to: {
+                ...m.reply_to,
+                active: false,
+                content: payload.content,
+              },
+            };
+          }
+
+          return updated;
+        })
+      );
+
+      // 2) update open thread replies
+      setThreadReplies((prev) =>
+        prev.map((r) =>
+          r._id === payload._id ? { ...r, active: false, content: payload.content } : r
+        )
+      );
+
+      // 3) update thread parent if the parent got unsent
+      setThreadParent((prev) =>
+        prev && prev._id === payload._id
+          ? { ...prev, active: false, content: payload.content }
+          : prev
+      );
     });
 
     socket.on("disconnect", () => {
@@ -134,9 +192,9 @@ export default function Chat() {
     let currentGroup = null;
 
     messages.forEach((msg) => {
-      const senderId = msg.sender?.user?._id || "unknown";
+      const senderId = msg.sender?._id || "unknown";
       if (!currentGroup || currentGroup.senderId !== senderId) {
-        currentGroup = { senderId, sender: msg.sender?.user, messages: [msg] };
+        currentGroup = { senderId, sender: msg.sender, messages: [msg] };
         groups.push(currentGroup);
       } else {
         currentGroup.messages.push(msg);
@@ -162,13 +220,26 @@ export default function Chat() {
       context_type: "Room",
       content: newMessage,
       message_type: "text",
+      reply_to: replyingTo?._id || null,
     };
-
-    console.log("📤 Sending message:", messageToSend);
 
     socketRef.current?.emit("send_message", messageToSend);
     setNewMessage("");
+    setReplyingTo(null);
+
   };
+
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // console.log("📤 Sending message:", messageToSend);
+
+
 
   // Render
   if (loading) {
@@ -249,6 +320,8 @@ export default function Chat() {
                   sender={group.sender}
                   messages={group.messages}
                   fromCurrentUser={fromCurrentUser}
+                  onReply={handleReply}
+                  onOpenThread={openThread}
                 />
               );
 
@@ -261,6 +334,25 @@ export default function Chat() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Reply Preview */}
+      {replyingTo && (
+        <MessageReply
+          replyingTo={replyingTo}
+          onCancel={handleCancelReply}>
+        </MessageReply>
+      )}
+
+      {/* Thread Modal */}
+      {threadOpen && (
+        <MessageThread
+          threadParent={threadParent}
+          threadLoading={threadLoading}
+          threadReplies={threadReplies}
+          closeThread={closeThread}
+        >
+        </MessageThread>
+      )}
 
       {/* Input */}
       <div className="py-3 px-2 border-t bg-white flex items-end gap-2 shrink-0">
@@ -302,7 +394,7 @@ export default function Chat() {
         onOpenChange={setIsOptionsOpen}
         otherUser={otherUser}
         server={server}
-        user = {user}
+        user={user}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-const e = require('express');
 const mongoose = require('mongoose');
 const { Schema, models, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -8,10 +7,10 @@ const ObjectId = Schema.Types.ObjectId;
  * ---------------------------*/
 const fileSchema = new Schema(
     {
-        storage_key: { type: String, required: true, unique: true, trim: true },
-        original_name: { type: String, required: true, trim: true },
-        mime_type: { type: String, required: true, trim: true },
-        byte_size: { type: Number, required: true, min: 0 },
+        storage_key: { type: String, default: null, unique: true, trim: true },
+        original_name: { type: String, default: null, trim: true },
+        mime_type: { type: String, default: null, trim: true },
+        byte_size: { type: Number, default: 0, min: 0 },
         is_external: {
             type: Boolean,
             default: false,
@@ -110,7 +109,7 @@ roomSchema.index({ server: 1, title: 1 }, { unique: true });
  * ---------------------------*/
 const messageSchema = new Schema(
     {
-        sender: { type: ObjectId, ref: 'Member', required: true },
+        sender: { type: ObjectId, ref: 'User', required: true },
         recipients: [{ type: ObjectId, ref: 'Member' }],
         context: {
             type: ObjectId,
@@ -209,8 +208,8 @@ const timeSlotSchema = new Schema(
         title: { type: String, required: true, trim: true, maxlength: 120 },
         description: { type: String, default: null, trim: true },
         day: { type: String, enum: DAY_ENUM, required: true, index: true },
-        start_min: { type: Number, required: true, min: 0, max: 1439 },
-        end_min: { type: Number, required: true, min: 1, max: 1440 },
+        start_min: { type: Number, required: true, min: 0, max: 1440 },
+        end_min: { type: Number, required: true, min: 0, max: 1440 },
         location: { type: String, default: null, trim: true },
         color: { type: String, default: null },
         owner: { type: ObjectId, ref: 'User', required: true }

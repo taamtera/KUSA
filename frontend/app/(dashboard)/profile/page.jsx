@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
-import TimeTable from "./timetable";
+import TimeTable from "../../../components/timetable/timetable";
 import pbanner from "@/components/img/pbanner.jpg";
 import InfoCard from "./infoCard";
 import { useUser } from "@/context/UserContext";
@@ -45,7 +45,7 @@ export default function ProfilePage() {
           
         </div>
       </div>
-      <div className="max-h-[80vh] min-w-[640px] max-w-[80vp]">
+      <div className="max-h-[80vh] max-w-[90vw]">
         {/* Profile Info Section */}
         <InfoCard user={user} />
         {/* TimeTable Session */}
