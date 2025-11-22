@@ -10,16 +10,16 @@ import { useState } from "react"
 
 export function ServerCard({ server }) {
     return (
-        <Collapsible key={server._id} className="group/collapsible">
+        <Collapsible key={server._id} className="group/collapsible ">
             <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
+                    <SidebarMenuButton className={"cursor-pointer"}>
                         <Avatar className="h-6 w-6">
                             <AvatarImage src={`data:${server.icon_file?.mime_type};base64,${server.icon_file?.base64}`} />
                             <AvatarFallback>{getAvatarFallback(server?.server_name)}</AvatarFallback>
                         </Avatar>
                         <span className="ml-2">{server.server_name}</span>
-                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180 " />
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>

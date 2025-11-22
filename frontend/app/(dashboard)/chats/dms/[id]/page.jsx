@@ -307,10 +307,10 @@ export default function Chat() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
+                    <Button className = "cursor-pointer" variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
                         <Search className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setIsOptionsOpen(true)}>
+                    <Button className={"cursor-pointer"} variant="ghost" size="icon" onClick={() => setIsOptionsOpen(true)}>
                         <Ellipsis className="h-5 w-5" />
                     </Button>
                 </div>
@@ -372,7 +372,7 @@ export default function Chat() {
 
             {/* Input */}
             <div className="py-3 px-2 border-t bg-white flex items-end gap-2 shrink-0">
-                <Button variant="outline" size="icon" className="shrink-0">
+                <Button variant="outline" size="icon" className="shrink-0 cursor-pointer">
                     <Paperclip className="h-4 w-4 text-gray-600" />
                 </Button>
                 <Textarea
