@@ -427,6 +427,7 @@ export default function test() {
         </div>
         <div className="text-center" style={{fontSize: 40}} >
                 <Latex>{`$$\\frac{1}{2} + \\sqrt{x} \\displaystyle\\int$$`}</Latex>
+                <Latex>$\int\dfrac{1}{1}$</Latex>
         </div>
         </div>
     );

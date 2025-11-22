@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect } from "react"
 import { ContextMenu } from "@/components/contextmenu"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 import { useUser } from "@/context/UserContext";
 
 const initialContextMenu = {
@@ -162,6 +164,50 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
         })
     }
 
+    function parseMessageWithLatex(text) {
+        const regex = /\$\$(.+?)\$\$|\$(.+?)\$/gs;
+        let lastIndex = 0;
+        const elements = [];
+        let match;
+        let key = 0;
+
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                const beforeText = text.slice(lastIndex, match.index);
+                elements.push(
+                    <span key={`text-${key++}`}>
+                        {highlightMentions(beforeText, currentUsername)}
+                    </span>
+                );
+            }
+
+            const isBlock = !!match[1];
+            const latexContent = (match[1] || match[2]).trim();
+
+            elements.push(
+                <span key={`latex-${key++}`} className={isBlock ? "block my-2" : "inline"}>
+                    <Latex displayMode={isBlock}>
+                        {isBlock ? `$$${latexContent}$$` : `$${latexContent}$`}
+                    </Latex>
+                </span>
+            );
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        if (lastIndex < text.length) {
+            const remainingText = text.slice(lastIndex);
+            elements.push(
+                <span key={`text-${key++}`}>
+                    {highlightMentions(remainingText, currentUsername)}
+                </span>
+            );
+        }
+
+        return elements;
+    }
+
+
     return (
         <div className="">
             {contextMenu.visible && <ContextMenu x={contextMenu.x} y={contextMenu.y} closeMenu={contextMenuClose} onReplyClick={handleReplyClick} onEditClick={handleEditClick} onUnsendClick={handleUnsend} currentUser={fromCurrentUser} content={editedContent || message.content} />}
@@ -190,9 +236,9 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                 <div
                     onContextMenu={handleContextMenu}
                     className={`inline-block w-fit px-4 py-2 rounded-2xl break-words
-                      ${isUnsent ? "bg-transparent border-1 border-gray-300 italic text-gray-500" : "bg-gray-300 text-gray-900"}
-                      ${isPending ? "opacity-60 animate-pulse" : ""}
-                      ${fromCurrentUser ? "self-end" : ""}`}
+                        ${isUnsent ? "bg-transparent border-1 border-gray-300 italic text-gray-500" : "bg-gray-300 text-gray-900"}
+                        ${isPending ? "opacity-60 animate-pulse" : ""}
+                        ${fromCurrentUser ? "self-end" : ""}`}
                     style={{
                         maxWidth: "min(80vw, 28rem)",
                         wordBreak: "break-word",
@@ -214,9 +260,9 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                     ) : isUnsent ? (
                         <p>This message was unsent.</p>
                     ) : (
-                        <div className="flex-col">
+                        <div className="flex-col" style={{ lineHeight: '1.4' }}>
                             {message.edited_count > 0 && (<div className="text-[12px] text-gray-500 text-right">edited<hr className="border-gray-400/50 mb-1" /></div>)}
-                            <p className="">{highlightMentions(message.content, currentUsername)}</p>
+                            <p className="leading-normal">{parseMessageWithLatex(message.content)}</p>
                         </div>
                     )}
                 </div>
