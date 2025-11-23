@@ -2296,11 +2296,13 @@ io.on("connection", (socket) => {
                 .lean();
 
             // =============== EMIT TO SENDER ==================
-            // io.to(from_id).emit("receive_message", populatedMessage);
+            io.to(from_id).emit("receive_message", populatedMessage);
 
             // =============== EMIT TO RECIPIENTS ==============
             recipientUserIds.forEach(uid => {
-                io.to(uid).emit("receive_message", populatedMessage);
+                if (uid !== from_id) {
+                    io.to(uid).emit("receive_message", populatedMessage);
+                }
             });
 
             // Mentions → create notifications
