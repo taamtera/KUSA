@@ -175,7 +175,7 @@ export default function Chat() {
         const fetchMessages = async () => {
             try {
                 setLoading(true)
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/rooms/${roomId}/messages?page=1&limit=50`, { credentials: "include" })
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/rooms/${roomId}/messages?page=1&limit=50&sort=asc`, { credentials: "include" })
                 const data = await response.json()
 
                 if (data.status === "success") {

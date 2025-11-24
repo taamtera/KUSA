@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, UserPlus, HandFist } from "lucide-react";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl, getAvatarFallback, formatTime } from "@/components/utils";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -23,7 +24,13 @@ export default function FriendProfile({ otherUserInfo, closeProfile, isFriend, h
     return (
         <div className="relative">
             {/* Banner + avatar + close button in a relative wrapper */}
-            <div className="relative p-1">
+            <div className="relative p-1 w-full aspect-[4/1]" >
+                {/* <Image
+                src={`data:${otherUserInfo.banner_file?.mime_type};base64,${otherUserInfo.banner_file?.base64}`}
+                fill
+                alt="./banner.png"
+                className="object-cover"
+                /> */}
                 <Image
                     src={pbanner}
                     alt="Profile Banner"
@@ -38,10 +45,9 @@ export default function FriendProfile({ otherUserInfo, closeProfile, isFriend, h
                         outline outline-4 outline-white
                     "
                 >
-                    <AvatarImage src={otherUserInfo?.icon_file?.storage_key} />
-                    <AvatarFallback>
-                        {otherUserInfo?.username?.[0]?.toUpperCase() || "U"}
-                    </AvatarFallback>
+                    {console.log("otherUserInfo icon file:", otherUserInfo)}
+                        <AvatarImage src={`data:${otherUserInfo?.icon_file?.mime_type};base64,${otherUserInfo?.icon_file?.base64}`} />
+                        <AvatarFallback>{getAvatarFallback(otherUserInfo?.display_name)}</AvatarFallback>
                 </Avatar>
 
                 <div className="absolute top-[104px] right-[16px]">

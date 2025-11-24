@@ -38,7 +38,7 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
   const [isPendingRequest, setIsPendingRequest] = useState(false);
 
   const handleAddFriend = async () => {
-    if (!otherUserInfo?.username) return;
+    if (!sender?.username) return;
     if (isPendingRequest || isFriend) return; // safety guard
 
     setLoading(true);
@@ -70,18 +70,19 @@ export default function MessageGroup({ sender, messages, fromCurrentUser, onRepl
       {/* Left side (other user) */}
       {!fromCurrentUser && (
         <div className="flex items-start space-x-2">
+
           <Popover open={profileOpen} onOpenChange={setProfileOpen}>
             <PopoverTrigger asChild>
               <Avatar className="w-10 h-10 shrink-0 cursor-pointer" onClick={handleProfileOpen}>
-                <AvatarImage src={senderAvatar} />
-                <AvatarFallback>{otherUserInfo?.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                        <AvatarImage src={`data:${sender?.icon_file?.mime_type};base64,${sender?.icon_file?.base64}`} />
+                        <AvatarFallback>{getAvatarFallback(sender?.display_name)}</AvatarFallback>
               </Avatar>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="relative z-50 w-[256px] max-w-[50vw] min-w-[320px] max-h-[80vh] rounded-[8px] outline-none bg-white transparent shadow-[0_0px_15px_-3px] shadow-gray-400">
               <FriendProfile
-                otherUserInfo={otherUserInfo}
+                otherUserInfo={sender}
                 closeProfile={closeProfile}
                 isFriend={isFriend}
                 loading={loading}
