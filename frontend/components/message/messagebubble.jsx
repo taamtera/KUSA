@@ -183,6 +183,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
 
             const isBlock = !!match[1];
             const latexContent = (match[1] || match[2]).trim();
+            console.log("Latex content:", latexContent);
 
             elements.push(
                 <span key={`latex-${key++}`} className={isBlock ? "block my-2" : "inline"}>
@@ -203,6 +204,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
                 </span>
             );
         }
+        console.log("Parsed elements:", elements);
 
         return elements;
     }

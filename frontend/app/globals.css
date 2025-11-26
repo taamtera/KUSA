@@ -223,5 +223,6 @@ body {
   /* Fix KaTeX MathML overflowing message container */
   .katex-mathml {
     position: static !important;
+    display: none !important;
   }
 }
