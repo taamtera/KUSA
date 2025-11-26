@@ -219,3 +219,12 @@ body {
 @utility animate-contentHide {
   animation: contentHide 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+@layer utilities {
+  /* Fix KaTeX MathML overflowing message container */
+  .chat-bubble .katex-mathml {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

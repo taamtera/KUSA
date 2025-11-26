@@ -185,7 +185,7 @@ export default function MessageBubble({ message, fromCurrentUser, onReply, onOpe
             const latexContent = (match[1] || match[2]).trim();
 
             elements.push(
-                <span key={`latex-${key++}`} className={isBlock ? "block my-2" : "inline"}>
+                <span key={`latex-${key++}`} className={`chat-bubble ${isBlock ? "block my-2" : "inline"}`}>
                     <Latex displayMode={isBlock}>
                         {isBlock ? `$$${latexContent}$$` : `$${latexContent}$`}
                     </Latex>
