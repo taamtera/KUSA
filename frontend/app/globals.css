@@ -221,10 +221,7 @@ body {
 }
 @layer utilities {
   /* Fix KaTeX MathML overflowing message container */
-  .chat-bubble .katex-mathml {
+  .katex-mathml {
     position: static !important;
-    width: auto !important;
-    height: auto !important;
-    overflow: visible !important;
   }
 }
