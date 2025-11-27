@@ -1338,7 +1338,7 @@ app.post('/api/v1/servers/:serverId/invite', auth, async (req, res) => {
             return res.status(403).json({ status: 'failed', message: 'You are not a member of this server' });
         }
         // For simplicity, the invite link is just the server ID.
-        const inviteLink = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/join/${serverId}`;
+        const inviteLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:3000'}/join/${serverId}`;
         res.json({ status: 'success', invite_link: inviteLink });
     } catch (error) {
         console.error('Error generating invite link:', error);
@@ -2015,7 +2015,7 @@ app.post('/api/v1/send-email/reset-password', async (req, res) => {
 
         await user.save();
 
-        const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
+        const resetURL = `${process.env.FRONTEND_ORIGIN}/reset-password/${resetToken}`;
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -2149,9 +2149,9 @@ app.post('/api/v1/send-email/reset-password', async (req, res) => {
                                             </p>
                                             <p style="margin:0;font-size:13px;color:#6b7280;">
                                                 We recommend that you manually change your password again at
-                                                <a href="http://localhost:3000/" target="_blank" rel="noopener"
+                                                <a href="${process.env.FRONTEND_ORIGIN || 'http://localhost:3000/'}" target="_blank" rel="noopener"
                                                     style="color:#2563eb;text-decoration:underline;">
-                                                    http://localhost:3000/
+                                                    ${process.env.FRONTEND_ORIGIN || 'http://localhost:3000/'}
                                                 </a>
                                             </p>
                                         </td>
